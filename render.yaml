@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: mlb-dfs
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: MLB_DFS_DRAFT_DIR
+        value: /data/drafts
+    disk:
+      name: drafts
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /api/health

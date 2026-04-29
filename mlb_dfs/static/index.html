@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MLB DFS — live snake draft</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>⚾ MLB DFS <span class="muted">snake draft, wired live</span></h1>
+    <nav>
+      <button data-tab="slate" class="active">Slate</button>
+      <button data-tab="project">Projections</button>
+      <button data-tab="draft">Draft</button>
+      <button data-tab="score">Live Score</button>
+    </nav>
+    <div class="date-row">
+      <label>Date <input id="date" type="date" /></label>
+      <button id="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="tab-slate" class="tab active">
+      <h2>Today's slate</h2>
+      <div id="slate-out" class="grid"></div>
+    </section>
+
+    <section id="tab-project" class="tab">
+      <h2>Smart projections</h2>
+      <p class="muted">Top picks ranked by projected fantasy points (rolling 14-day form + matchup adjustments).</p>
+      <div id="proj-out"></div>
+    </section>
+
+    <section id="tab-draft" class="tab">
+      <h2>Draft</h2>
+      <div id="draft-controls">
+        <input id="drafters" placeholder="Drafter names, comma-separated. Ex: Stock,JL,Meech" />
+        <button id="new-draft">Start new draft</button>
+        <select id="draft-id"></select>
+        <button id="load-draft">Load</button>
+        <button id="undo">Undo last pick</button>
+      </div>
+      <div id="draft-state"></div>
+      <h3>On the clock — recommended picks</h3>
+      <div id="recs-out"></div>
+    </section>
+
+    <section id="tab-score" class="tab">
+      <h2>Live scoring</h2>
+      <div id="score-controls">
+        <select id="score-draft-id"></select>
+        <button id="score-load">Score it</button>
+      </div>
+      <div id="score-out"></div>
+    </section>
+  </main>
+
+  <footer class="muted">
+    Data: MLB Stats API. Scoring: spreadsheet rules.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

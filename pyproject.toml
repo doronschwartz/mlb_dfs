@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlb_dfs"
+version = "0.1.0"
+description = "3-player snake-draft DFS game wired to the live MLB Stats API."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "click>=8.1",
+    "rich>=13.7",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+mlb-dfs = "mlb_dfs.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["mlb_dfs*"]
