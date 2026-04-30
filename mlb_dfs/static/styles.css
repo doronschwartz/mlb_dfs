@@ -117,9 +117,27 @@ tr.pitcher td:first-child { color: var(--warn); }
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
 }
 .roster.on-clock { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.roster h4 { margin: 0 0 8px; }
+.roster h4 { margin: 0 0 10px; font-size: 14px; }
 .roster .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
 .roster .row .slot { color: var(--muted); width: 36px; }
+
+.slot-grid { display: flex; flex-direction: column; gap: 3px; }
+.slot-cell {
+  display: grid; grid-template-columns: 44px 1fr 44px; gap: 8px;
+  align-items: center; padding: 5px 8px; border-radius: 4px;
+  font-size: 12px; line-height: 1.3;
+}
+.slot-cell .slot-label { color: var(--muted); font-weight: 600; font-size: 10px; letter-spacing: 0.05em; }
+.slot-cell .slot-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-cell .slot-proj { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; }
+.slot-cell.filled { background: #0d141c; }
+.slot-cell.filled.hitter .slot-name { color: var(--accent-2); }
+.slot-cell.filled.pitcher .slot-name { color: var(--warn); }
+.slot-cell.empty { border: 1px dashed var(--border); background: transparent; }
+.slot-cell.empty .slot-name { color: var(--muted); font-style: italic; }
+.slot-cell.empty.next { border-color: var(--accent); background: rgba(56,189,248,0.08); }
+.slot-cell.empty.next .slot-name { color: var(--accent); font-style: normal; }
+.slot-cell.empty.next .slot-name::before { content: "← next pick "; color: var(--accent); }
 .standings {
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
   padding: 12px; margin-bottom: 16px;

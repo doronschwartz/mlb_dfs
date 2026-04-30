@@ -11,6 +11,30 @@ const state = {
   slateGames: [],
 };
 
+// Fixed roster shape (matches mlb_dfs.draft.SLOTS).
+const SLOT_TEMPLATE = [
+  { key: "IF", label: "IF" },
+  { key: "IF", label: "IF" },
+  { key: "IF", label: "IF" },
+  { key: "OF", label: "OF" },
+  { key: "OF", label: "OF" },
+  { key: "OF", label: "OF" },
+  { key: "UTIL", label: "UTIL" },
+  { key: "BN", label: "BN" },
+  { key: "SP", label: "SP" },
+  { key: "SP", label: "SP" },
+];
+
+function buildRosterGrid(picks) {
+  const byType = { IF: [], OF: [], UTIL: [], BN: [], SP: [] };
+  picks.forEach((p) => byType[p.slot]?.push(p));
+  const cursor = { IF: 0, OF: 0, UTIL: 0, BN: 0, SP: 0 };
+  return SLOT_TEMPLATE.map(({ key, label }) => {
+    const pick = byType[key]?.[cursor[key]++] ?? null;
+    return { label, pick };
+  });
+}
+
 // ---------- tab switching ----------
 $$("nav button").forEach((b) => {
   b.addEventListener("click", () => {
@@ -206,16 +230,28 @@ async function renderDraft() {
   for (const d of data.drafters) {
     const onC = onClock && onClock[0] === d;
     const picks = data.rosters[d] || [];
+    const grid = buildRosterGrid(picks);
+    const total = picks.reduce((acc, p) => acc + (p.projected ?? 0), 0);
+    let nextHighlighted = false;
+    const cells = grid.map(({ label, pick }) => {
+      let slotHi = "";
+      if (!pick && onC && onClock[1] === label && !nextHighlighted) {
+        slotHi = "next";
+        nextHighlighted = true;
+      }
+      const cls = pick ? `filled ${pick.role}` : "empty";
+      return `<div class="slot-cell ${cls} ${slotHi}">
+        <div class="slot-label">${label}</div>
+        <div class="slot-name">${pick ? pick.name : "— empty —"}</div>
+        <div class="slot-proj">${pick ? pick.projected.toFixed(1) : ""}</div>
+      </div>`;
+    });
     html.push(
       `<div class="roster ${onC ? "on-clock" : ""}">
-        <h4>${d} ${onC ? `<span class="muted">← (${onClock[1]})</span>` : ""}</h4>
-        ${picks
-          .map(
-            (p) =>
-              `<div class="row"><span><span class="slot">${p.slot}</span> ${p.name}</span><span class="muted">${(p.projected ?? 0).toFixed(1)}</span></div>`,
-          )
-          .join("")}
-        <div class="muted" style="margin-top:6px;font-size:11px;">${picks.length}/10 picks</div>
+        <h4>${d} ${onC ? `<span class="muted">← on the clock (${onClock[1]})</span>` : ""}
+          <span class="muted" style="float:right;font-weight:400;">${picks.length}/10 · ${total.toFixed(1)} pts</span>
+        </h4>
+        <div class="slot-grid">${cells.join("")}</div>
       </div>`,
     );
   }
