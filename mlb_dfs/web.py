@@ -274,6 +274,8 @@ def score(draft_id: str):
                         "slot": p.slot,
                         "name": p.name,
                         "player_id": p.player_id,
+                        "pick_number": p.pick_number,
+                        "drafter": p.drafter,
                         "projected": p.projected_points,
                         "actual": (ps.points if ps else None),
                         "raw": (ps.raw if ps else None),

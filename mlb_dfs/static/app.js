@@ -282,6 +282,7 @@ async function renderDraft() {
         return `<div class="slot-cell empty">
           <div class="slot-label">${label}</div>
           <div class="slot-name">— open —</div>
+          <div class="slot-meta"></div>
           <div class="slot-proj"></div>
         </div>`;
       }
@@ -293,7 +294,8 @@ async function renderDraft() {
         : "";
       return `<div class="slot-cell ${cls}">
         <div class="slot-label">${label}</div>
-        <div class="slot-name">${pick.name} ${lineupBadge(pick.lineup_status)} ${replaceBtn}</div>
+        <div class="slot-name">${pick.name}</div>
+        <div class="slot-meta">${lineupBadge(pick.lineup_status)}${replaceBtn}</div>
         <div class="slot-proj">${pick.projected.toFixed(1)}</div>
       </div>`;
     });
@@ -413,7 +415,12 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
           body: JSON.stringify({ player_id: Number(b.dataset.pid) }),
         });
         close();
-        await renderDraft();
+        // Refresh whichever view we came from.
+        if (state.tab === "score") {
+          $("#score-load").click();
+        } else {
+          await renderDraft();
+        }
       } catch (e) {
         alert(e.message);
       }
@@ -603,6 +610,8 @@ $("#pool-filter").addEventListener("change", () => poolCache.pool.length && draw
 $("#score-load").addEventListener("click", async () => {
   const id = $("#score-draft-id").value;
   if (!id) return;
+  // Set this so the Replace modal (which lives on /pool) targets the right draft.
+  state.currentDraftId = id;
   $("#score-out").innerHTML = `<div class="muted">Pulling box scores…</div>`;
   const data = await api(`/api/drafts/${id}/score`);
   const standings = data.standings;
@@ -621,8 +630,20 @@ $("#score-load").addEventListener("click", async () => {
       const rows = s.picks
         .map(
           (p) => {
-            const cls = p.counted ? "counted" : "benched-out";
-            const tag = p.counted ? "" : `<span class="bench-tag">benched</span>`;
+            // "benched-out" only applies once a player actually has data
+            // for the day. Pre-game picks (actual === null) are starters
+            // who haven't played yet — render them normally.
+            const playedYet = p.actual !== null;
+            const showBenched = playedYet && !p.counted;
+            const cls = showBenched ? "benched-out" : "counted";
+            const tag = showBenched ? `<span class="bench-tag">benched</span>` : "";
+            const canReplace = state.identity && state.identity === p.drafter;
+            const replaceCell = canReplace
+              ? `<td><button class="replace-btn score-replace-btn"
+                    data-pick-num="${p.pick_number}"
+                    data-slot="${p.slot}"
+                    data-name="${escapeAttr(p.name)}">Replace</button></td>`
+              : `<td></td>`;
             return `
           <tr class="${cls}">
             <td>${p.slot}</td>
@@ -630,6 +651,7 @@ $("#score-load").addEventListener("click", async () => {
             <td>${p.projected.toFixed(1)}</td>
             <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
             <td class="muted">${p.game_state ?? ""}</td>
+            ${replaceCell}
           </tr>`;
           },
         )
@@ -638,13 +660,22 @@ $("#score-load").addEventListener("click", async () => {
         <div class="standings">
           <h4 style="margin:0 0 6px;">${s.drafter} — ${s.total.toFixed(2)}</h4>
           <table>
-            <thead><tr><th>Slot</th><th>Player</th><th>Proj</th><th>Actual</th><th>State</th></tr></thead>
+            <thead><tr><th>Slot</th><th>Player</th><th>Proj</th><th>Actual</th><th>State</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
     })
     .join("");
   $("#score-out").innerHTML = top + `<div class="score-grid">${cards}</div>`;
+  $$("#score-out .score-replace-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openReplaceModal({
+        pickNumber: Number(btn.dataset.pickNum),
+        slot: btn.dataset.slot,
+        oldName: btn.dataset.name,
+      });
+    });
+  });
 });
 
 // ---------- bootstrap + polling ----------
