@@ -21,6 +21,7 @@ from pydantic import BaseModel
 BUILD_VERSION = str(int(time.time()))
 
 from . import draft as draft_mod
+from . import historic
 from . import live as live_mod
 from . import mlb_api, projections
 
