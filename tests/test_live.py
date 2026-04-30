@@ -217,6 +217,32 @@ def test_ool_promotion_into_util_when_starter_position_blocked():
     assert ool_util.counted_in_total is False
 
 
+def test_bench_promotes_when_starter_negative_even_if_bench_pregame():
+    """Mid-day: starter went -1 in his game, bench hasn't started yet (0).
+    Bench should be the 'best of' the two and take the slot."""
+    starter = PlayerScore(
+        player_id=2, name="Bad Starter", role="hitter",
+        points=-1.0, played=True, lineup_status="in",
+    )
+    bench_pick, bench_ps = _bn("1B", 0.0, lineup_status="in")
+    bench_ps.played = False  # pre-game
+    pairs = [
+        (_pick("IF"), starter),
+        (_pick("IF"), _score(2.0)),
+        (_pick("IF"), _score(3.0)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("UTIL"), _score(0.0, played=False)),
+        (bench_pick, bench_ps),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+    ]
+    compute_totals(pairs)
+    assert bench_ps.counted_in_total is True
+    assert starter.counted_in_total is False
+
+
 def test_doubleheader_hitter_sums_points_across_both_games():
     """A hitter who plays both games of a doubleheader gets points for each.
     Game 1: 1 single (3 pts). Game 2: 1 HR + 1 RBI (10 + 2 = 12 pts). Total 15.

@@ -116,16 +116,17 @@ def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore"]]) -> tuple
         bn_ps.counted_in_total = True
         bn_ps.promoted_from_bench = True
 
-    # ---- Phase 2: score-based swap (post-game) ---------------------------
+    # ---- Phase 2: score-based swap (live, "best of" rule) ---------------
+    # At any point in time the higher-scoring of (bench, eligible starter)
+    # is the one that counts. Pre-game players score 0; that's a valid
+    # comparison input — if a starter has gone negative and the bench
+    # hasn't played yet, the bench's 0 wins.
     for bn_pick, bn_ps in bench:
         if bn_ps.counted_in_total:
             continue  # already promoted in phase 1
-        if not bn_ps.played:
-            continue  # bench hasn't played yet, can't compare scores
         eligible = [
             (sp_pick, sp_ps) for sp_pick, sp_ps in starters
             if sp_ps.counted_in_total
-            and sp_ps.played
             and _slot_eligible(sp_pick.slot, bn_pick)
         ]
         if not eligible:
