@@ -266,6 +266,43 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .team-counts .team.low { color: var(--accent-2); }
 .team-counts .team.high { color: var(--warn); }
 
+.score-row .player-cell { position: relative; }
+.breakdown-tooltip {
+  display: none; position: absolute; z-index: 50;
+  top: calc(100% + 4px); left: 0;
+  background: var(--bg); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 8px 10px;
+  min-width: 240px; max-width: 320px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; line-height: 1.45;
+}
+.score-row:hover .breakdown-tooltip { display: block; }
+.breakdown-tooltip .bk-title {
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 6px;
+}
+.breakdown-tooltip .bk-line {
+  display: grid;
+  grid-template-columns: 76px 28px 14px 44px 14px 50px;
+  gap: 4px; padding: 1px 0;
+}
+.breakdown-tooltip .bk-label { color: var(--muted); }
+.breakdown-tooltip .bk-count, .breakdown-tooltip .bk-each { text-align: right; color: var(--text); }
+.breakdown-tooltip .bk-total { text-align: right; font-weight: 600; }
+.breakdown-tooltip .bk-total.pos { color: var(--accent-2); }
+.breakdown-tooltip .bk-total.neg { color: var(--bad); }
+.breakdown-tooltip .bk-x, .breakdown-tooltip .bk-eq { color: var(--muted); text-align: center; }
+.breakdown-tooltip .bk-grand {
+  display: flex; justify-content: space-between;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 12px; font-weight: 700; color: var(--accent);
+}
+.breakdown-tooltip .bk-empty { color: var(--muted); font-style: italic; }
+
 .btn-pick { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
 .btn-pick:hover { filter: brightness(1.1); }
 .btn-danger { background: var(--bad); color: #fff; border-color: var(--bad); }

@@ -37,6 +37,35 @@ const SLOT_TEMPLATE = [
   { key: "SP", label: "SP" },
 ];
 
+function renderBreakdownTooltip(p) {
+  if (!p.played) {
+    return `<div class="breakdown-tooltip"><div class="bk-empty">No game data yet (${p.game_state || "Pre-Game"})</div></div>`;
+  }
+  if (!p.breakdown || !p.breakdown.length) {
+    return `<div class="breakdown-tooltip"><div class="bk-empty">0.0 — no scoring events</div></div>`;
+  }
+  const fmt = (n) => (n > 0 ? "+" : "") + n.toFixed(1);
+  const lines = p.breakdown
+    .map(
+      (b) =>
+        `<div class="bk-line">
+          <span class="bk-label">${b.label}</span>
+          <span class="bk-count">${b.count}</span>
+          <span class="bk-x">×</span>
+          <span class="bk-each">${fmt(b.points_each)}</span>
+          <span class="bk-eq">=</span>
+          <span class="bk-total ${b.total < 0 ? "neg" : "pos"}">${fmt(b.total)}</span>
+        </div>`,
+    )
+    .join("");
+  const total = p.actual !== null ? p.actual : 0;
+  return `<div class="breakdown-tooltip">
+    <div class="bk-title">${p.name} — score breakdown</div>
+    <div class="bk-rows">${lines}</div>
+    <div class="bk-grand"><span>Total</span><span>${fmt(total)}</span></div>
+  </div>`;
+}
+
 function lineupBadge(status) {
   if (!status || status === "pending") return `<span class="lineup-tag pending">TBD</span>`;
   if (status === "in") return `<span class="lineup-tag in">in</span>`;
@@ -801,10 +830,11 @@ $("#score-load").addEventListener("click", async () => {
                     data-slot="${p.slot}"
                     data-name="${escapeAttr(p.name)}">Replace</button></td>`
               : `<td></td>`;
+            const tooltip = renderBreakdownTooltip(p);
             return `
-          <tr class="${cls}">
+          <tr class="${cls} score-row">
             <td>${p.slot}</td>
-            <td>${p.name} ${lineupTag} ${tag} ${promoted}</td>
+            <td class="player-cell">${p.name} ${lineupTag} ${tag} ${promoted}${tooltip}</td>
             <td>${p.projected.toFixed(1)}</td>
             <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
             <td class="muted">${p.game_state ?? ""}</td>

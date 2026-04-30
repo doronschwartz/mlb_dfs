@@ -446,6 +446,7 @@ def score(draft_id: str):
                         "played": (ps.played if ps else False),
                         "lineup_status": (ps.lineup_status if ps else "pending"),
                         "promoted": (ps.promoted_from_bench if ps else False),
+                        "breakdown": (ps.breakdown if ps else []),
                     }
                     for p, ps in s.picks
                 ],

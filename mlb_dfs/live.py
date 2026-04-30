@@ -7,7 +7,7 @@ from datetime import date as Date
 
 from . import mlb_api
 from .draft import Draft, Pick, _slot_eligible
-from .scoring import HitterLine, PitcherLine
+from .scoring import HitterLine, PitcherLine, HITTER_POINTS, PITCHER_POINTS
 
 
 HITTER_STARTING_SLOTS = ("IF", "OF", "UTIL")
@@ -40,6 +40,9 @@ class PlayerScore:
     # True if this BN player got promoted into a starting slot because the
     # starter was OOL (out of lineup). Surfaces a "PROMOTED" tag in the UI.
     promoted_from_bench: bool = False
+    # Per-stat breakdown of how this player's score was assembled, for UI
+    # tooltips. Each entry: {label, count, points_each, total}.
+    breakdown: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -176,6 +179,64 @@ def score_draft(draft: Draft, *, on_date: Date | None = None) -> list[DrafterSco
     return ranked
 
 
+_HITTER_BREAKDOWN_PAIRS = (
+    ("1B", "single"), ("2B", "double"), ("3B", "triple"), ("HR", "homeRun"),
+    ("R", "run"), ("RBI", "rbi"), ("BB", "baseOnBalls"), ("HBP", "hitByPitch"),
+    ("SB", "stolenBase"), ("GIDP", "groundIntoDoublePlay"), ("K", "strikeOut"),
+)
+_PITCHER_BREAKDOWN_PAIRS = (
+    ("Outs", "out", "outs"),
+    ("K", "strikeOut", "K"),
+    ("ER", "earnedRun", "ER"),
+    ("H allowed", "hitAllowed", "H"),
+    ("BB issued", "walkIssued", "BB"),
+    ("HBP", "hitBatsman", "HBP"),
+)
+_PITCHER_BONUS_PAIRS = (
+    ("QS bonus", "qualityStart", "QS"),
+    ("CG bonus", "completeGame", "CG"),
+    ("SHO bonus", "shutout", "SHO"),
+    ("NH bonus", "noHitter", "NH"),
+)
+
+
+def _hitter_breakdown(raw: dict) -> list[dict]:
+    out = []
+    for label, key in _HITTER_BREAKDOWN_PAIRS:
+        n = int(raw.get(label, 0) or 0)
+        if not n:
+            continue
+        out.append({
+            "label": label, "count": n,
+            "points_each": HITTER_POINTS[key],
+            "total": round(n * HITTER_POINTS[key], 2),
+        })
+    return out
+
+
+def _pitcher_breakdown(raw: dict) -> list[dict]:
+    out = []
+    for label, points_key, raw_key in _PITCHER_BREAKDOWN_PAIRS:
+        n = int(raw.get(raw_key, 0) or 0)
+        if not n:
+            continue
+        out.append({
+            "label": label, "count": n,
+            "points_each": PITCHER_POINTS[points_key],
+            "total": round(n * PITCHER_POINTS[points_key], 2),
+        })
+    for label, points_key, raw_key in _PITCHER_BONUS_PAIRS:
+        n = int(raw.get(raw_key, 0) or 0)
+        if not n:
+            continue
+        out.append({
+            "label": label, "count": n,
+            "points_each": PITCHER_POINTS[points_key],
+            "total": round(n * PITCHER_POINTS[points_key], 2),
+        })
+    return out
+
+
 def _index_boxscores(d: Date, *, game_pks: set[int] | None = None) -> dict[int, list[dict]]:
     """Returns {player_id: [game_line, ...]}.
 
@@ -259,6 +320,10 @@ def _score_player(pick: Pick, lines: list[dict]) -> PlayerScore:
         raw_totals["games"] = len(lines)
         last_state = f"{last_state} (DH x{len(lines)})"
 
+    breakdown = (
+        _pitcher_breakdown(raw_totals) if role == "pitcher"
+        else _hitter_breakdown(raw_totals)
+    )
     return PlayerScore(
         player_id=pick.player_id,
         name=pick.name,
@@ -266,4 +331,5 @@ def _score_player(pick: Pick, lines: list[dict]) -> PlayerScore:
         points=round(total_pts, 2),
         raw=raw_totals,
         game_state=last_state,
+        breakdown=breakdown,
     )
