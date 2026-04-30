@@ -465,14 +465,18 @@ $("#score-load").addEventListener("click", async () => {
     .map((s) => {
       const rows = s.picks
         .map(
-          (p) => `
-          <tr>
+          (p) => {
+            const cls = p.counted ? "counted" : "benched-out";
+            const tag = p.counted ? "" : `<span class="bench-tag">benched</span>`;
+            return `
+          <tr class="${cls}">
             <td>${p.slot}</td>
-            <td>${p.name}</td>
+            <td>${p.name} ${tag}</td>
             <td>${p.projected.toFixed(1)}</td>
             <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
             <td class="muted">${p.game_state ?? ""}</td>
-          </tr>`,
+          </tr>`;
+          },
         )
         .join("");
       return `

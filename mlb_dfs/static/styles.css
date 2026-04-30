@@ -144,6 +144,13 @@ tr.pitcher td:first-child { color: var(--warn); }
 .standings .row { display: flex; justify-content: space-between; padding: 4px 0; }
 .standings .row .total { font-variant-numeric: tabular-nums; font-weight: 600; }
 .score-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+tr.benched-out { opacity: 0.5; }
+tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration: line-through; }
+.bench-tag {
+  display: inline-block; background: var(--border); color: var(--muted);
+  border-radius: 8px; padding: 0 6px; font-size: 10px; margin-left: 4px;
+  text-decoration: none; vertical-align: middle;
+}
 
 footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 

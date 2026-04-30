@@ -230,6 +230,7 @@ def score(draft_id: str):
                         "actual": (ps.points if ps else None),
                         "raw": (ps.raw if ps else None),
                         "game_state": (ps.game_state if ps else None),
+                        "counted": (ps.counted_in_total if ps else False),
                     }
                     for p, ps in s.picks
                 ],

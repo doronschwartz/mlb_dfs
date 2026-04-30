@@ -10,6 +10,9 @@ from .draft import Draft, Pick
 from .scoring import HitterLine, PitcherLine
 
 
+HITTER_STARTING_SLOTS = ("IF", "OF", "UTIL")
+
+
 @dataclass
 class PlayerScore:
     player_id: int
@@ -18,37 +21,74 @@ class PlayerScore:
     points: float
     raw: dict = field(default_factory=dict)
     game_state: str = ""
+    # True if this player's points were counted toward the drafter's Total.
+    # For hitters/BN: top-N by score (where N = # starting hitter slots).
+    # For SP: always True (bench can't replace pitching).
+    counted_in_total: bool = False
 
 
 @dataclass
 class DrafterScore:
     drafter: str
     total: float
-    full_total: float  # includes BN
+    full_total: float  # raw sum of every drafted player's score
     rank: int = 0
     picks: list[tuple[Pick, PlayerScore | None]] = field(default_factory=list)
+
+
+def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore | None"]]) -> tuple[float, float]:
+    """Returns (total, full_total) and mutates each PlayerScore.counted_in_total.
+
+    Total: top-N hitter scores from the (IF + OF + UTIL + BN) pool, where N is
+    the number of starting hitter slots, plus all SP scores. The bench replaces
+    a starting hitter only if it scores higher; SPs are never affected.
+
+    Full total: every drafted player's score, including the bench whether or
+    not it counted toward Total.
+    """
+    n_starters = sum(1 for p, _ in picks_with_scores if p.slot in HITTER_STARTING_SLOTS)
+
+    hitter_pool: list[tuple[float, PlayerScore | None]] = []
+    sp_total = 0.0
+    full_total = 0.0
+
+    for pick, ps in picks_with_scores:
+        pts = ps.points if ps else 0.0
+        full_total += pts
+        if pick.slot in HITTER_STARTING_SLOTS or pick.slot == "BN":
+            hitter_pool.append((pts, ps))
+        elif pick.slot == "SP":
+            sp_total += pts
+            if ps is not None:
+                ps.counted_in_total = True
+
+    # Mark the top-N hitter scores as counted (ties broken arbitrarily).
+    hitter_pool.sort(key=lambda t: t[0], reverse=True)
+    counted_hitter_total = 0.0
+    for i, (pts, ps) in enumerate(hitter_pool):
+        if i < n_starters:
+            counted_hitter_total += pts
+            if ps is not None:
+                ps.counted_in_total = True
+
+    return counted_hitter_total + sp_total, full_total
 
 
 def score_draft(draft: Draft, *, on_date: Date | None = None) -> list[DrafterScore]:
     on_date = on_date or Date.fromisoformat(draft.date)
     box_index = _index_boxscores(on_date)
 
-    drafter_scores: dict[str, DrafterScore] = {
-        d: DrafterScore(drafter=d, total=0.0, full_total=0.0) for d in draft.drafters
-    }
-
-    for pick in draft.picks:
-        line = box_index.get(pick.player_id)
-        ps: PlayerScore | None = None
-        if line is not None:
-            ps = _score_player(pick, line)
-
-        ds = drafter_scores[pick.drafter]
-        ds.picks.append((pick, ps))
-        if ps is not None:
-            ds.full_total += ps.points
-            if pick.slot != "BN":
-                ds.total += ps.points
+    drafter_scores: dict[str, DrafterScore] = {}
+    for d in draft.drafters:
+        picks_with_scores: list[tuple[Pick, PlayerScore | None]] = []
+        for pick in (p for p in draft.picks if p.drafter == d):
+            line = box_index.get(pick.player_id)
+            ps = _score_player(pick, line) if line is not None else None
+            picks_with_scores.append((pick, ps))
+        total, full_total = compute_totals(picks_with_scores)
+        drafter_scores[d] = DrafterScore(
+            drafter=d, total=total, full_total=full_total, picks=picks_with_scores,
+        )
 
     ranked = sorted(drafter_scores.values(), key=lambda d: d.total, reverse=True)
     for i, d in enumerate(ranked, start=1):
