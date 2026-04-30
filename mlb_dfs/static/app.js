@@ -211,9 +211,9 @@ async function renderDraft() {
     return;
   }
   const data = await api(`/api/drafts/${state.currentDraftId}`);
-  const onClock = data.on_the_clock; // [drafter, slot] | null
+  const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
   const html = [];
-  html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b> (${onClock?.[1] ?? "-"})`}</div>`);
+  html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b>`}</div>`);
 
   // Selected games badges
   if (data.selected_games && data.selected_games.length) {
@@ -232,23 +232,17 @@ async function renderDraft() {
     const picks = data.rosters[d] || [];
     const grid = buildRosterGrid(picks);
     const total = picks.reduce((acc, p) => acc + (p.projected ?? 0), 0);
-    let nextHighlighted = false;
     const cells = grid.map(({ label, pick }) => {
-      let slotHi = "";
-      if (!pick && onC && onClock[1] === label && !nextHighlighted) {
-        slotHi = "next";
-        nextHighlighted = true;
-      }
       const cls = pick ? `filled ${pick.role}` : "empty";
-      return `<div class="slot-cell ${cls} ${slotHi}">
+      return `<div class="slot-cell ${cls}">
         <div class="slot-label">${label}</div>
-        <div class="slot-name">${pick ? pick.name : "— empty —"}</div>
+        <div class="slot-name">${pick ? pick.name : "— open —"}</div>
         <div class="slot-proj">${pick ? pick.projected.toFixed(1) : ""}</div>
       </div>`;
     });
     html.push(
       `<div class="roster ${onC ? "on-clock" : ""}">
-        <h4>${d} ${onC ? `<span class="muted">← on the clock (${onClock[1]})</span>` : ""}
+        <h4>${d} ${onC ? `<span class="muted">← on the clock</span>` : ""}
           <span class="muted" style="float:right;font-weight:400;">${picks.length}/10 · ${total.toFixed(1)} pts</span>
         </h4>
         <div class="slot-grid">${cells.join("")}</div>
@@ -305,23 +299,34 @@ async function renderRecs() {
     const data = await api(`/api/drafts/${state.currentDraftId}/recommend?top_n=10`);
     const rows = data.recommendations
       .map(
-        (r) => `
-        <tr class="${r.role}">
-          <td>${r.score.toFixed(2)}</td>
-          <td>${r.projected_points.toFixed(2)}</td>
-          <td>${r.name}</td>
-          <td>${r.position ?? "-"}</td>
-          <td>${r.recommend_slot}</td>
-          <td><button class="btn-pick" data-pid="${r.player_id}" data-slot="${r.recommend_slot}">Pick</button></td>
-        </tr>`,
+        (r) => {
+          const slots = r.eligible_slots && r.eligible_slots.length
+            ? r.eligible_slots
+            : [r.recommend_slot];
+          const pills = slots
+            .map((s) => {
+              const recommended = s === r.recommend_slot ? "recommended" : "";
+              return `<span class="slot-pill ${recommended}" data-pid="${r.player_id}" data-slot="${s}">${s}</span>`;
+            })
+            .join("");
+          return `
+          <tr class="${r.role}">
+            <td>${r.score.toFixed(2)}</td>
+            <td>${r.projected_points.toFixed(2)}</td>
+            <td>${r.name}</td>
+            <td>${r.position ?? "-"}</td>
+            <td>${pills}</td>
+          </tr>`;
+        },
       )
       .join("");
     $("#recs-out").innerHTML = `
       <table>
-        <thead><tr><th>Score</th><th>Proj</th><th>Player</th><th>Pos</th><th>Slot</th><th></th></tr></thead>
+        <thead><tr><th>Score</th><th>Proj</th><th>Player</th><th>Pos</th><th>Pick into…</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
-    $$("#recs-out .btn-pick").forEach((b) => {
+      </table>
+      <div class="muted" style="margin-top:6px;font-size:11px;">Click any slot to draft into it. The starred slot is the recommender's default — but pick whatever you want.</div>`;
+    $$("#recs-out .slot-pill").forEach((b) => {
       b.addEventListener("click", async () => {
         await api(`/api/drafts/${state.currentDraftId}/pick`, {
           method: "POST",

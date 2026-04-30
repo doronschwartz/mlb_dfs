@@ -112,6 +112,8 @@ tr.pitcher td:first-child { color: var(--warn); }
 }
 .slot-pill:hover { filter: brightness(1.1); }
 .slot-pill.disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+.slot-pill.recommended { box-shadow: 0 0 0 2px var(--accent-2); }
+.slot-pill.recommended::after { content: " ★"; }
 .rosters { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .roster {
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
@@ -135,9 +137,6 @@ tr.pitcher td:first-child { color: var(--warn); }
 .slot-cell.filled.pitcher .slot-name { color: var(--warn); }
 .slot-cell.empty { border: 1px dashed var(--border); background: transparent; }
 .slot-cell.empty .slot-name { color: var(--muted); font-style: italic; }
-.slot-cell.empty.next { border-color: var(--accent); background: rgba(56,189,248,0.08); }
-.slot-cell.empty.next .slot-name { color: var(--accent); font-style: normal; }
-.slot-cell.empty.next .slot-name::before { content: "← next pick "; color: var(--accent); }
 .standings {
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
   padding: 12px; margin-bottom: 16px;

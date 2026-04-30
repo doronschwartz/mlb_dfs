@@ -71,11 +71,17 @@ class Draft:
         info = self.on_the_clock()
         if info is None:
             raise RuntimeError("draft already complete")
-        drafter, expected_slot = info
+        drafter, _suggested_slot = info  # suggestion only — drafter picks any open slot
         if projection.player_id in self.picked_ids():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(slot, projection):
             raise ValueError(f"{projection.name} ({projection.position}) is not eligible for {slot}")
+
+        # Capacity check: drafter must have at least one remaining slot of this type.
+        taken_count = sum(1 for p in self.picks if p.drafter == drafter and p.slot == slot)
+        slot_cap = SLOTS.count(slot)
+        if taken_count >= slot_cap:
+            raise ValueError(f"{drafter} has no remaining {slot} slot(s)")
 
         pick = Pick(
             drafter=drafter,
@@ -145,7 +151,8 @@ class Draft:
                 "position": proj.position,
                 "role": proj.role,
                 "projected_points": proj.projected_points,
-                "recommend_slot": best_slot,
+                "recommend_slot": best_slot,        # default suggestion
+                "eligible_slots": eligible_slots,   # all open slots the drafter can use
                 "score": round(score, 2),
                 "notes": list(proj.notes),
             })
