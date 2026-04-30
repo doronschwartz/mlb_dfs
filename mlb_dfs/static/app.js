@@ -1093,6 +1093,31 @@ function initScheduleTab() {
   }
 }
 
+async function setDefaultScheduleRange() {
+  // Default start = day after the latest already-saved draft (so we don't
+  // propose dates that are already locked in). End = start + 6 days.
+  try {
+    const data = await api(`/api/drafts`);
+    const ids = data.drafts || [];
+    let latest = null;
+    for (const d of ids) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (latest === null || d > latest)) {
+        latest = d;
+      }
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const baseline = latest ? new Date(latest) : new Date(today);
+    const start = new Date(baseline);
+    start.setDate(start.getDate() + 1);
+    if (start < today) start.setTime(today.getTime());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    $("#sched-start").value = start.toISOString().slice(0, 10);
+    $("#sched-end").value = end.toISOString().slice(0, 10);
+  } catch {}
+}
+
 $("#sched-build").addEventListener("click", async () => {
   const start = $("#sched-start").value;
   const end = $("#sched-end").value;
