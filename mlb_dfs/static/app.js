@@ -770,9 +770,9 @@ $("#score-load").addEventListener("click", async () => {
     </div>`;
   const cards = standings
     .map((s) => {
-      // Sort picks by slot order (SP first, then IF, OF, UTIL, BN) instead
+      // Sort picks by slot order (hitters first, SP at the bottom) instead
       // of draft order, so each team card reads like a starting lineup.
-      const SLOT_DISPLAY_ORDER = { SP: 0, IF: 1, OF: 2, UTIL: 3, BN: 4 };
+      const SLOT_DISPLAY_ORDER = { IF: 0, OF: 1, UTIL: 2, BN: 3, SP: 4 };
       const rows = [...s.picks]
         .sort((a, b) => {
           const da = SLOT_DISPLAY_ORDER[a.slot] ?? 99;
