@@ -266,6 +266,10 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .team-counts .team.low { color: var(--accent-2); }
 .team-counts .team.high { color: var(--warn); }
 
+#tab-stats th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+#tab-stats td.rank-1 { color: var(--accent-2); font-weight: 700; }
+#tab-stats td.rank-3 { color: var(--bad); }
+
 .score-row .player-cell { position: relative; }
 .breakdown-tooltip {
   display: none; position: absolute; z-index: 50;

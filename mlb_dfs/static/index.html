@@ -15,6 +15,7 @@
       <button data-tab="draft">Draft</button>
       <button data-tab="score">Live Score</button>
       <button data-tab="schedule">Schedule</button>
+      <button data-tab="stats">Stats</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -88,6 +89,15 @@
         <span id="pool-count" class="muted"></span>
       </div>
       <div id="pool-out"></div>
+    </section>
+
+    <section id="tab-stats" class="tab">
+      <h2>Stats</h2>
+      <p class="muted" style="font-size:13px;">
+        Combines historic season data imported from the spreadsheet with
+        anything saved on the volume since.
+      </p>
+      <div id="stats-out"></div>
     </section>
 
     <section id="tab-schedule" class="tab">

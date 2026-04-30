@@ -973,6 +973,110 @@ async function refresh() {
     stopPolling();
   }
   if (state.tab === "schedule") initScheduleTab();
+  if (state.tab === "stats") loadStats();
+}
+
+// ---------- Stats tab ----------
+
+async function loadStats() {
+  $("#stats-out").innerHTML = `<div class="muted">Loading…</div>`;
+  try {
+    const [stand, players] = await Promise.all([
+      api(`/api/stats/standings`),
+      api(`/api/stats/players?top_n=80`),
+    ]);
+    renderStats(stand, players);
+  } catch (e) {
+    $("#stats-out").innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+}
+
+function renderStats(stand, players) {
+  const recHeader = `<tr><th>Drafter</th><th>1st</th><th>2nd</th><th>3rd</th><th>Days</th><th>Total Pts</th><th>Avg/d</th><th>Max</th><th>Min</th></tr>`;
+  const recRows = stand.records
+    .map(
+      (r) => `<tr>
+        <td><b>${r.drafter}</b></td>
+        <td>${r.first}</td>
+        <td>${r.second}</td>
+        <td>${r.third}</td>
+        <td>${r.days}</td>
+        <td>${r.total_points.toFixed(2)}</td>
+        <td>${r.avg_points.toFixed(2)}</td>
+        <td>${r.max_points.toFixed(2)}</td>
+        <td>${r.min_points.toFixed(2)}</td>
+      </tr>`,
+    )
+    .join("");
+  const recordsTbl = `
+    <h3>All-time records</h3>
+    <table>
+      <thead>${recHeader}</thead>
+      <tbody>${recRows}</tbody>
+    </table>`;
+
+  // Per-day table
+  const drafters = stand.records.map((r) => r.drafter);
+  const dayHeader = `<tr><th>Date</th>` +
+    drafters.map((d) => `<th colspan="2">${d}</th>`).join("") +
+    `</tr><tr><th></th>` +
+    drafters.map(() => `<th>Rank</th><th>Total</th>`).join("") +
+    `</tr>`;
+  const dayRows = stand.per_day
+    .slice()
+    .reverse()
+    .map((d) => {
+      const cells = drafters
+        .map((dr) => {
+          const s = d.standings.find((x) => x.drafter === dr);
+          if (!s) return `<td></td><td></td>`;
+          const rankClass = s.rank === 1 ? "rank-1" : s.rank === 3 ? "rank-3" : "";
+          return `<td class="${rankClass}">${s.rank}</td><td>${s.total.toFixed(2)}</td>`;
+        })
+        .join("");
+      const src = d.source === "historic" ? `<span class="muted">·</span>` : "";
+      return `<tr><td>${d.date} ${src}</td>${cells}</tr>`;
+    })
+    .join("");
+  const perDayTbl = `
+    <h3 style="margin-top:24px;">Per-day standings <span class="muted" style="font-weight:400;font-size:12px;">(· = imported from spreadsheet)</span></h3>
+    <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+      <table><thead>${dayHeader}</thead><tbody>${dayRows}</tbody></table>
+    </div>`;
+
+  function renderPlayerTbl(title, list) {
+    const cols = drafters;
+    const head = `<tr><th>${title}</th><th>Pos</th>` +
+      cols.map((d) => `<th>${d}</th>`).join("") +
+      `<th>Total</th><th>Avg</th>` +
+      cols.map((d) => `<th>${d} Avg</th>`).join("") +
+      `</tr>`;
+    const body = list
+      .map(
+        (p) => `<tr>
+          <td>${p.name}</td>
+          <td>${p.position ?? "-"}</td>
+          ${cols.map((d) => `<td>${p.picks_by_drafter[d] || 0}</td>`).join("")}
+          <td><b>${p.total_picks}</b></td>
+          <td>${p.avg_per_pick.toFixed(2)}</td>
+          ${cols.map((d) => {
+            const v = p.avg_per_drafter[d];
+            return `<td>${v == null ? "-" : v.toFixed(2)}</td>`;
+          }).join("")}
+        </tr>`,
+      )
+      .join("");
+    return `<h3 style="margin-top:24px;">${title} — top ${list.length} by pick volume</h3>
+      <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+        <table><thead>${head}</thead><tbody>${body}</tbody></table>
+      </div>`;
+  }
+
+  $("#stats-out").innerHTML =
+    recordsTbl +
+    perDayTbl +
+    renderPlayerTbl("Hitters", players.hitters) +
+    renderPlayerTbl("Pitchers", players.pitchers);
 }
 
 // ---------- Schedule tab ----------

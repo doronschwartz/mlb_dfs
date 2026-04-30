@@ -1,0 +1,4622 @@
+[
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Kyle Tucker",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Jarren Duran",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Byron Buxton",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Freddie Freeman",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Pete Alonso",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Bo Bichette",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Wyatt Langford",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Juan Soto",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Trea Turner",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Mookie Betts",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Corbin Carroll",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Manny Machado",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Elly De La Cruz",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Jackson Merrill",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Will Smith",
+    "score": 21.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Kyle Schwarber",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Roman Anthony",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Shohei Ohtani",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Corey Seager",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Riley Greene",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Bryce Harper",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Ketel Marte",
+    "score": -2.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Cal Raleigh",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Vinnie Pasquantino",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Addison Barger",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Chase DeLauter",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Jac Caglianone",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Junior Caminero",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Mike Yastrzemski",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Alec Burleson",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Shea Langeliers",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Jose Ramirez",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Michael Harris II",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Matt Olson",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "George Springer",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Bobby Witt Jr.",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "William Contreras",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Maikel Garcia",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Hunter Goodman",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Nick Kurtz",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Jakob Marsee",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Brent Rooker",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Giancarlo Stanton",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Isaac Paredes",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Vinnie Pasquantino",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Bobby Witt Jr.",
+    "score": -1.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Mike Trout",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Roman Anthony",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Manny Machado",
+    "score": -2.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Ian Happ",
+    "score": 16.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Wilyer Abreu",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Pete Crow-Armstrong",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Brandon Lowe",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Alex Bregman",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Aaron Judge",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Rafael Devers",
+    "score": 2.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Ramon Laureano",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Yordan Alvarez",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Michael Busch",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Ben Rice",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Jarren Duran",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Zach Neto",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Riley Greene",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Kevin McGonigle",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Bo Bichette",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Francisco Lindor",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Christian Yelich",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Brent Rooker",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Jose Ramirez",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Shea Langeliers",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Corbin Carroll",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Ketel Marte",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Kyle Tucker",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Chase DeLauter",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Mookie Betts",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Yandy Diaz",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Juan Soto",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "James Wood",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Alec Burleson",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Freddie Freeman",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Ronald Acuna Jr.",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "William Contreras",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Nick Kurtz",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Alex Bregman",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Jarren Duran",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Owen Caissie",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "TJ Rumfield",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Kazuma Okamoto",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Hunter Goodman",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Corey Seager",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Yordan Alvarez",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Taylor Ward",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Ian Happ",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Jose Altuve",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Matt Olson",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Pete Crow-Armstrong",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Shea Langeliers",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Wilyer Abreu",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Isaac Paredes",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Pete Alonso",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Mike Trout",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "George Springer",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Ben Rice",
+    "score": 26.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Jazz Chisholm Jr.",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Jo Adell",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Cal Raleigh",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Wyatt Langford",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Addison Barger",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Francisco Lindor",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Shohei Ohtani",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Miguel Vargas",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "CJ Abrams",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Cody Bellinger",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Andy Pages",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Eugenio Suarez",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Freddie Freeman",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Aaron Judge",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Mike Trout",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Giancarlo Stanton",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "George Springer",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Sal Stewart",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Corey Seager",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Junior Caminero",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Jeremy Pena",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Hunter Goodman",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Riley Greene",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Chase DeLauter",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Yordan Alvarez",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Konnor Griffin",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Jose Altuve",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Jackson Merrill",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Maikel Garcia",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Ian Happ",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Yandy Diaz",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Ryan O'Hearn",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Trea Turner",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Bryce Harper",
+    "score": 23.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Bobby Witt Jr.",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Carlos Correa",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Manny Machado",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Oneil Cruz",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Jose Ramirez",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Mickey Moniak",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Trea Turner",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Pete Alonso",
+    "score": 14.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Matt Wallner",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Junior Caminero",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Jazz Chisholm Jr.",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Wilyer Abreu",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Roman Anthony",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Willson Contreras",
+    "score": 27.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Aaron Judge",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Bryce Harper",
+    "score": 10.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Yandy Diaz",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Cody Bellinger",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Rafael Devers",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "James Wood",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Jordan Walker",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Taylor Ward",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Ben Rice",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Corbin Carroll",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "William Contreras",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Christian Yelich",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Matt Chapman",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Mike Trout",
+    "score": 36.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Aaron Judge",
+    "score": 29.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Ketel Marte",
+    "score": 27.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Jose Ramirez",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Cal Raleigh",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Shea Langeliers",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Cody Bellinger",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Nick Kurtz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Austin Riley",
+    "score": 10.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Jakob Marsee",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Jorge Soler",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Matt Olson",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Zach Neto",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Tyler Soderstrom",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Corbin Carroll",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Pete Alonso",
+    "score": 25.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Jordan Walker",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Julio Rodriguez",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Corey Seager",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Gunnar Henderson",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Yordan Alvarez",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Brandon Nimmo",
+    "score": -4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Brandon Lowe",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "William Contreras",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Kyle Tucker",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Yandy Diaz",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Bobby Witt Jr.",
+    "score": 0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Ryan O'Hearn",
+    "score": 0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "CJ Abrams",
+    "score": 24.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Brice Turang",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Nico Hoerner",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Bryan Reynolds",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Trea Turner",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Chandler Simpson",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Andy Pages",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Ian Happ",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Junior Caminero",
+    "score": 4.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "James Wood",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Freddie Freeman",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Bryce Harper",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Oneil Cruz",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Teoscar Hernandez",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Matt Olson",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Kyle Tucker",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Roman Anthony",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Freddie Freeman",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Trent Grisham",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Matt Wallner",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Chase DeLauter",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Austin Riley",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Mike Trout",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Aaron Judge",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Andy Pages",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Jordan Walker",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Ketel Marte",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Jose Ramirez",
+    "score": -0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Jakob Marsee",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Teoscar Hernandez",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Corbin Carroll",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Pete Alonso",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Will Smith",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Ben Rice",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Bobby Witt Jr.",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Kevin McGonigle",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Wyatt Langford",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Mickey Moniak",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Sal Stewart",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Riley Greene",
+    "score": 22.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Hunter Goodman",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Oneil Cruz",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "CJ Abrams",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Yordan Alvarez",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Brandon Lowe",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Ramon Laureano",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Jackson Merrill",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "NIck Kurtz",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Shea Langeliers",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "James Wood",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Cal Raleigh",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Tyler Soderstrom",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Randy Arozarena",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Isaac Paredes",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": -4.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Mickey Moniak",
+    "score": 23.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Kyle Stowers",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Hunter Goodman",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Mike Trout",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Alex Bregman",
+    "score": 3.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Nick Kurtz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Manny Machado",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Nico Hoerner",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Eugenio Suarez",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Brice Turang",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Kyle Tucker",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Jo Adell",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Ramon Laureano",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Ian Happ",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Andy Pages",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Will Smith",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Sal Stewart",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Jackson Merrill",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Shea Langeliers",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Riley Greene",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Roman Anthony",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Jose Ramirez",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Kevin McGonigle",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Wilyer Abreu",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Matt Olson",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Nick Kurtz",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Bobby Witt Jr.",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Austin Riley",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Jakob Marsee",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "JJ Wetherholt",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "James Wood",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Randy Arozarena",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Cal Raleigh",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Shea Langeliers",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "CJ Abrams",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Jordan Walker",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Kyle Stowers",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Yordan Alvarez",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Junior Caminero",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Alex Bregman",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Mike Trout",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Wyatt Langford",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Bo Bichette",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Jorge Soler",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Zach Neto",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Ramon Laureano",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Nico Hoerner",
+    "score": 21.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Ian Happ",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Corey Seager",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Hunter Goodman",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Jo Adell",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Jackson Merrill",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": 38.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Sal Stewart",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Bryce Harper",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 7.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Oneil Cruz",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Manny Machado",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Mickey Moniak",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Yandy Diaz",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Chase DeLauter",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Bobby Witt Jr.",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Jac Caglianone",
+    "score": 1.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Cody Bellinger",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Kyle Tucker",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 24.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Yordan Alvarez",
+    "score": 22.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Giancarlo Stanton",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Max Muncy",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Sal Stewart",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Will Smith",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Teoscar Hernandez",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Elly De La Cruz",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Corbin Carroll",
+    "score": 28.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Junior Caminero",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Aaron Judge",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Ketel Marte",
+    "score": 7.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Freddie Freeman",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Andy Pages",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Jose Ramirez",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Shohei Ohtani",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Ramon Laureano",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Manny Machado",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Drake Baldwin",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Ketel Marte",
+    "score": 6.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Kevin McGonigle",
+    "score": 4.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Kyle Schwarber",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "James Wood",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Oneil Cruz",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Miguel Vargas",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Colson Montgomery",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Daylen Lile",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Nico Hoerner",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Brice Turang",
+    "score": -2.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Mickey Moniak",
+    "score": 35.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Corey Seager",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Riley Greene",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Michael Harris II",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Matt Olson",
+    "score": 13.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Austin Riley",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Bryce Harper",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Corbin Carroll",
+    "score": -2.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Cal Raleigh",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Jordan Walker",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Kevin McGonigle",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Bo Bichette",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "William Contreras",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Trea Turner",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Juan Soto",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Randy Arozarena",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Matt Olson",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "JJ Wetherholt",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Mickey Moniak",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Ozzie Albies",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Julio Rodriguez",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Riley Greene",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Michael Harris II",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Sal Stewart",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Kyle Schwarber",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Ronald Acuna Jr.",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Drake Baldwin",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Ivan Herrera",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Bryan Reynolds",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Elly De La Cruz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Kyle Stowers",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Brice Turang",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Aaron Judge",
+    "score": 26.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Ben Rice",
+    "score": 16.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Freddie Freeman",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Ryan O'Hearn",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Yandy Diaz",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Brandon Lowe",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Kyle Stowers",
+    "score": -4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Manny Machado",
+    "score": 19.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Shohei Ohtani",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Andy Pages",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Ian Happ",
+    "score": 4.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Max Muncy",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Junior Caminero",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Michael Busch",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Moises Ballesteros",
+    "score": 20.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Seiya Suzuki",
+    "score": 18.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Kyle Tucker",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Jose Ramirez",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Nico Hoerner",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Jordan Walker",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Will Smith",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Corey Seager",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Bobby Witt Jr.",
+    "score": 21.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Juan Soto",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Pete Alonso",
+    "score": 16.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Isaac Paredes",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Ketel Marte",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Brent Rooker",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Corbin Carroll",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Bryce Harper",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Samuel Basallo",
+    "score": 10.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Kyle Schwarber",
+    "score": 6.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Ildemaro Vargas",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Yordan Alvarez",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Jorge Soler",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Munetaka Murakami",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Nick Kurtz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Brice Turang",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Gunnar Henderson",
+    "score": 14.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Mike Trout",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Shea Langeliers",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "CJ Abrams",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "James Wood",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Daylen Lile",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Jac Caglianone",
+    "score": -3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Willson Contreras",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 15.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Ben Rice",
+    "score": 9.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Fernando Tatis Jr.",
+    "score": 8.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Julio Rodriguez",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Junior Caminero",
+    "score": 1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Cody Bellinger",
+    "score": 0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Moises Ballesteros",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Pete Crow-Armstrong",
+    "score": 17.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Mike Trout",
+    "score": 11.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Michael Busch",
+    "score": 0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Corey Seager",
+    "score": -0.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Jazz Chisholm Jr.",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Josh Naylor",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Aaron Judge",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Manny Machado",
+    "score": -3.5,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Chase DeLauter",
+    "score": 12.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Jose Ramirez",
+    "score": 7.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Ian Happ",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Munetaka Murakami",
+    "score": 5.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Cal Raleigh",
+    "score": 3.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Roman Anthony",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Zach Neto",
+    "score": -2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Gunnar Henderson",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Vladimir Guerrero Jr.",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Ketel Marte",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Yordan Alvarez",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Jesus Sanchez",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Matt Wallner",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Luke Keaschall",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Maikel Garcia",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Elly De La Cruz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Sal Stewart",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Nick Kurtz",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Corbin Carroll",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Ronald Acuna Jr.",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Spencer Steer",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Shea Langeliers",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Adley Rutschman",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Matt Olson",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Bobby Witt Jr.",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Hunter Goodman",
+    "score": -1.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Byron Buxton",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Riley Greene",
+    "score": 2.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Carlos Cortes",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Kevin McGonigle",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Brice Turang",
+    "score": 0.0,
+    "role": "hitter"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Garrett Crochet",
+    "score": 26.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "JL",
+    "player_name": "Tarik Skubal",
+    "score": 24.7,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Cristopher Sanchez",
+    "score": 30.7,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Meech",
+    "player_name": "Paul Skenes",
+    "score": -11.2,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Trevor Rogers",
+    "score": 22.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-26",
+    "drafter": "Stock",
+    "player_name": "Yoshinobu Yamamoto",
+    "score": 19.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Grant Holmes",
+    "score": 7.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "JL",
+    "player_name": "Luis Morales",
+    "score": 3.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Dustin May",
+    "score": -5.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Meech",
+    "player_name": "Brandon Sproat",
+    "score": -8.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Seth Lugo",
+    "score": 19.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-29",
+    "drafter": "Stock",
+    "player_name": "Max Meyer",
+    "score": 8.55,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Kris Bubic",
+    "score": 19.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "JL",
+    "player_name": "Ryan Weathers",
+    "score": 14.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Edward Cabrera",
+    "score": 19.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Meech",
+    "player_name": "Ranger Suarez",
+    "score": 1.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Chase Burns",
+    "score": 19.35,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-30",
+    "drafter": "Stock",
+    "player_name": "Braxton Ashcraft",
+    "score": 13.2,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 23.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "JL",
+    "player_name": "Andrew Painter",
+    "score": 20.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Casey Mize",
+    "score": 25.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Meech",
+    "player_name": "Kodai Senga",
+    "score": 22.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Brandon Woodruff",
+    "score": 13.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-03-31",
+    "drafter": "Stock",
+    "player_name": "Shane McClanahan",
+    "score": 9.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Chris Sale",
+    "score": 19.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "JL",
+    "player_name": "Nathan Eovaldi",
+    "score": -2.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Kevin Gausman",
+    "score": 31.3,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Meech",
+    "player_name": "Trevor Rogers",
+    "score": 13.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Sandy Alcantara",
+    "score": 37.35,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-01",
+    "drafter": "Stock",
+    "player_name": "Garrett Crochet",
+    "score": 6.95,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Max Fried",
+    "score": 14.2,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "JL",
+    "player_name": "Luis Castillo",
+    "score": 3.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Chase Burns",
+    "score": 25.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Meech",
+    "player_name": "Logan Webb",
+    "score": 17.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Jack Leiter",
+    "score": 19.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-05",
+    "drafter": "Stock",
+    "player_name": "Kodai Senga",
+    "score": 15.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Tanner Bibee",
+    "score": 7.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "JL",
+    "player_name": "Bubba Chandler",
+    "score": 4.35,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Joe Ryan",
+    "score": 12.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Meech",
+    "player_name": "Andrew Painter",
+    "score": -3.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Michael Wacha",
+    "score": 18.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-06",
+    "drafter": "Stock",
+    "player_name": "Shane McClanahan",
+    "score": 7.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Taj Bradley",
+    "score": 14.35,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "JL",
+    "player_name": "Brayan Bello",
+    "score": 13.2,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Drew Rasmussen",
+    "score": 27.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Meech",
+    "player_name": "Brandon Woodruff",
+    "score": 22.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Cam Schlittler",
+    "score": 12.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-12",
+    "drafter": "Stock",
+    "player_name": "Zac Gallen",
+    "score": 2.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Nathan Eovaldi",
+    "score": 26.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "JL",
+    "player_name": "Grant Holmes",
+    "score": 4.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "George Kirby",
+    "score": 21.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Meech",
+    "player_name": "Eury Perez",
+    "score": 0.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Gavin Williams",
+    "score": 9.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-13",
+    "drafter": "Stock",
+    "player_name": "Matthew Liberatore",
+    "score": 0.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Cole Ragans",
+    "score": 16.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "JL",
+    "player_name": "Mitch Keller",
+    "score": -2.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Yoshinobu Yamamoto",
+    "score": 26.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Meech",
+    "player_name": "Framber Valdez",
+    "score": 16.25,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Jacob Misiorowski",
+    "score": 12.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-14",
+    "drafter": "Stock",
+    "player_name": "Kevin Gausman",
+    "score": 7.95,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 28.7,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "JL",
+    "player_name": "Kyle Bradish",
+    "score": 6.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Bryce Elder",
+    "score": 19.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Meech",
+    "player_name": "Slade Cecconi",
+    "score": 8.2,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Connelly Early",
+    "score": 20.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-15",
+    "drafter": "Stock",
+    "player_name": "Eduardo Rodriguez",
+    "score": 1.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Keider Montero",
+    "score": 10.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "JL",
+    "player_name": "Luis Castillo",
+    "score": 8.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Chase Burns",
+    "score": 21.7,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Meech",
+    "player_name": "Braxton Ashcraft",
+    "score": 14.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Landen Roupp",
+    "score": 23.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-16",
+    "drafter": "Stock",
+    "player_name": "Kris Bubic",
+    "score": -1.9,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Jacob Misiorowski",
+    "score": 17.95,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "JL",
+    "player_name": "Jeffrey Springs",
+    "score": 1.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Eury Perez",
+    "score": 25.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Meech",
+    "player_name": "Brady Singer",
+    "score": 9.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Bailey Ober",
+    "score": 29.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-19",
+    "drafter": "Stock",
+    "player_name": "Michael King",
+    "score": 16.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Seth Lugo",
+    "score": 27.25,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "JL",
+    "player_name": "Kyle Bradish",
+    "score": 12.7,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Jack Flaherty",
+    "score": 6.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Meech",
+    "player_name": "Emerson Hancock",
+    "score": 5.55,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Bryce Elder",
+    "score": 16.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-20",
+    "drafter": "Stock",
+    "player_name": "Spencer Arrighetti",
+    "score": 5.75,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Nolan McLean",
+    "score": 25.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "JL",
+    "player_name": "Jesus Luzardo",
+    "score": 7.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Randy Vasquez",
+    "score": 25.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Meech",
+    "player_name": "Chase Burns",
+    "score": 17.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Shota Imanaga",
+    "score": 16.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-21",
+    "drafter": "Stock",
+    "player_name": "Carmen Mlodzinski",
+    "score": 3.95,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Max Fried",
+    "score": 32.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "JL",
+    "player_name": "Shohei Ohtani",
+    "score": 25.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Nick Martinez",
+    "score": 25.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Meech",
+    "player_name": "Michael Wacha",
+    "score": 2.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Tyler Mahle",
+    "score": 24.25,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-22",
+    "drafter": "Stock",
+    "player_name": "Ranger Suarez",
+    "score": 4.3,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Edward Cabrera",
+    "score": 17.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "JL",
+    "player_name": "Tarik Skubal",
+    "score": 8.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Brandon Sproat",
+    "score": 8.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Meech",
+    "player_name": "Bubba Chandler",
+    "score": -3.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Jacob deGrom",
+    "score": 22.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-23",
+    "drafter": "Stock",
+    "player_name": "Cristopher Sanchez",
+    "score": -2.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Chris Sale",
+    "score": 28.6,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "JL",
+    "player_name": "Emerson Hancock",
+    "score": 13.5,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Kyle Harrison",
+    "score": 34.3,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Meech",
+    "player_name": "Landen Roupp",
+    "score": 21.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Nolan McLean",
+    "score": 15.55,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-26",
+    "drafter": "Stock",
+    "player_name": "Max Meyer",
+    "score": 15.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Ranger Suarez",
+    "score": 35.8,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "JL",
+    "player_name": "Yoshinobu Yamamoto",
+    "score": 5.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Dylan Cease",
+    "score": 5.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Meech",
+    "player_name": "Randy Vasquez",
+    "score": 3.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Max Fried",
+    "score": 21.4,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-27",
+    "drafter": "Stock",
+    "player_name": "Parker Messick",
+    "score": 21.25,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Clay Holmes",
+    "score": 24.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "JL",
+    "player_name": "Chad Patrick",
+    "score": 11.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Jesus Luzardo",
+    "score": 30.55,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Meech",
+    "player_name": "Kris Bubic",
+    "score": 13.45,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Jose Soriano",
+    "score": 8.85,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-28",
+    "drafter": "Stock",
+    "player_name": "Tyler Mahle",
+    "score": 0.35,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Drew Rasmussen",
+    "score": 12.05,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "JL",
+    "player_name": "Brayan Bello",
+    "score": -1.55,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "Gavin Williams",
+    "score": 31.15,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Meech",
+    "player_name": "George Kirby",
+    "score": 10.25,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Taj Bradley",
+    "score": 22.65,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-29",
+    "drafter": "Stock",
+    "player_name": "Elmer Rodriguez",
+    "score": 4.1,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Framber Valdez",
+    "score": 4.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "JL",
+    "player_name": "Bailey Ober",
+    "score": 0.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Michael Soroka",
+    "score": 0.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Meech",
+    "player_name": "Bryce Elder",
+    "score": 6.3,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Kevin Gausman",
+    "score": 0.0,
+    "role": "pitcher"
+  },
+  {
+    "date": "2026-04-30",
+    "drafter": "Stock",
+    "player_name": "Brandon Woodruff",
+    "score": 0.0,
+    "role": "pitcher"
+  }
+]

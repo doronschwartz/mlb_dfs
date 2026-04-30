@@ -285,5 +285,17 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opposing_sp_id=m.get("opp_sp"),
         ))
 
+    # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
+    # if they're also that day's probable SP. Label the pitcher row "(P)" so
+    # the UI can disambiguate the two rows.
+    by_id: dict[int, list] = {}
+    for p in projections:
+        by_id.setdefault(p.player_id, []).append(p)
+    for plist in by_id.values():
+        if len(plist) > 1:
+            for p in plist:
+                if p.role == "pitcher" and "(P)" not in p.name:
+                    p.name = f"{p.name} (P)"
+
     projections.sort(key=lambda p: p.projected_points, reverse=True)
     return projections

@@ -214,6 +214,10 @@ def schedule_builder(
 
     counts: Counter[str] = Counter()
     if seed_from_existing:
+        # Seed from the spreadsheet's historic team-appearance counts so the
+        # builder picks up where the season left off, not from zero.
+        for team, n in historic.team_counts().items():
+            counts[team] += int(n)
         for did in draft_mod.list_drafts():
             try:
                 dr = draft_mod.load_draft(did)
@@ -316,6 +320,168 @@ def apply_schedule(req: ApplyScheduleRequest):
         except Exception as ex:
             skipped.append({"date": entry["date"], "reason": str(ex)})
     return {"created": created, "skipped": skipped}
+
+
+@app.get("/api/stats/standings")
+def stats_standings():
+    """All-time standings + per-day breakdown.
+
+    Combines two sources:
+      1. Historic standings (data/historic/standings.json) — imported once
+         from the spreadsheet; covers the season prior to the live system.
+      2. Current saved drafts on the volume — scored live so today's totals
+         update as games progress.
+
+    Per-day rows are unioned by date; a date present in both prefers the
+    live computation (fresher).
+    """
+    drafts_data = []
+    seen_dates: set[str] = set()
+    for did in draft_mod.list_drafts():
+        try:
+            dr = draft_mod.load_draft(did)
+        except Exception:
+            continue
+        if not dr.picks:
+            continue
+        try:
+            standings = live_mod.score_draft(dr)
+        except Exception:
+            continue
+        drafts_data.append({
+            "date": dr.date,
+            "drafters": list(dr.drafters),
+            "is_complete": dr.is_complete(),
+            "source": "live",
+            "standings": [
+                {
+                    "drafter": s.drafter,
+                    "rank": s.rank,
+                    "total": round(s.total, 2),
+                    "full_total": round(s.full_total, 2),
+                }
+                for s in standings
+            ],
+        })
+        seen_dates.add(dr.date)
+
+    # Merge in historic days that aren't superseded by a live draft.
+    for entry in historic.standings():
+        if entry.get("date") in seen_dates:
+            continue
+        drafts_data.append({**entry, "source": "historic"})
+
+    # Aggregate per drafter.
+    by_drafter: dict[str, dict] = {}
+    for entry in drafts_data:
+        for s in entry["standings"]:
+            m = by_drafter.setdefault(s["drafter"], {
+                "drafter": s["drafter"], "rank_counts": {1: 0, 2: 0, 3: 0},
+                "total_points": 0.0, "days": 0,
+                "max_points": float("-inf"), "min_points": float("inf"),
+            })
+            m["rank_counts"][s["rank"]] = m["rank_counts"].get(s["rank"], 0) + 1
+            m["total_points"] += s["total"]
+            m["days"] += 1
+            m["max_points"] = max(m["max_points"], s["total"])
+            m["min_points"] = min(m["min_points"], s["total"])
+
+    records = []
+    for drafter, m in by_drafter.items():
+        days = m["days"] or 1
+        records.append({
+            "drafter": drafter,
+            "first": m["rank_counts"].get(1, 0),
+            "second": m["rank_counts"].get(2, 0),
+            "third": m["rank_counts"].get(3, 0),
+            "total_points": round(m["total_points"], 2),
+            "avg_points": round(m["total_points"] / days, 2),
+            "max_points": (round(m["max_points"], 2) if m["max_points"] != float("-inf") else 0.0),
+            "min_points": (round(m["min_points"], 2) if m["min_points"] != float("inf") else 0.0),
+            "days": m["days"],
+        })
+    records.sort(key=lambda r: (-r["first"], -r["total_points"]))
+
+    drafts_data.sort(key=lambda x: x["date"])
+    return {"records": records, "per_day": drafts_data}
+
+
+@app.get("/api/stats/players")
+def stats_players(top_n: int = 50):
+    """Player aggregate stats across all saved drafts AND historic picks:
+    pick counts per drafter, average points per pick (overall + per drafter).
+
+    Keyed by player name (historic data has no MLB player_id), so a player
+    drafted both in the historic CSV and in a current saved draft will be
+    correctly aggregated as long as the names match.
+    """
+    by_name: dict[str, dict] = {}
+    for did in draft_mod.list_drafts():
+        try:
+            dr = draft_mod.load_draft(did)
+        except Exception:
+            continue
+        if not dr.picks:
+            continue
+        try:
+            standings = live_mod.score_draft(dr)
+        except Exception:
+            continue
+        scored: dict[tuple[str, int], float] = {}
+        for s in standings:
+            for pick, ps in s.picks:
+                scored[(s.drafter, pick.player_id)] = ps.points if ps else 0.0
+        for p in dr.picks:
+            entry = by_name.setdefault(p.name, {
+                "name": p.name,
+                "role": p.role,
+                "position": p.position,
+                "picks_by_drafter": {},
+                "scores_by_drafter": {},
+                "all_scores": [],
+            })
+            entry["picks_by_drafter"][p.drafter] = entry["picks_by_drafter"].get(p.drafter, 0) + 1
+            sc = scored.get((p.drafter, p.player_id), 0.0)
+            entry["scores_by_drafter"].setdefault(p.drafter, []).append(sc)
+            entry["all_scores"].append(sc)
+
+    # Historic picks: each is one (date, drafter, player, score, role).
+    for h in historic.picks():
+        name = h.get("player_name") or "?"
+        entry = by_name.setdefault(name, {
+            "name": name,
+            "role": h.get("role", "hitter"),
+            "position": None,
+            "picks_by_drafter": {},
+            "scores_by_drafter": {},
+            "all_scores": [],
+        })
+        entry["picks_by_drafter"][h["drafter"]] = entry["picks_by_drafter"].get(h["drafter"], 0) + 1
+        entry["scores_by_drafter"].setdefault(h["drafter"], []).append(h["score"])
+        entry["all_scores"].append(h["score"])
+
+    out = []
+    for _, e in by_name.items():
+        n = len(e["all_scores"])
+        avg = sum(e["all_scores"]) / n if n else 0.0
+        avg_per_drafter = {
+            d: round(sum(s) / len(s), 2) if s else 0.0
+            for d, s in e["scores_by_drafter"].items()
+        }
+        out.append({
+            "name": e["name"],
+            "role": e["role"],
+            "position": e["position"],
+            "picks_by_drafter": e["picks_by_drafter"],
+            "avg_per_drafter": avg_per_drafter,
+            "total_picks": n,
+            "avg_per_pick": round(avg, 2),
+        })
+    out.sort(key=lambda x: (-x["total_picks"], -x["avg_per_pick"]))
+    return {
+        "hitters": [p for p in out if p["role"] == "hitter"][:top_n],
+        "pitchers": [p for p in out if p["role"] == "pitcher"][:top_n],
+    }
 
 
 @app.get("/api/lineups")
