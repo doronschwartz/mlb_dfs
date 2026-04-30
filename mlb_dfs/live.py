@@ -279,12 +279,21 @@ def _index_boxscores(d: Date, *, game_pks: set[int] | None = None) -> dict[int, 
 
 
 def _score_player(pick: Pick, lines: list[dict]) -> PlayerScore:
-    """Score every game line for the player and sum the results.
+    """Score the line(s) the pick is associated with.
 
-    For doubleheaders this means each game contributes its own points
-    (including its own QS / CG / SHO / NH bonuses if earned that game),
-    rather than the second game overwriting the first.
+    If `pick.game_pk` is set (the DH chooser case), only the line whose
+    game_pk matches is scored — even if the player appeared in another
+    slate game. Without a game_pk (typical case), all of the player's
+    lines that the slate filter let through are summed.
     """
+    if pick.game_pk is not None:
+        lines = [ln for ln in lines if ln.get("game_pk") == pick.game_pk]
+    if not lines:
+        return PlayerScore(
+            player_id=pick.player_id, name=pick.name, role=pick.role,
+            points=0.0, raw={}, game_state="not in selected game",
+            played=False,
+        )
     total_pts = 0.0
     raw_totals: dict = {}
     last_state = ""

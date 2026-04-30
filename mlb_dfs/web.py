@@ -42,10 +42,12 @@ class PickRequest(BaseModel):
     draft_id: str
     player_id: int
     slot: str
+    game_pk: int | None = None  # required if player's team has a DH in slate
 
 
 class ReplaceRequest(BaseModel):
     player_id: int
+    game_pk: int | None = None
 
 
 class MoveRequest(BaseModel):
@@ -122,7 +124,11 @@ def make_pick(draft_id: str, req: PickRequest):
         raise HTTPException(404, f"player {req.player_id} not in the draft pool")
 
     try:
-        dr.make_pick(req.slot, proj)
+        game_pk = _resolve_game_pk_for_pick(dr, proj, req.game_pk)
+    except HTTPException:
+        raise
+    try:
+        dr.make_pick(req.slot, proj, game_pk=game_pk)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
     draft_mod.save_draft(dr)
@@ -145,7 +151,11 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
     if not proj:
         raise HTTPException(404, f"player {req.player_id} not in the draft pool")
     try:
-        dr.replace_pick(pick_number, proj)
+        game_pk = _resolve_game_pk_for_pick(dr, proj, req.game_pk)
+    except HTTPException:
+        raise
+    try:
+        dr.replace_pick(pick_number, proj, game_pk=game_pk)
     except ValueError as e:
         raise HTTPException(400, str(e))
     draft_mod.save_draft(dr)
@@ -382,9 +392,16 @@ def get_pool(draft_id: str):
         Date.fromisoformat(dr.date),
         game_pks=set(dr.game_pks) if dr.game_pks else None,
     )
+    team_games = _team_to_slate_gamepks(dr)
+    labels = _game_label_map_full(dr)
     for p in pool:
         ls = lineups.get(p["player_id"])
         p["lineup_status"] = ls.get("status") if ls else "pending"
+        slate_games = team_games.get(p.get("team_id") or 0, [])
+        p["team_games_in_slate"] = [
+            {"game_pk": gpk, "label": labels.get(gpk, "")}
+            for gpk in slate_games
+        ]
     return {
         "on_the_clock": on_clock,
         "remaining_slots": remaining,
@@ -407,9 +424,18 @@ def recommend(draft_id: str, top_n: int = 8):
         Date.fromisoformat(dr.date),
         game_pks=set(dr.game_pks) if dr.game_pks else None,
     )
+    team_games = _team_to_slate_gamepks(dr)
+    labels = _game_label_map_full(dr)
+    by_proj = {p.player_id: p for p in projs}
     for r in recs:
         ls = lineups.get(r["player_id"])
         r["lineup_status"] = ls.get("status") if ls else "pending"
+        proj = by_proj.get(r["player_id"])
+        slate_games = team_games.get(proj.team_id, []) if proj and proj.team_id else []
+        r["team_games_in_slate"] = [
+            {"game_pk": gpk, "label": labels.get(gpk, "")}
+            for gpk in slate_games
+        ]
     return {
         "on_the_clock": dr.on_the_clock(),
         "recommendations": recs,
@@ -486,11 +512,15 @@ def _proj_to_dict(p) -> dict:
 def _draft_state(dr) -> dict:
     try:
         lineups = mlb_api.lineups_by_date(
-        Date.fromisoformat(dr.date),
-        game_pks=set(dr.game_pks) if dr.game_pks else None,
-    )
+            Date.fromisoformat(dr.date),
+            game_pks=set(dr.game_pks) if dr.game_pks else None,
+        )
     except Exception:
         lineups = {}
+    try:
+        labels = _game_label_map_full(dr)
+    except Exception:
+        labels = {}
     def _pick_dict(p):
         ls = lineups.get(p.player_id)
         return {
@@ -499,6 +529,8 @@ def _draft_state(dr) -> dict:
             "projected": p.projected_points, "pick_number": p.pick_number,
             "drafter": p.drafter,
             "lineup_status": (ls.get("status") if ls else "pending"),
+            "game_pk": p.game_pk,
+            "game_label": labels.get(p.game_pk, "") if p.game_pk else "",
         }
     return {
         "draft_id": dr.draft_id,
@@ -514,6 +546,74 @@ def _draft_state(dr) -> dict:
             for d in dr.drafters
         },
     }
+
+
+def _team_to_slate_gamepks(dr) -> dict[int, list[int]]:
+    """team_id -> list of gamePks the team plays *within the draft's slate*."""
+    selected = set(dr.game_pks) if dr.game_pks else None
+    out: dict[int, list[int]] = {}
+    for g in mlb_api.schedule(Date.fromisoformat(dr.date)):
+        pk = g.get("gamePk")
+        if selected is not None and pk not in selected:
+            continue
+        for side in ("home", "away"):
+            t = ((g.get("teams") or {}).get(side) or {}).get("team") or {}
+            tid = t.get("id")
+            if tid:
+                out.setdefault(tid, []).append(pk)
+    return out
+
+
+def _resolve_game_pk_for_pick(dr, proj, requested_game_pk: int | None) -> int | None:
+    """Decide which gamePk a pick should be tied to.
+
+    - team has 1 slate game -> auto-resolve to it
+    - team has 2+ slate games (DH) -> requested_game_pk must be one of them
+    - team has 0 slate games (shouldn't happen via normal pool, but safe) -> None
+    """
+    team_id = proj.team_id
+    if not team_id:
+        return requested_game_pk
+    games = _team_to_slate_gamepks(dr).get(team_id, [])
+    if len(games) == 1:
+        return games[0]
+    if len(games) >= 2:
+        if requested_game_pk in games:
+            return requested_game_pk
+        raise HTTPException(
+            400,
+            f"{proj.name}'s team has {len(games)} games in this slate "
+            f"(doubleheader): you must pick which game. Options: {games}",
+        )
+    return requested_game_pk
+
+
+def _game_label_map_full(dr) -> dict[int, str]:
+    """gamePk -> short label like 'DET@ATL' or 'DET@ATL G1' for doubleheaders."""
+    selected = set(dr.game_pks) if dr.game_pks else None
+    games = []
+    for g in mlb_api.schedule(Date.fromisoformat(dr.date)):
+        pk = g.get("gamePk")
+        if selected is not None and pk not in selected:
+            continue
+        games.append(g)
+    by_pair: dict[tuple, list[dict]] = {}
+    for g in games:
+        teams = g.get("teams") or {}
+        away_id = ((teams.get("away") or {}).get("team") or {}).get("id")
+        home_id = ((teams.get("home") or {}).get("team") or {}).get("id")
+        by_pair.setdefault((away_id, home_id), []).append(g)
+    labels: dict[int, str] = {}
+    for _, glist in by_pair.items():
+        glist_sorted = sorted(glist, key=lambda g: g.get("gameDate") or "")
+        for i, g in enumerate(glist_sorted):
+            teams = g.get("teams") or {}
+            aa = ((teams.get("away") or {}).get("team") or {}).get("abbreviation") or "?"
+            ha = ((teams.get("home") or {}).get("team") or {}).get("abbreviation") or "?"
+            base = f"{aa}@{ha}"
+            label = base if len(glist_sorted) == 1 else f"{base} G{i+1}"
+            labels[g.get("gamePk")] = label
+    return labels
 
 
 def _team_filter_for(dr) -> set[int] | None:

@@ -26,6 +26,10 @@ class Pick:
     role: str  # "hitter" or "pitcher"
     projected_points: float
     pick_number: int  # 1-indexed across the entire draft
+    # Specific gamePk this player is drafted for. Required when the player's
+    # team has more than one slate game on the date (doubleheader). Auto-
+    # resolved to the only slate game otherwise. None on legacy picks.
+    game_pk: int | None = None
 
 
 @dataclass
@@ -137,12 +141,14 @@ class Draft:
             out.append(s)
         return out
 
-    def replace_pick(self, pick_number: int, projection: Projection) -> Pick:
+    def replace_pick(
+        self, pick_number: int, projection: Projection, *,
+        game_pk: int | None = None,
+    ) -> Pick:
         """Swap the player at `pick_number` for `projection`. Slot stays the same.
 
-        Used when a drafted player is scratched / out of the lineup. Validates
-        position eligibility and that the new player isn't already drafted.
-        Does not change pick order or pick_number.
+        `game_pk` is the specific gamePk the new player counts in (required if
+        their team has a doubleheader in the slate; auto-resolved upstream).
         """
         idx = next((i for i, p in enumerate(self.picks) if p.pick_number == pick_number), None)
         if idx is None:
@@ -163,10 +169,11 @@ class Draft:
             role=projection.role,
             projected_points=projection.projected_points,
             pick_number=old.pick_number,
+            game_pk=game_pk,
         )
         return self.picks[idx]
 
-    def make_pick(self, slot: str, projection: Projection) -> Pick:
+    def make_pick(self, slot: str, projection: Projection, *, game_pk: int | None = None) -> Pick:
         info = self.on_the_clock()
         if info is None:
             raise RuntimeError("draft already complete")
@@ -191,6 +198,7 @@ class Draft:
             role=projection.role,
             projected_points=projection.projected_points,
             pick_number=len(self.picks) + 1,
+            game_pk=game_pk,
         )
         self.picks.append(pick)
         return pick
@@ -295,6 +303,7 @@ def _replace_slot(pick: Pick, new_slot: str) -> Pick:
         role=pick.role,
         projected_points=pick.projected_points,
         pick_number=pick.pick_number,
+        game_pk=pick.game_pk,
     )
 
 

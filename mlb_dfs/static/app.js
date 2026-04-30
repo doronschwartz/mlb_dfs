@@ -458,6 +458,47 @@ function escapeAttr(s) {
   return String(s).replace(/"/g, "&quot;");
 }
 
+function encodeAttrJSON(obj) {
+  return JSON.stringify(obj || []).replace(/"/g, "&quot;");
+}
+
+function chooseGameModal(teamGames, playerName) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "replace-modal";
+    overlay.innerHTML = `
+      <div class="panel" style="max-width:420px;">
+        <div class="close-row">
+          <h3>Doubleheader — pick which game</h3>
+          <button class="close-btn">Cancel</button>
+        </div>
+        <p class="muted" style="font-size:12px; margin:4px 0 12px;">
+          ${playerName}'s team has more than one game in this slate. The pick
+          counts in only the game you choose — the other game's stats are
+          ignored for this player.
+        </p>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${teamGames.map((g) => `<button class="btn-pick game-choice" data-pk="${g.game_pk}">${g.label}</button>`).join("")}
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = (result) => { overlay.remove(); resolve(result); };
+    overlay.querySelector(".close-btn").addEventListener("click", () => close(null));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
+    overlay.querySelectorAll(".game-choice").forEach((b) =>
+      b.addEventListener("click", () => close(Number(b.dataset.pk))),
+    );
+  });
+}
+
+async function resolveGamePk(button) {
+  let teamGames = [];
+  try { teamGames = JSON.parse((button.dataset.teamGames || "[]").replace(/&quot;/g, '"')); } catch {}
+  if (!teamGames || teamGames.length <= 1) return undefined;
+  const choice = await chooseGameModal(teamGames, button.dataset.name || "Player");
+  return choice;
+}
+
 async function openMoveMenu(anchorEl, { pickNumber, currentSlot, name }) {
   // Close any existing move menu
   document.querySelectorAll(".move-menu").forEach((m) => m.remove());
@@ -575,16 +616,21 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
           <td>${p.name}</td>
           <td>${p.position ?? "-"}</td>
           <td>${lineupBadge(p.lineup_status)}</td>
-          <td><button class="btn-pick swap-btn" data-pid="${p.player_id}">Swap in</button></td>
+          <td><button class="btn-pick swap-btn" data-pid="${p.player_id}" data-name="${escapeAttr(p.name)}" data-team-games="${encodeAttrJSON(p.team_games_in_slate)}">Swap in</button></td>
         </tr>`,
       )
       .join("");
     overlay.querySelectorAll(".swap-btn").forEach((b) => {
       b.addEventListener("click", async () => {
+        const gamePk = await resolveGamePk(b);
+        if (gamePk === null) return;
         try {
           await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/replace`, {
             method: "POST",
-            body: JSON.stringify({ player_id: Number(b.dataset.pid) }),
+            body: JSON.stringify({
+              player_id: Number(b.dataset.pid),
+              game_pk: gamePk,
+            }),
           });
           close();
           if (state.tab === "score") $("#score-load").click();
@@ -647,10 +693,11 @@ async function renderRecs() {
           const slots = r.eligible_slots && r.eligible_slots.length
             ? r.eligible_slots
             : [r.recommend_slot];
+          const tgAttr = encodeAttrJSON(r.team_games_in_slate);
           const pills = slots
             .map((s) => {
               const recommended = s === r.recommend_slot ? "recommended" : "";
-              return `<span class="slot-pill ${recommended} ${lock}" data-pid="${r.player_id}" data-slot="${s}">${s}</span>`;
+              return `<span class="slot-pill ${recommended} ${lock}" data-pid="${r.player_id}" data-slot="${s}" data-name="${escapeAttr(r.name)}" data-team-games="${tgAttr}">${s}</span>`;
             })
             .join("");
           return `
@@ -673,6 +720,8 @@ async function renderRecs() {
     $$("#recs-out .slot-pill").forEach((b) => {
       if (b.classList.contains("locked")) return;
       b.addEventListener("click", async () => {
+        const gamePk = await resolveGamePk(b);
+        if (gamePk === null) return;  // user cancelled DH chooser
         try {
           await api(`/api/drafts/${state.currentDraftId}/pick`, {
             method: "POST",
@@ -680,6 +729,7 @@ async function renderRecs() {
               draft_id: state.currentDraftId,
               player_id: Number(b.dataset.pid),
               slot: b.dataset.slot,
+              game_pk: gamePk,
             }),
           });
         } catch (e) {
@@ -741,12 +791,15 @@ function drawPool() {
           <td>${p.role}</td>
           <td>${
             p.eligible_slots.length
-              ? p.eligible_slots
-                  .map(
-                    (s) =>
-                      `<span class="slot-pill ${lock}" data-pid="${p.player_id}" data-slot="${s}">${s}</span>`,
-                  )
-                  .join("")
+              ? (() => {
+                  const tg = encodeAttrJSON(p.team_games_in_slate);
+                  return p.eligible_slots
+                    .map(
+                      (s) =>
+                        `<span class="slot-pill ${lock}" data-pid="${p.player_id}" data-slot="${s}" data-name="${escapeAttr(p.name)}" data-team-games="${tg}">${s}</span>`,
+                    )
+                    .join("");
+                })()
               : `<span class="slot-pill disabled">no slot left</span>`
           }</td>
           <td class="notes">${(p.notes || []).join(" · ")}</td>
@@ -758,6 +811,8 @@ function drawPool() {
   $$("#pool-out .slot-pill").forEach((el) => {
     if (el.classList.contains("disabled") || el.classList.contains("locked")) return;
     el.addEventListener("click", async () => {
+      const gamePk = await resolveGamePk(el);
+      if (gamePk === null) return;
       try {
         await api(`/api/drafts/${state.currentDraftId}/pick`, {
           method: "POST",
@@ -765,6 +820,7 @@ function drawPool() {
             draft_id: state.currentDraftId,
             player_id: Number(el.dataset.pid),
             slot: el.dataset.slot,
+            game_pk: gamePk,
           }),
         });
       } catch (e) {
