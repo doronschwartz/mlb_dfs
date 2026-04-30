@@ -281,22 +281,31 @@ async function renderDraft() {
       if (!pick) {
         return `<div class="slot-cell empty">
           <div class="slot-label">${label}</div>
-          <div class="slot-name">— open —</div>
-          <div class="slot-meta"></div>
-          <div class="slot-proj"></div>
+          <div class="slot-body">
+            <div class="slot-line1">
+              <span class="slot-name">— open —</span>
+            </div>
+          </div>
         </div>`;
       }
       const scratched = pick.lineup_status === "out";
       const cls = `filled ${pick.role} ${scratched ? "scratched" : ""}`;
       const canReplace = state.identity && state.identity === pick.drafter;
-      const replaceBtn = canReplace
-        ? `<button class="replace-btn" data-pick-num="${pick.pick_number}" data-slot="${pick.slot}" data-name="${escapeAttr(pick.name)}">Replace</button>`
-        : "";
+      const meta = [lineupBadge(pick.lineup_status)];
+      if (canReplace) {
+        meta.push(
+          `<button class="replace-btn" data-pick-num="${pick.pick_number}" data-slot="${pick.slot}" data-name="${escapeAttr(pick.name)}">Replace</button>`,
+        );
+      }
       return `<div class="slot-cell ${cls}">
         <div class="slot-label">${label}</div>
-        <div class="slot-name">${pick.name}</div>
-        <div class="slot-meta">${lineupBadge(pick.lineup_status)}${replaceBtn}</div>
-        <div class="slot-proj">${pick.projected.toFixed(1)}</div>
+        <div class="slot-body">
+          <div class="slot-line1">
+            <span class="slot-name">${pick.name}</span>
+            <span class="slot-proj">${pick.projected.toFixed(1)}</span>
+          </div>
+          <div class="slot-line2">${meta.join("")}</div>
+        </div>
       </div>`;
     });
     html.push(
