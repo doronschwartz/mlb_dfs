@@ -35,14 +35,32 @@
 
     <section id="tab-draft" class="tab">
       <h2>Draft</h2>
-      <div id="draft-controls">
-        <input id="drafters" placeholder="Drafter names, comma-separated. Ex: Stock,JL,Meech" />
-        <button id="new-draft">Start new draft</button>
-        <select id="draft-id"></select>
-        <button id="load-draft">Load</button>
-        <button id="undo">Undo last pick</button>
+
+      <div id="draft-setup">
+        <h3>Start a new draft</h3>
+        <div class="setup-row">
+          <input id="drafters" placeholder="Drafter names, comma-separated. Ex: Stock,JL,Meech" />
+          <button id="new-draft" class="btn-pick">Start draft</button>
+        </div>
+        <div class="setup-row">
+          <span class="muted">Pick which games are in the pool — leave all unchecked to use the full slate:</span>
+          <span id="game-count" class="muted"></span>
+          <button id="games-clear" type="button">Clear</button>
+        </div>
+        <div id="game-picker" class="grid"></div>
       </div>
+
+      <div id="draft-load-row">
+        <h3>Or load an existing draft</h3>
+        <div class="setup-row">
+          <select id="draft-id"></select>
+          <button id="load-draft">Load</button>
+          <button id="undo">Undo last pick</button>
+        </div>
+      </div>
+
       <div id="draft-state"></div>
+      <div id="pick-log"></div>
       <h3>On the clock — recommended picks</h3>
       <div id="recs-out"></div>
     </section>

@@ -29,6 +29,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 class NewDraftRequest(BaseModel):
     date: str  # YYYY-MM-DD
     drafters: list[str]
+    game_pks: list[int] = []  # empty = include the whole slate
 
 
 class PickRequest(BaseModel):
@@ -83,7 +84,7 @@ def create_draft(req: NewDraftRequest):
         raise HTTPException(400, "bad date")
     if len(req.drafters) < 2:
         raise HTTPException(400, "need at least 2 drafters")
-    dr = draft_mod.new_draft(d, req.drafters)
+    dr = draft_mod.new_draft(d, req.drafters, game_pks=req.game_pks)
     draft_mod.save_draft(dr)
     return _draft_state(dr)
 
@@ -97,11 +98,14 @@ def make_pick(draft_id: str, req: PickRequest):
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
 
-    projs = projections.project_slate(Date.fromisoformat(dr.date))
+    team_filter = _team_filter_for(dr)
+    projs = projections.project_slate(
+        Date.fromisoformat(dr.date), team_filter=team_filter,
+    )
     by_id = {p.player_id: p for p in projs}
     proj = by_id.get(req.player_id)
     if not proj:
-        raise HTTPException(404, f"player {req.player_id} not on the slate")
+        raise HTTPException(404, f"player {req.player_id} not in the draft pool")
 
     try:
         dr.make_pick(req.slot, proj)
@@ -130,7 +134,10 @@ def recommend(draft_id: str, top_n: int = 8):
         dr = draft_mod.load_draft(draft_id)
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
-    projs = projections.project_slate(Date.fromisoformat(dr.date))
+    team_filter = _team_filter_for(dr)
+    projs = projections.project_slate(
+        Date.fromisoformat(dr.date), team_filter=team_filter,
+    )
     return {
         "on_the_clock": dr.on_the_clock(),
         "recommendations": dr.recommend(projs, top_n=top_n),
@@ -204,6 +211,8 @@ def _draft_state(dr) -> dict:
         "picks": [p.__dict__ for p in dr.picks],
         "on_the_clock": dr.on_the_clock(),
         "is_complete": dr.is_complete(),
+        "game_pks": list(dr.game_pks),
+        "selected_games": _selected_games_summary(dr),
         "rosters": {
             d: [
                 {"slot": p.slot, "name": p.name, "player_id": p.player_id,
@@ -214,6 +223,40 @@ def _draft_state(dr) -> dict:
             for d in dr.drafters
         },
     }
+
+
+def _team_filter_for(dr) -> set[int] | None:
+    """Resolve a draft's selected gamePks into the set of eligible team IDs."""
+    if not dr.game_pks:
+        return None
+    selected = set(dr.game_pks)
+    teams: set[int] = set()
+    for g in mlb_api.schedule(Date.fromisoformat(dr.date)):
+        if g.get("gamePk") not in selected:
+            continue
+        for side in ("home", "away"):
+            t = ((g.get("teams") or {}).get(side) or {}).get("team") or {}
+            if t.get("id"):
+                teams.add(t["id"])
+    return teams or None
+
+
+def _selected_games_summary(dr) -> list[dict]:
+    if not dr.game_pks:
+        return []
+    selected = set(dr.game_pks)
+    out = []
+    for g in mlb_api.schedule(Date.fromisoformat(dr.date)):
+        if g.get("gamePk") not in selected:
+            continue
+        away = ((g.get("teams") or {}).get("away") or {}).get("team") or {}
+        home = ((g.get("teams") or {}).get("home") or {}).get("team") or {}
+        out.append({
+            "gamePk": g.get("gamePk"),
+            "away_abbr": away.get("abbreviation"),
+            "home_abbr": home.get("abbreviation"),
+        })
+    return out
 
 
 def main():

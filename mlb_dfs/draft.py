@@ -35,6 +35,9 @@ class Draft:
     drafters: list[str]  # snake order, e.g. ["Stock","JL","Meech"]
     picks: list[Pick] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
+    # When non-empty, only players from these gamePks are eligible for the draft.
+    # Empty = whole slate (back-compat).
+    game_pks: list[int] = field(default_factory=list)
 
     # ---- core mechanics --------------------------------------------------
 
@@ -159,6 +162,7 @@ class Draft:
             "drafters": list(self.drafters),
             "picks": [asdict(p) for p in self.picks],
             "created_at": self.created_at,
+            "game_pks": list(self.game_pks),
         }
 
     @classmethod
@@ -169,6 +173,7 @@ class Draft:
             drafters=list(data["drafters"]),
             picks=[Pick(**p) for p in data.get("picks", [])],
             created_at=data.get("created_at", time.time()),
+            game_pks=list(data.get("game_pks", [])),
         )
 
 
@@ -227,7 +232,12 @@ def list_drafts() -> list[str]:
     )
 
 
-def new_draft(date: Date, drafters: Iterable[str]) -> Draft:
+def new_draft(
+    date: Date,
+    drafters: Iterable[str],
+    *,
+    game_pks: Iterable[int] | None = None,
+) -> Draft:
     drafters = list(drafters)
     if len(drafters) < 2:
         raise ValueError("need at least 2 drafters")
@@ -235,4 +245,5 @@ def new_draft(date: Date, drafters: Iterable[str]) -> Draft:
         draft_id=date.isoformat(),
         date=date.isoformat(),
         drafters=drafters,
+        game_pks=sorted(set(game_pks or [])),
     )

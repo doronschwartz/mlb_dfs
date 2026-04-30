@@ -55,10 +55,47 @@ th { color: var(--muted); font-weight: 500; }
 tr.hitter td:first-child { color: var(--accent-2); }
 tr.pitcher td:first-child { color: var(--warn); }
 
-#draft-controls, #score-controls {
-  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+#draft-controls, #score-controls, .setup-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center;
 }
-#draft-controls input { flex: 1; min-width: 240px; }
+.setup-row input { flex: 1; min-width: 240px; }
+#draft-setup, #draft-load-row { margin-bottom: 18px; }
+#draft-setup h3, #draft-load-row h3 { margin: 0 0 8px; font-size: 14px; }
+
+.game-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; cursor: pointer; user-select: none;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.game-card:hover { border-color: var(--accent); }
+.game-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: #0d2030; }
+.game-card .matchup { font-weight: 600; font-size: 13px; }
+.game-card .sps { color: var(--muted); font-size: 11px; }
+.game-card .status { font-size: 10px; color: var(--accent); text-transform: uppercase; }
+
+.selected-games { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.selected-games .badge {
+  background: #0d2030; border: 1px solid var(--accent);
+  border-radius: 12px; padding: 2px 10px; font-size: 11px; color: var(--accent);
+}
+
+.pick-log {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; margin: 16px 0;
+}
+.pick-log h3 { margin: 0 0 8px; font-size: 14px; }
+.pick-log .round { display: grid; gap: 6px; margin-bottom: 8px; }
+.pick-log .round-label { color: var(--muted); font-size: 11px; }
+.pick-log .pick {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 4px 8px; background: #0d141c; border-radius: 4px;
+}
+.pick-log .pick .num { color: var(--muted); width: 28px; text-align: right; }
+.pick-log .pick .who { color: var(--muted); width: 64px; }
+.pick-log .pick .name { flex: 1; }
+.pick-log .pick .slot { color: var(--accent); width: 36px; text-align: right; font-size: 11px; }
+.pick-log .pick.hitter .slot { color: var(--accent-2); }
+.pick-log .pick.pitcher .slot { color: var(--warn); }
 .rosters { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .roster {
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px;

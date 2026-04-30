@@ -4,7 +4,12 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 const today = new Date();
 $("#date").value = today.toISOString().slice(0, 10);
 
-const state = { tab: "slate", currentDraftId: null };
+const state = {
+  tab: "slate",
+  currentDraftId: null,
+  selectedGamePks: new Set(),
+  slateGames: [],
+};
 
 // ---------- tab switching ----------
 $$("nav button").forEach((b) => {
@@ -38,9 +43,11 @@ async function loadSlate() {
   out.innerHTML = `<div class="muted">Loading slate for ${d}…</div>`;
   try {
     const data = await api(`/api/slate?date=${d}`);
+    state.slateGames = data.games;
     out.innerHTML = data.games.length
       ? data.games.map(renderGame).join("")
       : `<div class="muted">No games scheduled.</div>`;
+    renderGamePicker();
   } catch (e) {
     out.innerHTML = `<div class="muted">${e.message}</div>`;
   }
@@ -56,6 +63,41 @@ function renderGame(g) {
       <div class="sps">SP: ${ap} vs ${hp}</div>
       <div class="muted" style="font-size:11px;margin-top:4px;">${g.venue ?? ""}</div>
     </div>`;
+}
+
+function renderGamePicker() {
+  const host = $("#game-picker");
+  if (!host) return;
+  if (!state.slateGames.length) {
+    host.innerHTML = `<div class="muted">No games today — switch to a date with games.</div>`;
+    $("#game-count").textContent = "";
+    return;
+  }
+  host.innerHTML = state.slateGames
+    .map((g) => {
+      const sel = state.selectedGamePks.has(g.gamePk) ? "selected" : "";
+      const ap = g.away.probablePitcher?.name ?? "TBD";
+      const hp = g.home.probablePitcher?.name ?? "TBD";
+      return `
+        <div class="game-card ${sel}" data-pk="${g.gamePk}">
+          <div class="status">${g.detailedStatus ?? ""}</div>
+          <div class="matchup">${g.away.abbr ?? g.away.name} @ ${g.home.abbr ?? g.home.name}</div>
+          <div class="sps">SP: ${ap} vs ${hp}</div>
+        </div>`;
+    })
+    .join("");
+  $$("#game-picker .game-card").forEach((el) => {
+    el.addEventListener("click", () => {
+      const pk = Number(el.dataset.pk);
+      if (state.selectedGamePks.has(pk)) state.selectedGamePks.delete(pk);
+      else state.selectedGamePks.add(pk);
+      renderGamePicker();
+    });
+  });
+  const n = state.selectedGamePks.size;
+  $("#game-count").textContent = n
+    ? `· ${n} selected`
+    : `· ${state.slateGames.length} total`;
 }
 
 // ---------- projections ----------
@@ -110,11 +152,20 @@ $("#new-draft").addEventListener("click", async () => {
   if (drafters.length < 2) return alert("Need at least 2 drafters.");
   const data = await api(`/api/drafts`, {
     method: "POST",
-    body: JSON.stringify({ date: $("#date").value, drafters }),
+    body: JSON.stringify({
+      date: $("#date").value,
+      drafters,
+      game_pks: Array.from(state.selectedGamePks),
+    }),
   });
   state.currentDraftId = data.draft_id;
   await loadDraftList();
   await renderDraft();
+});
+
+$("#games-clear").addEventListener("click", () => {
+  state.selectedGamePks.clear();
+  renderGamePicker();
 });
 
 $("#load-draft").addEventListener("click", async () => {
@@ -131,6 +182,7 @@ $("#undo").addEventListener("click", async () => {
 async function renderDraft() {
   if (!state.currentDraftId) {
     $("#draft-state").innerHTML = `<div class="muted">No draft loaded. Start a new one or pick from the dropdown.</div>`;
+    $("#pick-log").innerHTML = "";
     $("#recs-out").innerHTML = "";
     return;
   }
@@ -138,6 +190,18 @@ async function renderDraft() {
   const onClock = data.on_the_clock; // [drafter, slot] | null
   const html = [];
   html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b> (${onClock?.[1] ?? "-"})`}</div>`);
+
+  // Selected games badges
+  if (data.selected_games && data.selected_games.length) {
+    html.push(`<div class="selected-games">` +
+      data.selected_games
+        .map((g) => `<span class="badge">${g.away_abbr} @ ${g.home_abbr}</span>`)
+        .join("") +
+      `</div>`);
+  } else {
+    html.push(`<div class="muted" style="font-size:11px;margin-bottom:8px;">Pool: full slate</div>`);
+  }
+
   html.push(`<div class="rosters">`);
   for (const d of data.drafters) {
     const onC = onClock && onClock[0] === d;
@@ -158,8 +222,40 @@ async function renderDraft() {
   html.push(`</div>`);
   $("#draft-state").innerHTML = html.join("");
 
+  renderPickLog(data);
+
   if (!data.is_complete) await renderRecs();
   else $("#recs-out").innerHTML = `<div class="muted">Draft complete.</div>`;
+}
+
+function renderPickLog(data) {
+  if (!data.picks.length) {
+    $("#pick-log").innerHTML = "";
+    return;
+  }
+  const nDrafters = data.drafters.length;
+  const rounds = [];
+  for (let i = 0; i < data.picks.length; i += nDrafters) {
+    rounds.push(data.picks.slice(i, i + nDrafters));
+  }
+  const html = [`<div class="pick-log"><h3>Draft board</h3>`];
+  rounds.forEach((round, idx) => {
+    html.push(`<div class="round-label">Round ${idx + 1}</div>`);
+    html.push(`<div class="round">`);
+    round.forEach((p) => {
+      html.push(
+        `<div class="pick ${p.role}">
+          <span class="num">#${p.pick_number}</span>
+          <span class="who">${p.drafter}</span>
+          <span class="name">${p.name}</span>
+          <span class="slot">${p.slot}</span>
+        </div>`,
+      );
+    });
+    html.push(`</div>`);
+  });
+  html.push(`</div>`);
+  $("#pick-log").innerHTML = html.join("");
 }
 
 async function renderRecs() {
@@ -247,10 +343,24 @@ $("#score-load").addEventListener("click", async () => {
 });
 
 // ---------- bootstrap ----------
+async function ensureSlateLoaded() {
+  const d = $("#date").value;
+  if (state.slateGames.length && state._slateDate === d) return;
+  try {
+    const data = await api(`/api/slate?date=${d}`);
+    state.slateGames = data.games;
+    state._slateDate = d;
+  } catch {}
+}
+
 async function refresh() {
   await loadDraftList().catch(() => {});
   if (state.tab === "slate") await loadSlate();
   if (state.tab === "project") await loadProjections();
-  if (state.tab === "draft") await renderDraft();
+  if (state.tab === "draft") {
+    await ensureSlateLoaded();
+    renderGamePicker();
+    await renderDraft();
+  }
 }
 refresh();

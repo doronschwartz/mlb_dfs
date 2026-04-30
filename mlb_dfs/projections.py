@@ -201,8 +201,12 @@ def _per_start_pitcher_points(stats: dict) -> float:
     return pts / gs
 
 
-def project_slate(d: Date) -> list[Projection]:
-    """Project everyone playing today. Handles probable SPs + position players."""
+def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Projection]:
+    """Project everyone playing today. Handles probable SPs + position players.
+
+    If `team_filter` is provided, only project players from those team IDs (used
+    when a draft is restricted to a subset of the day's games).
+    """
     season = d.year
     games = mlb_api.schedule(d)
 
@@ -235,6 +239,8 @@ def project_slate(d: Date) -> list[Projection]:
 
     # Pitchers — only project the probable starters; relievers aren't draftable as SP
     for sp_id, info in probable_sps.items():
+        if team_filter is not None and info["team_id"] not in team_filter:
+            continue
         projections.append(project_pitcher(
             sp_id, info["name"] or pool.get(sp_id, {}).get("name", "?"),
             team_id=info["team_id"], season=season,
@@ -244,6 +250,8 @@ def project_slate(d: Date) -> list[Projection]:
     # Hitters — everyone non-pitcher in the slate roster pool
     for pid, meta in pool.items():
         if meta.get("positionType") == "Pitcher":
+            continue
+        if team_filter is not None and meta.get("teamId") not in team_filter:
             continue
         m = matchups.get(meta.get("teamId") or 0, {})
         projections.append(project_hitter(
