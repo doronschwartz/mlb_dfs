@@ -67,6 +67,76 @@ class Draft:
     def picked_ids(self) -> set[int]:
         return {p.player_id for p in self.picks}
 
+    def move_pick(self, pick_number: int, new_slot: str) -> tuple[Pick, Pick | None]:
+        """Move an existing pick to a different slot.
+
+        If the destination slot is already at capacity for this drafter, the
+        moved pick swaps with one of the picks currently in that slot
+        (preferring a swap partner who is themselves eligible for the moved
+        pick's old slot, so both ends remain valid).
+
+        Returns (moved_pick, displaced_pick_or_None). Use this to slide a
+        bench/UTIL player into a starting slot when the original starter is
+        OOL — the displaced starter ends up on the bench/UTIL where you can
+        Replace them with a fresh pickup.
+        """
+        idx = next((i for i, p in enumerate(self.picks) if p.pick_number == pick_number), None)
+        if idx is None:
+            raise ValueError(f"no pick #{pick_number}")
+        moving = self.picks[idx]
+        if new_slot == moving.slot:
+            return moving, None
+        if new_slot not in {"IF", "OF", "UTIL", "BN", "SP"}:
+            raise ValueError(f"unknown slot {new_slot}")
+        if not _slot_eligible(new_slot, moving):
+            raise ValueError(f"{moving.name} ({moving.position}) is not eligible for {new_slot}")
+
+        same_drafter_in_dest = [
+            (i, p) for i, p in enumerate(self.picks)
+            if p.drafter == moving.drafter and p.slot == new_slot and p.pick_number != pick_number
+        ]
+        cap = SLOTS.count(new_slot)
+        if len(same_drafter_in_dest) < cap:
+            self.picks[idx] = _replace_slot(moving, new_slot)
+            return self.picks[idx], None
+
+        # Destination is full — find a swap partner. Prefer one whose own
+        # original slot the moving pick can fill back into (so we don't leave
+        # the partner stranded). Falls back to any partner if needed; if even
+        # the fallback can't be made eligible, error out.
+        partner = next(
+            ((i, p) for i, p in same_drafter_in_dest if _slot_eligible(moving.slot, p)),
+            None,
+        )
+        if partner is None:
+            partner = same_drafter_in_dest[0]  # forced swap; will validate below
+
+        partner_idx, partner_pick = partner
+        if not _slot_eligible(moving.slot, partner_pick):
+            raise ValueError(
+                f"can't swap: {partner_pick.name} ({partner_pick.position}) "
+                f"isn't eligible for {moving.slot}"
+            )
+        self.picks[idx] = _replace_slot(moving, new_slot)
+        self.picks[partner_idx] = _replace_slot(partner_pick, moving.slot)
+        return self.picks[idx], self.picks[partner_idx]
+
+    def eligible_target_slots(self, pick_number: int) -> list[str]:
+        """Slots this pick could legally be moved into (excluding its current
+        slot). Used by the UI to populate the Move dropdown."""
+        idx = next((i for i, p in enumerate(self.picks) if p.pick_number == pick_number), None)
+        if idx is None:
+            return []
+        p = self.picks[idx]
+        out = []
+        for s in ["IF", "OF", "UTIL", "BN", "SP"]:
+            if s == p.slot:
+                continue
+            if not _slot_eligible(s, p):
+                continue
+            out.append(s)
+        return out
+
     def replace_pick(self, pick_number: int, projection: Projection) -> Pick:
         """Swap the player at `pick_number` for `projection`. Slot stays the same.
 
@@ -213,6 +283,19 @@ class Draft:
             created_at=data.get("created_at", time.time()),
             game_pks=list(data.get("game_pks", [])),
         )
+
+
+def _replace_slot(pick: Pick, new_slot: str) -> Pick:
+    return Pick(
+        drafter=pick.drafter,
+        slot=new_slot,
+        player_id=pick.player_id,
+        name=pick.name,
+        position=pick.position,
+        role=pick.role,
+        projected_points=pick.projected_points,
+        pick_number=pick.pick_number,
+    )
 
 
 def _slot_priority(slot: str) -> int:

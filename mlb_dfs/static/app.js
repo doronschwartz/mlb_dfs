@@ -294,6 +294,7 @@ async function renderDraft() {
       const meta = [lineupBadge(pick.lineup_status)];
       if (canReplace) {
         meta.push(
+          `<button class="move-btn" data-pick-num="${pick.pick_number}" data-name="${escapeAttr(pick.name)}" data-slot="${pick.slot}">Move</button>`,
           `<button class="replace-btn" data-pick-num="${pick.pick_number}" data-slot="${pick.slot}" data-name="${escapeAttr(pick.name)}">Replace</button>`,
         );
       }
@@ -325,6 +326,15 @@ async function renderDraft() {
         pickNumber: Number(btn.dataset.pickNum),
         slot: btn.dataset.slot,
         oldName: btn.dataset.name,
+      });
+    });
+  });
+  $$("#draft-state .move-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      openMoveMenu(btn, {
+        pickNumber: Number(btn.dataset.pickNum),
+        currentSlot: btn.dataset.slot,
+        name: btn.dataset.name,
       });
     });
   });
@@ -368,6 +378,64 @@ function renderIdentityBar(data) {
 
 function escapeAttr(s) {
   return String(s).replace(/"/g, "&quot;");
+}
+
+async function openMoveMenu(anchorEl, { pickNumber, currentSlot, name }) {
+  // Close any existing move menu
+  document.querySelectorAll(".move-menu").forEach((m) => m.remove());
+  let targets = [];
+  try {
+    const data = await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/move_targets`);
+    targets = data.targets || [];
+  } catch (e) {
+    return alert(e.message);
+  }
+  if (!targets.length) {
+    return alert(`${name} can't be moved into any other slot (no eligible targets).`);
+  }
+  const rect = anchorEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "move-menu";
+  menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  menu.style.left = `${rect.left + window.scrollX}px`;
+  menu.innerHTML = `
+    <div class="move-header">Move ${name} to…</div>
+    ${targets
+      .map(
+        (s) =>
+          `<button class="move-target" data-slot="${s}">→ ${s}</button>`,
+      )
+      .join("")}`;
+  document.body.appendChild(menu);
+
+  const close = () => menu.remove();
+  setTimeout(() => {
+    document.addEventListener(
+      "click",
+      function once(e) {
+        if (!menu.contains(e.target)) {
+          close();
+          document.removeEventListener("click", once);
+        }
+      },
+      { once: false },
+    );
+  }, 0);
+
+  menu.querySelectorAll(".move-target").forEach((b) => {
+    b.addEventListener("click", async () => {
+      try {
+        await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/move`, {
+          method: "POST",
+          body: JSON.stringify({ new_slot: b.dataset.slot }),
+        });
+        close();
+        await renderDraft();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
 }
 
 async function openReplaceModal({ pickNumber, slot, oldName }) {

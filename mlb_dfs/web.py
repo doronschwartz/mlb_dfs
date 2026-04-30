@@ -46,6 +46,10 @@ class ReplaceRequest(BaseModel):
     player_id: int
 
 
+class MoveRequest(BaseModel):
+    new_slot: str
+
+
 # -------------------- API routes --------------------
 
 
@@ -144,6 +148,34 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
         raise HTTPException(400, str(e))
     draft_mod.save_draft(dr)
     return _draft_state(dr)
+
+
+@app.post("/api/drafts/{draft_id}/picks/{pick_number}/move")
+def move_pick(draft_id: str, pick_number: int, req: MoveRequest):
+    """Move an existing pick to a different slot. If the destination slot is
+    full, the moved pick swaps with the existing slot occupant — useful for
+    promoting a bench player into a starting slot when the starter is OOL.
+    """
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    try:
+        dr.move_pick(pick_number, req.new_slot)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    draft_mod.save_draft(dr)
+    return _draft_state(dr)
+
+
+@app.get("/api/drafts/{draft_id}/picks/{pick_number}/move_targets")
+def move_targets(draft_id: str, pick_number: int):
+    """Slots this pick could legally be moved into."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    return {"targets": dr.eligible_target_slots(pick_number)}
 
 
 @app.get("/api/lineups")
