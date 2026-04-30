@@ -241,6 +241,16 @@ def list_drafts() -> list[str]:
     )
 
 
+def delete_draft(draft_id: str) -> bool:
+    """Delete the on-disk file. Returns True if removed, False if it didn't exist."""
+    path = os.path.join(DRAFT_DIR, f"{draft_id}.json")
+    try:
+        os.remove(path)
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def new_draft(
     date: Date,
     drafters: Iterable[str],

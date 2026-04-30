@@ -132,6 +132,25 @@ def undo_last_pick(draft_id: str):
     return _draft_state(dr)
 
 
+@app.post("/api/drafts/{draft_id}/reset")
+def reset_draft(draft_id: str):
+    """Clear all picks; keep drafters and selected games."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    dr.picks = []
+    draft_mod.save_draft(dr)
+    return _draft_state(dr)
+
+
+@app.delete("/api/drafts/{draft_id}")
+def delete_draft(draft_id: str):
+    if not draft_mod.delete_draft(draft_id):
+        raise HTTPException(404, f"draft {draft_id} not found")
+    return {"ok": True, "deleted": draft_id}
+
+
 @app.get("/api/drafts/{draft_id}/pool")
 def get_pool(draft_id: str):
     """All draft-eligible players for this draft, undrafted, sorted by projection."""

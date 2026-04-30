@@ -203,6 +203,26 @@ $("#undo").addEventListener("click", async () => {
   await renderDraft();
 });
 
+$("#reset").addEventListener("click", async () => {
+  const id = state.currentDraftId || $("#draft-id").value;
+  if (!id) return alert("No draft loaded.");
+  if (!confirm(`Reset all picks in draft '${id}'? Drafters and games stay; picks are wiped.`)) return;
+  state.currentDraftId = id;
+  await api(`/api/drafts/${id}/reset`, { method: "POST" });
+  await renderDraft();
+});
+
+$("#delete").addEventListener("click", async () => {
+  const id = state.currentDraftId || $("#draft-id").value;
+  if (!id) return alert("No draft loaded.");
+  if (!confirm(`Delete draft '${id}' permanently? This removes the file from disk.`)) return;
+  await api(`/api/drafts/${id}`, { method: "DELETE" });
+  if (state.currentDraftId === id) state.currentDraftId = null;
+  poolCache = { draftId: null, pool: [] };
+  await loadDraftList();
+  await renderDraft();
+});
+
 async function renderDraft() {
   if (!state.currentDraftId) {
     $("#draft-state").innerHTML = `<div class="muted">No draft loaded. Start a new one or pick from the dropdown.</div>`;
