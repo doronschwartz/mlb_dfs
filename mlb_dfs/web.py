@@ -277,10 +277,13 @@ def score(draft_id: str):
                         "pick_number": p.pick_number,
                         "drafter": p.drafter,
                         "projected": p.projected_points,
-                        "actual": (ps.points if ps else None),
+                        "actual": (ps.points if ps and ps.played else None),
                         "raw": (ps.raw if ps else None),
                         "game_state": (ps.game_state if ps else None),
                         "counted": (ps.counted_in_total if ps else False),
+                        "played": (ps.played if ps else False),
+                        "lineup_status": (ps.lineup_status if ps else "pending"),
+                        "promoted": (ps.promoted_from_bench if ps else False),
                     }
                     for p, ps in s.picks
                 ],

@@ -195,6 +195,11 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 .lineup-tag.in    { background: rgba(52,211,153,0.18); color: var(--accent-2); }
 .lineup-tag.out   { background: rgba(239,68,68,0.18);  color: var(--bad); }
 .lineup-tag.pending { background: rgba(245,158,11,0.18); color: var(--warn); }
+.promoted-tag {
+  display: inline-block; background: rgba(52,211,153,0.22); color: var(--accent-2);
+  border-radius: 8px; padding: 0 6px; font-size: 10px; margin-left: 4px;
+  font-weight: 700; letter-spacing: 0.04em;
+}
 .slot-cell.filled.scratched { box-shadow: 0 0 0 1px var(--bad) inset; }
 .replace-btn {
   background: var(--bad); color: #fff; border: 1px solid var(--bad);

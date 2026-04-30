@@ -22,9 +22,16 @@ class PlayerScore:
     raw: dict = field(default_factory=dict)
     game_state: str = ""
     # True if this player's points were counted toward the drafter's Total.
-    # For hitters/BN: top-N by score (where N = # starting hitter slots).
-    # For SP: always True (bench can't replace pitching).
     counted_in_total: bool = False
+    # True if the player has actual game data for the day (line in box score).
+    # False = pre-game / no data yet. Used so compute_totals can do its
+    # score-based bench swap only on real numbers.
+    played: bool = False
+    # Lineup status for this pick on the day: "in" / "out" / "pending".
+    lineup_status: str = "pending"
+    # True if this BN player got promoted into a starting slot because the
+    # starter was OOL (out of lineup). Surfaces a "PROMOTED" tag in the UI.
+    promoted_from_bench: bool = False
 
 
 @dataclass
@@ -36,30 +43,34 @@ class DrafterScore:
     picks: list[tuple[Pick, PlayerScore | None]] = field(default_factory=list)
 
 
-def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore | None"]]) -> tuple[float, float]:
+def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore"]]) -> tuple[float, float]:
     """Returns (total, full_total) and mutates each PlayerScore.counted_in_total.
 
-    Bench-swap rule (position-aware):
-      - SPs always count; the bench can never replace pitching.
-      - Every IF/OF/UTIL starter counts by default.
-      - The BN player promotes into a starting slot if and only if (a) they
-        are position-eligible for that slot type and (b) they outscore the
-        weakest starter at any of those eligible slots. Concretely:
-          IF on the bench  -> can replace the worst of the 3 IF + 1 UTIL slots
-          OF on the bench  -> can replace the worst of the 3 OF + 1 UTIL slots
-          (UTIL slot accepts any hitter, hence both groups can reach it.)
-      - When a swap happens, the displaced starter is marked benched-out.
+    Two-phase bench swap (position-aware):
 
-    Full total: sum of every drafted player's score, regardless of swap.
+    Phase 1 — OOL promotion (works pre-game):
+      If a starter is "out" of the lineup AND a position-eligible bench
+      player is in/pending, the bench takes that slot. The OOL starter is
+      benched-out. This applies even with no game data yet — once MLB
+      posts the lineup card and the player isn't in it, the swap fires.
+
+    Phase 2 — score-based swap (post-game / mid-game):
+      For any bench player still on the bench whose game has actual data,
+      if they outscore the weakest position-eligible starter, swap them
+      in. Only compares played-vs-played scores so a benched player who
+      hasn't played yet doesn't get promoted ahead of a 0-pt-but-played
+      starter.
+
+    SPs always count; the bench can never replace pitching.
+    Full total: sum of every drafted player's score, ignoring swaps.
     """
-    starters: list[tuple[Pick, PlayerScore | None]] = []   # IF / OF / UTIL
-    bench: list[tuple[Pick, PlayerScore | None]] = []      # BN (hitter-only)
-    sps:    list[tuple[Pick, PlayerScore | None]] = []     # SP
+    starters: list[tuple[Pick, PlayerScore]] = []   # IF / OF / UTIL
+    bench: list[tuple[Pick, PlayerScore]] = []      # BN (hitter-only)
+    sps: list[tuple[Pick, PlayerScore]] = []        # SP
     full_total = 0.0
 
     for pick, ps in picks_with_scores:
-        pts = ps.points if ps else 0.0
-        full_total += pts
+        full_total += ps.points
         if pick.slot in HITTER_STARTING_SLOTS:
             starters.append((pick, ps))
         elif pick.slot == "BN":
@@ -67,43 +78,53 @@ def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore | None"]]) -
         elif pick.slot == "SP":
             sps.append((pick, ps))
 
-    # Defaults: every starter and every SP counts; bench does not.
+    # Defaults
     for _, ps in starters:
-        if ps is not None:
-            ps.counted_in_total = True
+        ps.counted_in_total = True
     for _, ps in sps:
-        if ps is not None:
-            ps.counted_in_total = True
+        ps.counted_in_total = True
     for _, ps in bench:
-        if ps is not None:
-            ps.counted_in_total = False
+        ps.counted_in_total = False
+        ps.promoted_from_bench = False
 
-    # Try the swap: which starter slots can each bench player promote into?
+    # ---- Phase 1: OOL bench promotion ------------------------------------
     for bn_pick, bn_ps in bench:
-        bn_pts = bn_ps.points if bn_ps else 0.0
-        eligible_targets = [
+        if bn_ps.lineup_status == "out":
+            continue  # bench is also out, can't help anyone
+        ool_targets = [
             (sp_pick, sp_ps) for sp_pick, sp_ps in starters
-            if _slot_eligible(sp_pick.slot, bn_pick)
-            and (sp_ps is None or sp_ps.counted_in_total)
+            if sp_ps.counted_in_total                        # not already swapped out
+            and _slot_eligible(sp_pick.slot, bn_pick)
+            and sp_ps.lineup_status == "out"
         ]
-        if not eligible_targets:
+        if not ool_targets:
             continue
-        worst_pick, worst_ps = min(
-            eligible_targets,
-            key=lambda t: (t[1].points if t[1] else 0.0),
-        )
-        worst_pts = worst_ps.points if worst_ps else 0.0
-        if bn_pts > worst_pts:
-            if worst_ps is not None:
-                worst_ps.counted_in_total = False
-            if bn_ps is not None:
-                bn_ps.counted_in_total = True
+        # Replace the weakest OOL starter (lowest points; usually 0 pre-game).
+        worst_pick, worst_ps = min(ool_targets, key=lambda t: t[1].points)
+        worst_ps.counted_in_total = False
+        bn_ps.counted_in_total = True
+        bn_ps.promoted_from_bench = True
 
-    counted_total = sum(
-        ps.points
-        for _, ps in picks_with_scores
-        if ps is not None and ps.counted_in_total
-    )
+    # ---- Phase 2: score-based swap (post-game) ---------------------------
+    for bn_pick, bn_ps in bench:
+        if bn_ps.counted_in_total:
+            continue  # already promoted in phase 1
+        if not bn_ps.played:
+            continue  # bench hasn't played yet, can't compare scores
+        eligible = [
+            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
+            if sp_ps.counted_in_total
+            and sp_ps.played
+            and _slot_eligible(sp_pick.slot, bn_pick)
+        ]
+        if not eligible:
+            continue
+        worst_pick, worst_ps = min(eligible, key=lambda t: t[1].points)
+        if bn_ps.points > worst_ps.points:
+            worst_ps.counted_in_total = False
+            bn_ps.counted_in_total = True
+
+    counted_total = sum(ps.points for _, ps in picks_with_scores if ps.counted_in_total)
     return counted_total, full_total
 
 
@@ -111,13 +132,26 @@ def score_draft(draft: Draft, *, on_date: Date | None = None) -> list[DrafterSco
     on_date = on_date or Date.fromisoformat(draft.date)
     game_filter = set(draft.game_pks) if draft.game_pks else None
     box_index = _index_boxscores(on_date, game_pks=game_filter)
+    try:
+        lineups_map = mlb_api.lineups_by_date(on_date, game_pks=game_filter)
+    except Exception:
+        lineups_map = {}
 
     drafter_scores: dict[str, DrafterScore] = {}
     for d in draft.drafters:
-        picks_with_scores: list[tuple[Pick, PlayerScore | None]] = []
+        picks_with_scores: list[tuple[Pick, PlayerScore]] = []
         for pick in (p for p in draft.picks if p.drafter == d):
             lines = box_index.get(pick.player_id)
-            ps = _score_player(pick, lines) if lines else None
+            if lines:
+                ps = _score_player(pick, lines)
+                ps.played = True
+            else:
+                ps = PlayerScore(
+                    player_id=pick.player_id, name=pick.name, role=pick.role,
+                    points=0.0, raw={}, game_state="", played=False,
+                )
+            ls = lineups_map.get(pick.player_id)
+            ps.lineup_status = (ls.get("status", "pending") if ls else "pending")
             picks_with_scores.append((pick, ps))
         total, full_total = compute_totals(picks_with_scores)
         drafter_scores[d] = DrafterScore(

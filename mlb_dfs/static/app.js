@@ -373,10 +373,9 @@ function escapeAttr(s) {
 async function openReplaceModal({ pickNumber, slot, oldName }) {
   const data = await api(`/api/drafts/${state.currentDraftId}/pool`).catch(() => null);
   if (!data) return alert("Couldn't load replacement candidates.");
-  const candidates = data.pool
+  const allCandidates = data.pool
     .filter((p) => p.eligible_slots.includes(slot))
     .sort((a, b) => {
-      // Prefer "in" > "pending" > "out"; then by projection.
       const order = { in: 0, pending: 1, out: 2, undefined: 1 };
       const da = order[a.lineup_status] ?? 1;
       const db = order[b.lineup_status] ?? 1;
@@ -392,49 +391,67 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
         <h3>Replace ${oldName} (${slot})</h3>
         <button class="close-btn">Close</button>
       </div>
-      <p class="muted" style="font-size:12px;margin:4px 0 12px;">
-        Sorted by lineup status (in lineup first), then projection. Click a player to swap them in.
+      <p class="muted" style="font-size:12px;margin:4px 0 8px;">
+        Sorted by lineup status (in lineup first), then projection.
       </p>
-      <table>
-        <thead><tr><th>Proj</th><th>Player</th><th>Pos</th><th>Lineup</th><th></th></tr></thead>
-        <tbody>${candidates
-          .map(
-            (p) => `
-          <tr class="${p.role}">
-            <td>${p.projected_points.toFixed(2)}</td>
-            <td>${p.name}</td>
-            <td>${p.position ?? "-"}</td>
-            <td>${lineupBadge(p.lineup_status)}</td>
-            <td><button class="btn-pick swap-btn" data-pid="${p.player_id}">Swap in</button></td>
-          </tr>`,
-          )
-          .join("")}</tbody>
-      </table>
+      <input id="replace-search" placeholder="Search by name…"
+             style="width:100%;margin-bottom:10px;" autofocus />
+      <div class="replace-results">
+        <table>
+          <thead><tr><th>Proj</th><th>Player</th><th>Pos</th><th>Lineup</th><th></th></tr></thead>
+          <tbody class="results-body"></tbody>
+        </table>
+      </div>
     </div>`;
   document.body.appendChild(overlay);
 
   const close = () => overlay.remove();
   overlay.querySelector(".close-btn").addEventListener("click", close);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-  overlay.querySelectorAll(".swap-btn").forEach((b) => {
-    b.addEventListener("click", async () => {
-      try {
-        await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/replace`, {
-          method: "POST",
-          body: JSON.stringify({ player_id: Number(b.dataset.pid) }),
-        });
-        close();
-        // Refresh whichever view we came from.
-        if (state.tab === "score") {
-          $("#score-load").click();
-        } else {
-          await renderDraft();
-        }
-      } catch (e) {
-        alert(e.message);
-      }
-    });
+  document.addEventListener("keydown", function escClose(e) {
+    if (e.key === "Escape") { close(); document.removeEventListener("keydown", escClose); }
   });
+
+  const tbody = overlay.querySelector(".results-body");
+  const search = overlay.querySelector("#replace-search");
+
+  function paint() {
+    const q = (search.value || "").toLowerCase().trim();
+    const rows = q
+      ? allCandidates.filter((p) => p.name.toLowerCase().includes(q))
+      : allCandidates;
+    tbody.innerHTML = rows
+      .slice(0, 200)
+      .map(
+        (p) => `
+        <tr class="${p.role}">
+          <td>${p.projected_points.toFixed(2)}</td>
+          <td>${p.name}</td>
+          <td>${p.position ?? "-"}</td>
+          <td>${lineupBadge(p.lineup_status)}</td>
+          <td><button class="btn-pick swap-btn" data-pid="${p.player_id}">Swap in</button></td>
+        </tr>`,
+      )
+      .join("");
+    overlay.querySelectorAll(".swap-btn").forEach((b) => {
+      b.addEventListener("click", async () => {
+        try {
+          await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/replace`, {
+            method: "POST",
+            body: JSON.stringify({ player_id: Number(b.dataset.pid) }),
+          });
+          close();
+          if (state.tab === "score") $("#score-load").click();
+          else await renderDraft();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+    });
+  }
+
+  search.addEventListener("input", paint);
+  paint();
 }
 
 $("#me").addEventListener("change", (e) => {
@@ -639,13 +656,18 @@ $("#score-load").addEventListener("click", async () => {
       const rows = s.picks
         .map(
           (p) => {
-            // "benched-out" only applies once a player actually has data
-            // for the day. Pre-game picks (actual === null) are starters
-            // who haven't played yet — render them normally.
-            const playedYet = p.actual !== null;
-            const showBenched = playedYet && !p.counted;
+            // A row is "benched-out" when its score didn't count toward the Total.
+            // That happens in two cases:
+            //   1. starter is OOL and a bench player got promoted into their slot
+            //   2. game is over and the bench outscored them
+            // Pre-game picks who are in/pending lineup render normally.
+            const showBenched = !p.counted && (p.played || p.lineup_status === "out");
             const cls = showBenched ? "benched-out" : "counted";
             const tag = showBenched ? `<span class="bench-tag">benched</span>` : "";
+            const promoted = p.promoted ? `<span class="promoted-tag">PROMOTED</span>` : "";
+            const lineupTag = p.lineup_status && p.lineup_status !== "pending"
+              ? `<span class="lineup-tag ${p.lineup_status}">${p.lineup_status === "out" ? "OUT" : "in"}</span>`
+              : "";
             const canReplace = state.identity && state.identity === p.drafter;
             const replaceCell = canReplace
               ? `<td><button class="replace-btn score-replace-btn"
@@ -656,7 +678,7 @@ $("#score-load").addEventListener("click", async () => {
             return `
           <tr class="${cls}">
             <td>${p.slot}</td>
-            <td>${p.name} ${tag}</td>
+            <td>${p.name} ${lineupTag} ${tag} ${promoted}</td>
             <td>${p.projected.toFixed(1)}</td>
             <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
             <td class="muted">${p.game_state ?? ""}</td>

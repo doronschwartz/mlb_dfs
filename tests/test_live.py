@@ -9,8 +9,11 @@ def _pick(slot: str, role: str = "hitter") -> Pick:
     )
 
 
-def _score(pts: float, role: str = "hitter") -> PlayerScore:
-    return PlayerScore(player_id=1, name="X", role=role, points=pts)
+def _score(pts: float, role: str = "hitter", *, played: bool = True, lineup_status: str = "in") -> PlayerScore:
+    return PlayerScore(
+        player_id=1, name="X", role=role, points=pts,
+        played=played, lineup_status=lineup_status,
+    )
 
 
 def test_bench_replaces_worst_hitter_matches_sheet_sample():
@@ -78,13 +81,16 @@ def test_counted_in_total_flags_correct_players():
     assert worst.counted_in_total is False
 
 
-def _bn(position: str, pts: float) -> tuple[Pick, PlayerScore]:
+def _bn(position: str, pts: float, *, lineup_status: str = "in") -> tuple[Pick, PlayerScore]:
     """Build a (Pick, PlayerScore) pair for a BN slot at a specific position."""
     pick = Pick(
         drafter="A", slot="BN", player_id=99, name="Bench",
         position=position, role="hitter", projected_points=0.0, pick_number=8,
     )
-    return pick, PlayerScore(player_id=99, name="Bench", role="hitter", points=pts)
+    return pick, PlayerScore(
+        player_id=99, name="Bench", role="hitter", points=pts,
+        played=True, lineup_status=lineup_status,
+    )
 
 
 def test_outfield_bench_cannot_replace_infielder():
@@ -135,6 +141,80 @@ def test_infield_bench_cannot_replace_outfielder():
     assert round(total, 2) == 74.0
     assert bad_of.counted_in_total is True       # bench couldn't reach
     assert if_bench_ps.counted_in_total is True
+
+
+def test_ool_starter_promotes_eligible_bench_pregame():
+    """Pre-game (no actual data) IF starter is OOL, IF bench is in lineup
+    -> bench gets promoted, total reflects bench's projected/actual instead.
+    """
+    bad_if = PlayerScore(player_id=2, name="OOL Starter", role="hitter",
+                         points=0.0, played=False, lineup_status="out")
+    if_bench_pick, if_bench_ps = _bn("1B", 0.0, lineup_status="in")  # also pre-game
+    pairs = [
+        (_pick("IF"), bad_if),
+        (_pick("IF"), _score(0.0, played=False)),
+        (_pick("IF"), _score(0.0, played=False)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("OF"), _score(0.0, played=False)),
+        (_pick("UTIL"), _score(0.0, played=False)),
+        (if_bench_pick, if_bench_ps),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+    ]
+    compute_totals(pairs)
+    assert if_bench_ps.counted_in_total is True
+    assert if_bench_ps.promoted_from_bench is True
+    assert bad_if.counted_in_total is False
+
+
+def test_ool_promotion_respects_position_eligibility():
+    """OF starter is OOL but bench is IF (1B) — bench can't replace OF, no swap."""
+    bad_of = PlayerScore(player_id=2, name="OOL OF Starter", role="hitter",
+                        points=0.0, played=False, lineup_status="out")
+    if_bench_pick, if_bench_ps = _bn("1B", 0.0, lineup_status="in")
+    pairs = [
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("OF"), bad_of),  # OOL but bench can't reach
+        (_pick("OF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("OF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("UTIL"), _score(0.0, played=False, lineup_status="in")),
+        (if_bench_pick, if_bench_ps),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+    ]
+    compute_totals(pairs)
+    # IF bench (1B) cannot replace an OOL OF starter; no promotion.
+    assert if_bench_ps.counted_in_total is False
+    assert if_bench_ps.promoted_from_bench is False
+    # The OOL OF starter still "counts" (his 0) — there's no eligible replacement.
+    assert bad_of.counted_in_total is True
+
+
+def test_ool_promotion_into_util_when_starter_position_blocked():
+    """OF starter OOL, IF bench can't reach OF, but UTIL is also OOL —
+    bench fills UTIL instead."""
+    ool_util = PlayerScore(player_id=3, name="OOL UTIL", role="hitter",
+                           points=0.0, played=False, lineup_status="out")
+    if_bench_pick, if_bench_ps = _bn("1B", 0.0, lineup_status="in")
+    pairs = [
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("IF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("OF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("OF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("OF"), _score(0.0, played=False, lineup_status="in")),
+        (_pick("UTIL"), ool_util),
+        (if_bench_pick, if_bench_ps),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+        (_pick("SP", "pitcher"), _score(0.0, "pitcher", played=False)),
+    ]
+    compute_totals(pairs)
+    assert if_bench_ps.counted_in_total is True
+    assert if_bench_ps.promoted_from_bench is True
+    assert ool_util.counted_in_total is False
 
 
 def test_doubleheader_hitter_sums_points_across_both_games():
