@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 
-_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "historic")
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "historic")
 
 
 def _load(name: str, default):

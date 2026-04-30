@@ -117,7 +117,7 @@ def parse_team_appearances(path: str) -> dict[str, int]:
 def main():
     downloads = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Downloads")
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    out_dir = os.path.join(repo, "data", "historic")
+    out_dir = os.path.join(repo, "mlb_dfs", "data", "historic")
     os.makedirs(out_dir, exist_ok=True)
 
     standings_path = os.path.join(downloads, "MLB DFS 2026 - Standings_Points.csv")
