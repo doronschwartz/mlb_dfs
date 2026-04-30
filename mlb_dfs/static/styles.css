@@ -8,7 +8,12 @@
   --accent-2: #34d399;
   --warn: #f59e0b;
   --bad: #ef4444;
+  /* Tells the browser to use dark-themed native widgets — date picker
+     calendars, scrollbars, dropdown lists. Without this the date-input
+     calendar popup is white-on-white on macOS Safari/Chrome. */
+  color-scheme: dark;
 }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.85); cursor: pointer; }
 * { box-sizing: border-box; }
 html, body {
   background: var(--bg); color: var(--text);
