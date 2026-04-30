@@ -130,9 +130,11 @@ class Draft:
         need_hitter = sum(1 for s in remaining if s in {"IF", "OF", "UTIL", "BN"})
         need_sp = sum(1 for s in remaining if s == "SP")
 
+        remaining_unique = list(dict.fromkeys(remaining))  # dedupe, preserve order
+
         scored: list[dict] = []
         for proj in avail:
-            eligible_slots = [s for s in remaining if _slot_eligible(s, proj)]
+            eligible_slots = [s for s in remaining_unique if _slot_eligible(s, proj)]
             if not eligible_slots:
                 continue
 
