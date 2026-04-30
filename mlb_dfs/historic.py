@@ -13,6 +13,19 @@ import os
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "historic")
 
+# The spreadsheet uses a few non-canonical team abbreviations that differ from
+# the MLB Stats API. Map them so historic counts merge correctly with live
+# slate-builder counts (which always come from the API).
+TEAM_ALIASES = {
+    "ARI": "AZ",   # Arizona Diamondbacks
+    "SFG": "SF",   # San Francisco Giants
+    "WAS": "WSH",  # Washington Nationals
+}
+
+
+def canonical_team(abbr: str) -> str:
+    return TEAM_ALIASES.get(abbr, abbr)
+
 
 def _load(name: str, default):
     path = os.path.join(_DATA_DIR, name)
@@ -34,4 +47,11 @@ def picks() -> list[dict]:
 
 
 def team_counts() -> dict[str, int]:
-    return _load("team_counts.json", {})
+    """Returns counts keyed by *canonical* (API) team abbreviation, so the
+    schedule builder can sum historic + live counts without duplication."""
+    raw = _load("team_counts.json", {})
+    out: dict[str, int] = {}
+    for k, v in raw.items():
+        canon = canonical_team(k)
+        out[canon] = out.get(canon, 0) + int(v)
+    return out
