@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 
 from . import mlb_api
-from .draft import Draft, Pick
+from .draft import Draft, Pick, _slot_eligible
 from .scoring import HitterLine, PitcherLine
 
 
@@ -39,39 +39,72 @@ class DrafterScore:
 def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore | None"]]) -> tuple[float, float]:
     """Returns (total, full_total) and mutates each PlayerScore.counted_in_total.
 
-    Total: top-N hitter scores from the (IF + OF + UTIL + BN) pool, where N is
-    the number of starting hitter slots, plus all SP scores. The bench replaces
-    a starting hitter only if it scores higher; SPs are never affected.
+    Bench-swap rule (position-aware):
+      - SPs always count; the bench can never replace pitching.
+      - Every IF/OF/UTIL starter counts by default.
+      - The BN player promotes into a starting slot if and only if (a) they
+        are position-eligible for that slot type and (b) they outscore the
+        weakest starter at any of those eligible slots. Concretely:
+          IF on the bench  -> can replace the worst of the 3 IF + 1 UTIL slots
+          OF on the bench  -> can replace the worst of the 3 OF + 1 UTIL slots
+          (UTIL slot accepts any hitter, hence both groups can reach it.)
+      - When a swap happens, the displaced starter is marked benched-out.
 
-    Full total: every drafted player's score, including the bench whether or
-    not it counted toward Total.
+    Full total: sum of every drafted player's score, regardless of swap.
     """
-    n_starters = sum(1 for p, _ in picks_with_scores if p.slot in HITTER_STARTING_SLOTS)
-
-    hitter_pool: list[tuple[float, PlayerScore | None]] = []
-    sp_total = 0.0
+    starters: list[tuple[Pick, PlayerScore | None]] = []   # IF / OF / UTIL
+    bench: list[tuple[Pick, PlayerScore | None]] = []      # BN (hitter-only)
+    sps:    list[tuple[Pick, PlayerScore | None]] = []     # SP
     full_total = 0.0
 
     for pick, ps in picks_with_scores:
         pts = ps.points if ps else 0.0
         full_total += pts
-        if pick.slot in HITTER_STARTING_SLOTS or pick.slot == "BN":
-            hitter_pool.append((pts, ps))
+        if pick.slot in HITTER_STARTING_SLOTS:
+            starters.append((pick, ps))
+        elif pick.slot == "BN":
+            bench.append((pick, ps))
         elif pick.slot == "SP":
-            sp_total += pts
-            if ps is not None:
-                ps.counted_in_total = True
+            sps.append((pick, ps))
 
-    # Mark the top-N hitter scores as counted (ties broken arbitrarily).
-    hitter_pool.sort(key=lambda t: t[0], reverse=True)
-    counted_hitter_total = 0.0
-    for i, (pts, ps) in enumerate(hitter_pool):
-        if i < n_starters:
-            counted_hitter_total += pts
-            if ps is not None:
-                ps.counted_in_total = True
+    # Defaults: every starter and every SP counts; bench does not.
+    for _, ps in starters:
+        if ps is not None:
+            ps.counted_in_total = True
+    for _, ps in sps:
+        if ps is not None:
+            ps.counted_in_total = True
+    for _, ps in bench:
+        if ps is not None:
+            ps.counted_in_total = False
 
-    return counted_hitter_total + sp_total, full_total
+    # Try the swap: which starter slots can each bench player promote into?
+    for bn_pick, bn_ps in bench:
+        bn_pts = bn_ps.points if bn_ps else 0.0
+        eligible_targets = [
+            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
+            if _slot_eligible(sp_pick.slot, bn_pick)
+            and (sp_ps is None or sp_ps.counted_in_total)
+        ]
+        if not eligible_targets:
+            continue
+        worst_pick, worst_ps = min(
+            eligible_targets,
+            key=lambda t: (t[1].points if t[1] else 0.0),
+        )
+        worst_pts = worst_ps.points if worst_ps else 0.0
+        if bn_pts > worst_pts:
+            if worst_ps is not None:
+                worst_ps.counted_in_total = False
+            if bn_ps is not None:
+                bn_ps.counted_in_total = True
+
+    counted_total = sum(
+        ps.points
+        for _, ps in picks_with_scores
+        if ps is not None and ps.counted_in_total
+    )
+    return counted_total, full_total
 
 
 def score_draft(draft: Draft, *, on_date: Date | None = None) -> list[DrafterScore]:

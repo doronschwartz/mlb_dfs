@@ -65,8 +65,11 @@ docker run -p 8000:8000 -v "$PWD/data:/data" -e MLB_DFS_DRAFT_DIR=/data/drafts m
 
 ## Total vs. Full Total
 
-- **Total** — what the standings rank on. Sum of all 9 starting slots (3 IF + 3 OF + 1 UTIL + 2 SP), but the bench (BN) **replaces a starting hitter if and only if it outscores the weakest IF/OF/UTIL** that day. The bench can never replace pitching.
-- **Full Total** — every drafted player's score added together, regardless of swaps.
+- **Total** — what the standings rank on. Sum of all 9 starting slots (3 IF + 3 OF + 1 UTIL + 2 SP), with one position-aware bench swap:
+    - An **IF** on the bench can promote into the worst-scoring **IF or UTIL** starter if it outscores them.
+    - An **OF** on the bench can promote into the worst-scoring **OF or UTIL** starter if it outscores them.
+    - The bench can never replace pitching; SPs always count.
+- **Full Total** — every drafted player's score added together, regardless of swap.
 
 Bench eligibility is hitter-only.
 
