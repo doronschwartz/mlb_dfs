@@ -244,6 +244,28 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 
 footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 
+.sched-day {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.sched-day h4 { margin: 0 0 6px; font-size: 13px; }
+.sched-day .matchups { display: flex; flex-wrap: wrap; gap: 6px; }
+.sched-day .matchup-chip {
+  background: #0d2030; border: 1px solid var(--accent);
+  color: var(--accent); border-radius: 12px; padding: 2px 10px; font-size: 11px;
+}
+.team-counts {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+}
+.team-counts .row { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.team-counts .team {
+  background: #0d141c; padding: 2px 6px; border-radius: 4px;
+}
+.team-counts .team.low { color: var(--accent-2); }
+.team-counts .team.high { color: var(--warn); }
+
 .btn-pick { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
 .btn-pick:hover { filter: brightness(1.1); }
 .btn-danger { background: var(--bad); color: #fff; border-color: var(--bad); }

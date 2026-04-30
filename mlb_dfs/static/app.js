@@ -211,6 +211,55 @@ $("#games-clear").addEventListener("click", () => {
   renderGamePicker();
 });
 
+$("#randomize").addEventListener("click", () => {
+  const input = $("#drafters");
+  const names = input.value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (names.length < 2) return alert("Type at least 2 drafter names first.");
+  // Fisher-Yates shuffle
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [names[i], names[j]] = [names[j], names[i]];
+  }
+  input.value = names.join(", ");
+});
+
+$("#show-eligibility").addEventListener("click", () => {
+  const html = `
+    <div class="replace-modal" id="eligibility-modal">
+      <div class="panel" style="max-width:560px;">
+        <div class="close-row">
+          <h3>Slot eligibility rules</h3>
+          <button class="close-btn">Close</button>
+        </div>
+        <table>
+          <thead><tr><th>Slot</th><th>Who can fill it</th></tr></thead>
+          <tbody>
+            <tr><td><b>IF</b></td><td>Position is one of: 1B, 2B, 3B, SS, C</td></tr>
+            <tr><td><b>OF</b></td><td>Position is one of: LF, CF, RF</td></tr>
+            <tr><td><b>UTIL</b></td><td>Any non-pitcher</td></tr>
+            <tr><td><b>BN</b></td><td>Any non-pitcher (bench is hitter-only)</td></tr>
+            <tr><td><b>SP</b></td><td>The probable starting pitcher for a slate game</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" style="font-size:12px; margin-top:10px;">
+          Bench-swap rule: an IF on BN can promote into IF or UTIL; an OF on BN
+          can promote into OF or UTIL. The bench can never replace pitching.
+        </p>
+        <p class="muted" style="font-size:12px;">
+          DH-positioned players (e.g. Shohei Ohtani as a hitter) appear with
+          eligibility for UTIL and BN only. If Ohtani is also that day's
+          probable SP, he shows up a second time in the pool with an SP-only
+          row — pick the role you want him in (one or the other, not both).
+        </p>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  const overlay = document.getElementById("eligibility-modal");
+  const close = () => overlay.remove();
+  overlay.querySelector(".close-btn").addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+});
+
 $("#load-draft").addEventListener("click", async () => {
   state.currentDraftId = $("#draft-id").value;
   await renderDraft();
@@ -721,7 +770,16 @@ $("#score-load").addEventListener("click", async () => {
     </div>`;
   const cards = standings
     .map((s) => {
-      const rows = s.picks
+      // Sort picks by slot order (SP first, then IF, OF, UTIL, BN) instead
+      // of draft order, so each team card reads like a starting lineup.
+      const SLOT_DISPLAY_ORDER = { SP: 0, IF: 1, OF: 2, UTIL: 3, BN: 4 };
+      const rows = [...s.picks]
+        .sort((a, b) => {
+          const da = SLOT_DISPLAY_ORDER[a.slot] ?? 99;
+          const db = SLOT_DISPLAY_ORDER[b.slot] ?? 99;
+          if (da !== db) return da - db;
+          return (a.pick_number ?? 0) - (b.pick_number ?? 0);
+        })
         .map(
           (p) => {
             // A row is "benched-out" when its score didn't count toward the Total.
@@ -828,5 +886,95 @@ async function refresh() {
   } else {
     stopPolling();
   }
+  if (state.tab === "schedule") initScheduleTab();
 }
+
+// ---------- Schedule tab ----------
+
+let scheduleResult = null;
+
+function initScheduleTab() {
+  const today = $("#date").value;
+  if (!$("#sched-start").value) $("#sched-start").value = today;
+  if (!$("#sched-end").value) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 6);
+    $("#sched-end").value = d.toISOString().slice(0, 10);
+  }
+}
+
+$("#sched-build").addEventListener("click", async () => {
+  const start = $("#sched-start").value;
+  const end = $("#sched-end").value;
+  const size = $("#sched-size").value || "5";
+  if (!start || !end) return alert("Pick a start and end date.");
+  $("#sched-out").innerHTML = `<div class="muted">Building (this fetches each day's slate from MLB)…</div>`;
+  try {
+    const data = await api(`/api/schedule_builder?start=${start}&end=${end}&slate_size=${size}`);
+    scheduleResult = data;
+    renderSchedule(data);
+    $("#sched-apply-row").hidden = false;
+  } catch (e) {
+    $("#sched-out").innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+});
+
+function renderSchedule(data) {
+  const days = data.days
+    .map((day) => {
+      const chips = day.selected_games
+        .map((g) => `<span class="matchup-chip">${g.away_abbr} @ ${g.home_abbr}</span>`)
+        .join("");
+      return `<div class="sched-day">
+        <h4>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span></h4>
+        <div class="matchups">${chips}</div>
+      </div>`;
+    })
+    .join("");
+  const min = data.min_count;
+  const max = data.max_count;
+  const teamRow = Object.entries(data.team_counts)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([t, c]) => {
+      const cls = c === min ? "low" : c === max && min !== max ? "high" : "";
+      return `<span class="team ${cls}">${t}: ${c}</span>`;
+    })
+    .join("");
+  $("#sched-out").innerHTML = `
+    ${days}
+    <div class="team-counts">
+      <div class="muted" style="margin-bottom:6px;">Team appearances after applying this schedule (green = lowest, orange = highest, range ${min}–${max}):</div>
+      <div class="row">${teamRow}</div>
+    </div>`;
+}
+
+$("#sched-apply").addEventListener("click", async () => {
+  if (!scheduleResult) return alert("Build a schedule first.");
+  const drafters = $("#sched-drafters").value
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  if (drafters.length < 2) return alert("Need at least 2 drafters.");
+  const randomize = $("#sched-randomize").checked;
+  const days = scheduleResult.days.map((d) => ({
+    date: d.date,
+    game_pks: d.selected_games.map((g) => g.gamePk),
+  }));
+  const out = $("#sched-apply-out");
+  out.textContent = "Creating drafts…";
+  try {
+    const data = await api(`/api/schedule_builder/apply`, {
+      method: "POST",
+      body: JSON.stringify({ drafters, days, randomize_order: randomize }),
+    });
+    out.innerHTML =
+      `Created ${data.created.length} drafts, skipped ${data.skipped.length}. ` +
+      `<a href="#" id="sched-go-draft">Switch to Draft tab</a> to load any of them.`;
+    $("#sched-go-draft").addEventListener("click", (e) => {
+      e.preventDefault();
+      document.querySelector('nav button[data-tab="draft"]').click();
+    });
+    await loadDraftList();
+  } catch (e) {
+    out.textContent = e.message;
+  }
+});
 refresh();

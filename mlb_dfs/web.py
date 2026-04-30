@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import date as Date
+import random
+from collections import Counter
+from datetime import date as Date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -176,6 +178,134 @@ def move_targets(draft_id: str, pick_number: int):
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
     return {"targets": dr.eligible_target_slots(pick_number)}
+
+
+@app.get("/api/schedule_builder")
+def schedule_builder(
+    start: str,
+    end: str,
+    slate_size: int = 5,
+    seed_from_existing: bool = True,
+):
+    """Suggest a per-day slate selection across [start, end] that keeps each
+    team's appearance count as even as possible.
+
+    Greedy: for each date, score each scheduled game by the sum of how often
+    its two teams have already appeared, and pick the lowest-scoring N.
+
+    If `seed_from_existing` is true, prior saved drafts on dates in or before
+    `start` seed the team-counter so the schedule continues evenly from
+    however many slates have already been played.
+    """
+    s = Date.fromisoformat(start)
+    e = Date.fromisoformat(end)
+    if e < s:
+        raise HTTPException(400, "end must be on/after start")
+
+    counts: Counter[str] = Counter()
+    if seed_from_existing:
+        for did in draft_mod.list_drafts():
+            try:
+                dr = draft_mod.load_draft(did)
+            except Exception:
+                continue
+            try:
+                ddate = Date.fromisoformat(dr.date)
+            except Exception:
+                continue
+            if ddate >= s:
+                continue
+            # Re-derive teams from the draft's gamePks against that day's schedule.
+            try:
+                games = mlb_api.schedule(ddate)
+            except Exception:
+                continue
+            selected = set(dr.game_pks) if dr.game_pks else None
+            for g in games:
+                if selected is not None and g.get("gamePk") not in selected:
+                    continue
+                aa = ((g.get("teams") or {}).get("away") or {}).get("team", {}).get("abbreviation")
+                ha = ((g.get("teams") or {}).get("home") or {}).get("team", {}).get("abbreviation")
+                if aa: counts[aa] += 1
+                if ha: counts[ha] += 1
+
+    days = []
+    cur = s
+    while cur <= e:
+        try:
+            games = mlb_api.slate(cur)
+        except Exception:
+            cur += timedelta(days=1)
+            continue
+        scored = sorted(
+            games,
+            key=lambda g: (
+                counts[g["away"]["abbr"] or ""] + counts[g["home"]["abbr"] or ""],
+                # tiebreak: random-ish so reruns don't always pick the same game
+                hash((g.get("gamePk", 0), cur.isoformat())) & 0xFFFF,
+            ),
+        )
+        chosen = [g for g in scored if g["away"]["abbr"] and g["home"]["abbr"]][:slate_size]
+        for g in chosen:
+            counts[g["away"]["abbr"]] += 1
+            counts[g["home"]["abbr"]] += 1
+        days.append({
+            "date": cur.isoformat(),
+            "selected_games": [
+                {
+                    "gamePk": g["gamePk"],
+                    "away_abbr": g["away"]["abbr"],
+                    "home_abbr": g["home"]["abbr"],
+                    "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
+                    "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
+                    "status": g.get("detailedStatus", ""),
+                }
+                for g in chosen
+            ],
+            "team_counts_after": dict(counts),
+        })
+        cur += timedelta(days=1)
+
+    return {
+        "start": start,
+        "end": end,
+        "slate_size": slate_size,
+        "days": days,
+        "team_counts": dict(counts),
+        "min_count": min(counts.values()) if counts else 0,
+        "max_count": max(counts.values()) if counts else 0,
+    }
+
+
+class ApplyScheduleRequest(BaseModel):
+    drafters: list[str]
+    days: list[dict]  # [{date: "YYYY-MM-DD", game_pks: [int]}]
+    randomize_order: bool = True
+
+
+@app.post("/api/schedule_builder/apply")
+def apply_schedule(req: ApplyScheduleRequest):
+    """Bulk-create one draft per day with the chosen slate. Drafter order is
+    randomized per day if requested (each draft gets its own snake order)."""
+    if len(req.drafters) < 2:
+        raise HTTPException(400, "need at least 2 drafters")
+    created, skipped = [], []
+    for entry in req.days:
+        try:
+            d = Date.fromisoformat(entry["date"])
+        except Exception:
+            skipped.append({"date": entry.get("date"), "reason": "bad date"})
+            continue
+        order = list(req.drafters)
+        if req.randomize_order:
+            random.shuffle(order)
+        try:
+            dr = draft_mod.new_draft(d, order, game_pks=entry.get("game_pks") or [])
+            draft_mod.save_draft(dr)
+            created.append({"date": entry["date"], "drafters": order})
+        except Exception as ex:
+            skipped.append({"date": entry["date"], "reason": str(ex)})
+    return {"created": created, "skipped": skipped}
 
 
 @app.get("/api/lineups")

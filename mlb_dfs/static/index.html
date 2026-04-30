@@ -14,6 +14,7 @@
       <button data-tab="project">Projections</button>
       <button data-tab="draft">Draft</button>
       <button data-tab="score">Live Score</button>
+      <button data-tab="schedule">Schedule</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -40,7 +41,9 @@
         <h3>Start a new draft</h3>
         <div class="setup-row">
           <input id="drafters" placeholder="Drafter names, comma-separated. Ex: Stock,JL,Meech" />
+          <button id="randomize" type="button" title="Randomize draft order">🎲 Randomize</button>
           <button id="new-draft" class="btn-pick">Start draft</button>
+          <button id="show-eligibility" type="button">Eligibility ❓</button>
         </div>
         <div class="setup-row">
           <span class="muted">Pick which games are in the pool — leave all unchecked to use the full slate:</span>
@@ -85,6 +88,35 @@
         <span id="pool-count" class="muted"></span>
       </div>
       <div id="pool-out"></div>
+    </section>
+
+    <section id="tab-schedule" class="tab">
+      <h2>Schedule upcoming slates</h2>
+      <p class="muted" style="font-size:13px;">
+        Plans a per-day slate selection across a date range so each MLB team
+        appears the same number of times. Seeds counts from existing drafts
+        before the start date, so you stay even with what's already played.
+        Then bulk-creates one draft per day with the drafters in randomized
+        order.
+      </p>
+      <div class="setup-row">
+        <label>Start <input type="date" id="sched-start" /></label>
+        <label>End <input type="date" id="sched-end" /></label>
+        <label>Games per slate <input type="number" id="sched-size" min="1" max="15" value="5" style="width:60px;" /></label>
+        <button id="sched-build" class="btn-pick">Build</button>
+      </div>
+      <div id="sched-out"></div>
+      <div id="sched-apply-row" hidden style="margin-top:14px;">
+        <h3>Apply this schedule</h3>
+        <div class="setup-row">
+          <input id="sched-drafters" placeholder="Drafter names, comma-separated" />
+          <label style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="sched-randomize" checked /> randomize order each day
+          </label>
+          <button id="sched-apply" class="btn-pick">Create drafts</button>
+        </div>
+        <div id="sched-apply-out" class="muted" style="font-size:12px;"></div>
+      </div>
     </section>
 
     <section id="tab-score" class="tab">

@@ -12,6 +12,14 @@ from .scoring import HitterLine, PitcherLine
 
 HITTER_STARTING_SLOTS = ("IF", "OF", "UTIL")
 
+# Game states that mean the game hasn't actually started yet — players in the
+# box score with all-zero stats during these states should NOT count as 'played'
+# (so the bench-swap UI doesn't strike them through pre-game).
+PRE_GAME_STATES = frozenset({
+    "Scheduled", "Pre-Game", "Warmup", "Delayed Start", "TBA",
+    "Postponed", "Cancelled", "",
+})
+
 
 @dataclass
 class PlayerScore:
@@ -144,7 +152,11 @@ def score_draft(draft: Draft, *, on_date: Date | None = None) -> list[DrafterSco
             lines = box_index.get(pick.player_id)
             if lines:
                 ps = _score_player(pick, lines)
-                ps.played = True
+                # Only treat the player as 'played' once their game has
+                # actually started — otherwise pre-game zero stat lines
+                # would trigger benched-out styling for every BN pick.
+                last_state = lines[-1].get("state", "")
+                ps.played = last_state not in PRE_GAME_STATES
             else:
                 ps = PlayerScore(
                     player_id=pick.player_id, name=pick.name, role=pick.role,

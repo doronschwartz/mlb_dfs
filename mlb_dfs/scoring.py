@@ -14,6 +14,11 @@ HITTER_POINTS = {
     "baseOnBalls": 2.0,
     "hitByPitch": 2.0,
     "stolenBase": 3.0,
+    # "GIDP" in the spreadsheet rules covers any double play (grounded, line
+    # drive, or fly ball). MLB Stats API only exposes the grounded variant
+    # via `groundIntoDoublePlay` on hitter boxscore stats — line/fly DPs
+    # aren't tracked at the hitter level. Scored here is grounded-only;
+    # full DP coverage would require parsing play-by-play descriptions.
     "groundIntoDoublePlay": -1.5,
     "strikeOut": -1.0,
 }
