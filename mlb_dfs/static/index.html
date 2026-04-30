@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MLB DFS — live snake draft</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=__BUILD__" />
 </head>
 <body>
   <header>
@@ -63,6 +63,20 @@
       <div id="pick-log"></div>
       <h3>On the clock — recommended picks</h3>
       <div id="recs-out"></div>
+
+      <h3>All available players</h3>
+      <div class="setup-row">
+        <input id="pool-search" placeholder="Search by name…" />
+        <select id="pool-filter">
+          <option value="all">All positions</option>
+          <option value="hitter">Hitters only</option>
+          <option value="pitcher">Pitchers (SP) only</option>
+          <option value="IF">IF eligible</option>
+          <option value="OF">OF eligible</option>
+        </select>
+        <span id="pool-count" class="muted"></span>
+      </div>
+      <div id="pool-out"></div>
     </section>
 
     <section id="tab-score" class="tab">
@@ -79,6 +93,6 @@
     Data: MLB Stats API. Scoring: spreadsheet rules.
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=__BUILD__"></script>
 </body>
 </html>

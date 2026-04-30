@@ -6,13 +6,17 @@ Also serves the static SPA from `mlb_dfs/static/`.
 from __future__ import annotations
 
 import os
+import time
 from datetime import date as Date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+# A per-process boot stamp; used to cache-bust /static asset URLs across deploys.
+BUILD_VERSION = str(int(time.time()))
 
 from . import draft as draft_mod
 from . import live as live_mod
@@ -128,6 +132,45 @@ def undo_last_pick(draft_id: str):
     return _draft_state(dr)
 
 
+@app.get("/api/drafts/{draft_id}/pool")
+def get_pool(draft_id: str):
+    """All draft-eligible players for this draft, undrafted, sorted by projection."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    team_filter = _team_filter_for(dr)
+    projs = projections.project_slate(
+        Date.fromisoformat(dr.date), team_filter=team_filter,
+    )
+    picked = dr.picked_ids()
+    on_clock = dr.on_the_clock()
+    remaining = dr.remaining_slots(on_clock[0]) if on_clock else []
+    pool = []
+    for p in projs:
+        if p.player_id in picked:
+            continue
+        eligible = []
+        for s in ["IF", "OF", "UTIL", "BN", "SP"]:
+            if draft_mod._slot_eligible(s, p) and (not remaining or s in remaining):
+                eligible.append(s)
+        pool.append({
+            "player_id": p.player_id,
+            "name": p.name,
+            "position": p.position,
+            "role": p.role,
+            "team_id": p.team_id,
+            "projected_points": p.projected_points,
+            "eligible_slots": eligible,
+            "notes": list(p.notes),
+        })
+    return {
+        "on_the_clock": on_clock,
+        "remaining_slots": remaining,
+        "pool": pool,
+    }
+
+
 @app.get("/api/drafts/{draft_id}/recommend")
 def recommend(draft_id: str, top_n: int = 8):
     try:
@@ -182,9 +225,10 @@ def score(draft_id: str):
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    @app.get("/")
+    @app.get("/", response_class=HTMLResponse)
     def index():
-        return FileResponse(str(STATIC_DIR / "index.html"))
+        html = (STATIC_DIR / "index.html").read_text()
+        return html.replace("__BUILD__", BUILD_VERSION)
 
 
 # -------------------- helpers --------------------

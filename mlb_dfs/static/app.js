@@ -224,8 +224,13 @@ async function renderDraft() {
 
   renderPickLog(data);
 
-  if (!data.is_complete) await renderRecs();
-  else $("#recs-out").innerHTML = `<div class="muted">Draft complete.</div>`;
+  if (!data.is_complete) {
+    await renderRecs();
+    await renderPool();
+  } else {
+    $("#recs-out").innerHTML = `<div class="muted">Draft complete.</div>`;
+    $("#pool-out").innerHTML = "";
+  }
 }
 
 function renderPickLog(data) {
@@ -297,6 +302,86 @@ async function renderRecs() {
     $("#recs-out").innerHTML = `<div class="muted">${e.message}</div>`;
   }
 }
+
+// ---------- all available players ----------
+
+let poolCache = { draftId: null, pool: [] };
+
+async function renderPool() {
+  if (!state.currentDraftId) return;
+  if (poolCache.draftId !== state.currentDraftId) poolCache = { draftId: null, pool: [] };
+  $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">Loading available players…</div>`;
+  try {
+    const data = await api(`/api/drafts/${state.currentDraftId}/pool`);
+    poolCache = { draftId: state.currentDraftId, pool: data.pool };
+    drawPool();
+  } catch (e) {
+    $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">${e.message}</div>`;
+  }
+}
+
+function drawPool() {
+  const search = ($("#pool-search").value || "").toLowerCase().trim();
+  const filter = $("#pool-filter").value;
+  const rows = poolCache.pool.filter((p) => {
+    if (search && !p.name.toLowerCase().includes(search)) return false;
+    if (filter === "hitter") return p.role === "hitter";
+    if (filter === "pitcher") return p.role === "pitcher";
+    if (filter === "IF" || filter === "OF") return p.eligible_slots.includes(filter);
+    return true;
+  });
+  $("#pool-count").textContent = `${rows.length} available`;
+  if (!rows.length) {
+    $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">No matches.</div>`;
+    return;
+  }
+  const html = `
+    <table>
+      <thead>
+        <tr><th>Proj</th><th>Player</th><th>Pos</th><th>Role</th><th>Pick into…</th><th>Notes</th></tr>
+      </thead>
+      <tbody>${rows
+        .map(
+          (p) => `
+        <tr class="${p.role}">
+          <td>${p.projected_points.toFixed(2)}</td>
+          <td>${p.name}</td>
+          <td>${p.position ?? "-"}</td>
+          <td>${p.role}</td>
+          <td>${
+            p.eligible_slots.length
+              ? p.eligible_slots
+                  .map(
+                    (s) =>
+                      `<span class="slot-pill" data-pid="${p.player_id}" data-slot="${s}">${s}</span>`,
+                  )
+                  .join("")
+              : `<span class="slot-pill disabled">no slot left</span>`
+          }</td>
+          <td class="notes">${(p.notes || []).join(" · ")}</td>
+        </tr>`,
+        )
+        .join("")}</tbody>
+    </table>`;
+  $("#pool-out").innerHTML = html;
+  $$("#pool-out .slot-pill").forEach((el) => {
+    if (el.classList.contains("disabled")) return;
+    el.addEventListener("click", async () => {
+      await api(`/api/drafts/${state.currentDraftId}/pick`, {
+        method: "POST",
+        body: JSON.stringify({
+          draft_id: state.currentDraftId,
+          player_id: Number(el.dataset.pid),
+          slot: el.dataset.slot,
+        }),
+      });
+      await renderDraft();
+    });
+  });
+}
+
+$("#pool-search").addEventListener("input", () => poolCache.pool.length && drawPool());
+$("#pool-filter").addEventListener("change", () => poolCache.pool.length && drawPool());
 
 // ---------- live scoring ----------
 $("#score-load").addEventListener("click", async () => {
