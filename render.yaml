@@ -4,11 +4,19 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
-    envVars:
-      - key: MLB_DFS_DRAFT_DIR
-        value: /data/drafts
-    disk:
-      name: drafts
-      mountPath: /data
-      sizeGB: 1
     healthCheckPath: /api/health
+    envVars:
+      # Free tier has no persistent disk — keep drafts in ephemeral container fs.
+      # Drafts will reset on redeploy / cold-restart. Upgrade to a paid plan + uncomment
+      # the `disk:` block below for persistence.
+      - key: MLB_DFS_DRAFT_DIR
+        value: /tmp/drafts
+
+# To persist drafts, upgrade plan: starter (or higher) and uncomment:
+#    disk:
+#      name: drafts
+#      mountPath: /data
+#      sizeGB: 1
+#    envVars:
+#      - key: MLB_DFS_DRAFT_DIR
+#        value: /data/drafts
