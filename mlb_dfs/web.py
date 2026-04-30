@@ -219,6 +219,14 @@ def schedule_builder(
         # builder picks up where the season left off, not from zero.
         for team, n in historic.team_counts().items():
             counts[team] += int(n)
+        # Include live saved drafts ONLY when the date is:
+        #   1. before the rebuild range start (`ddate < s`) — otherwise it'd
+        #      double-count games we're about to repick, and
+        #   2. strictly in the past (`ddate < today`) — drafts created for a
+        #      future day haven't been "played" so shouldn't bias the count, and
+        #   3. not already covered by the historic CSV — otherwise double-count.
+        today = Date.today()
+        historic_dates = {e.get("date") for e in historic.standings()}
         for did in draft_mod.list_drafts():
             try:
                 dr = draft_mod.load_draft(did)
@@ -228,7 +236,7 @@ def schedule_builder(
                 ddate = Date.fromisoformat(dr.date)
             except Exception:
                 continue
-            if ddate >= s:
+            if ddate >= s or ddate >= today or dr.date in historic_dates:
                 continue
             # Re-derive teams from the draft's gamePks against that day's schedule.
             try:
