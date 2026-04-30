@@ -1,4 +1,4 @@
-app = "mlb-dfs"
+app = "mlb-dfs-doron"
 primary_region = "iad"
 
 [build]
