@@ -37,6 +37,13 @@ const SLOT_TEMPLATE = [
   { key: "SP", label: "SP" },
 ];
 
+function lineupBadge(status) {
+  if (!status || status === "pending") return `<span class="lineup-tag pending">TBD</span>`;
+  if (status === "in") return `<span class="lineup-tag in">in</span>`;
+  if (status === "out") return `<span class="lineup-tag out">OUT</span>`;
+  return "";
+}
+
 function buildRosterGrid(picks) {
   const byType = { IF: [], OF: [], UTIL: [], BN: [], SP: [] };
   picks.forEach((p) => byType[p.slot]?.push(p));
@@ -271,11 +278,23 @@ async function renderDraft() {
     const grid = buildRosterGrid(picks);
     const total = picks.reduce((acc, p) => acc + (p.projected ?? 0), 0);
     const cells = grid.map(({ label, pick }) => {
-      const cls = pick ? `filled ${pick.role}` : "empty";
+      if (!pick) {
+        return `<div class="slot-cell empty">
+          <div class="slot-label">${label}</div>
+          <div class="slot-name">— open —</div>
+          <div class="slot-proj"></div>
+        </div>`;
+      }
+      const scratched = pick.lineup_status === "out";
+      const cls = `filled ${pick.role} ${scratched ? "scratched" : ""}`;
+      const canReplace = state.identity && state.identity === pick.drafter;
+      const replaceBtn = canReplace
+        ? `<button class="replace-btn" data-pick-num="${pick.pick_number}" data-slot="${pick.slot}" data-name="${escapeAttr(pick.name)}">Replace</button>`
+        : "";
       return `<div class="slot-cell ${cls}">
         <div class="slot-label">${label}</div>
-        <div class="slot-name">${pick ? pick.name : "— open —"}</div>
-        <div class="slot-proj">${pick ? pick.projected.toFixed(1) : ""}</div>
+        <div class="slot-name">${pick.name} ${lineupBadge(pick.lineup_status)} ${replaceBtn}</div>
+        <div class="slot-proj">${pick.projected.toFixed(1)}</div>
       </div>`;
     });
     html.push(
@@ -289,6 +308,15 @@ async function renderDraft() {
   }
   html.push(`</div>`);
   $("#draft-state").innerHTML = html.join("");
+  $$("#draft-state .replace-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openReplaceModal({
+        pickNumber: Number(btn.dataset.pickNum),
+        slot: btn.dataset.slot,
+        oldName: btn.dataset.name,
+      });
+    });
+  });
 
   renderPickLog(data);
 
@@ -325,6 +353,72 @@ function renderIdentityBar(data) {
   } else {
     $("#turn-status").textContent = `· waiting for ${onClock?.[0] ?? "—"}`;
   }
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, "&quot;");
+}
+
+async function openReplaceModal({ pickNumber, slot, oldName }) {
+  const data = await api(`/api/drafts/${state.currentDraftId}/pool`).catch(() => null);
+  if (!data) return alert("Couldn't load replacement candidates.");
+  const candidates = data.pool
+    .filter((p) => p.eligible_slots.includes(slot))
+    .sort((a, b) => {
+      // Prefer "in" > "pending" > "out"; then by projection.
+      const order = { in: 0, pending: 1, out: 2, undefined: 1 };
+      const da = order[a.lineup_status] ?? 1;
+      const db = order[b.lineup_status] ?? 1;
+      if (da !== db) return da - db;
+      return b.projected_points - a.projected_points;
+    });
+
+  const overlay = document.createElement("div");
+  overlay.className = "replace-modal";
+  overlay.innerHTML = `
+    <div class="panel">
+      <div class="close-row">
+        <h3>Replace ${oldName} (${slot})</h3>
+        <button class="close-btn">Close</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:4px 0 12px;">
+        Sorted by lineup status (in lineup first), then projection. Click a player to swap them in.
+      </p>
+      <table>
+        <thead><tr><th>Proj</th><th>Player</th><th>Pos</th><th>Lineup</th><th></th></tr></thead>
+        <tbody>${candidates
+          .map(
+            (p) => `
+          <tr class="${p.role}">
+            <td>${p.projected_points.toFixed(2)}</td>
+            <td>${p.name}</td>
+            <td>${p.position ?? "-"}</td>
+            <td>${lineupBadge(p.lineup_status)}</td>
+            <td><button class="btn-pick swap-btn" data-pid="${p.player_id}">Swap in</button></td>
+          </tr>`,
+          )
+          .join("")}</tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector(".close-btn").addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  overlay.querySelectorAll(".swap-btn").forEach((b) => {
+    b.addEventListener("click", async () => {
+      try {
+        await api(`/api/drafts/${state.currentDraftId}/picks/${pickNumber}/replace`, {
+          method: "POST",
+          body: JSON.stringify({ player_id: Number(b.dataset.pid) }),
+        });
+        close();
+        await renderDraft();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
 }
 
 $("#me").addEventListener("change", (e) => {

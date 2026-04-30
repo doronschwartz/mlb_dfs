@@ -67,6 +67,35 @@ class Draft:
     def picked_ids(self) -> set[int]:
         return {p.player_id for p in self.picks}
 
+    def replace_pick(self, pick_number: int, projection: Projection) -> Pick:
+        """Swap the player at `pick_number` for `projection`. Slot stays the same.
+
+        Used when a drafted player is scratched / out of the lineup. Validates
+        position eligibility and that the new player isn't already drafted.
+        Does not change pick order or pick_number.
+        """
+        idx = next((i for i, p in enumerate(self.picks) if p.pick_number == pick_number), None)
+        if idx is None:
+            raise ValueError(f"no pick #{pick_number}")
+        old = self.picks[idx]
+        if projection.player_id == old.player_id:
+            raise ValueError("new player is the same as the old one")
+        if projection.player_id in self.picked_ids():
+            raise ValueError(f"{projection.name} is already drafted")
+        if not _slot_eligible(old.slot, projection):
+            raise ValueError(f"{projection.name} ({projection.position}) is not eligible for {old.slot}")
+        self.picks[idx] = Pick(
+            drafter=old.drafter,
+            slot=old.slot,
+            player_id=projection.player_id,
+            name=projection.name,
+            position=projection.position,
+            role=projection.role,
+            projected_points=projection.projected_points,
+            pick_number=old.pick_number,
+        )
+        return self.picks[idx]
+
     def make_pick(self, slot: str, projection: Projection) -> Pick:
         info = self.on_the_clock()
         if info is None:

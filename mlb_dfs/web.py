@@ -42,6 +42,10 @@ class PickRequest(BaseModel):
     slot: str
 
 
+class ReplaceRequest(BaseModel):
+    player_id: int
+
+
 # -------------------- API routes --------------------
 
 
@@ -119,6 +123,35 @@ def make_pick(draft_id: str, req: PickRequest):
     return _draft_state(dr)
 
 
+@app.post("/api/drafts/{draft_id}/picks/{pick_number}/replace")
+def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
+    """Swap a drafted player for a different one (same drafter, same slot)."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    team_filter = _team_filter_for(dr)
+    projs = projections.project_slate_cached(
+        Date.fromisoformat(dr.date), team_filter=team_filter,
+    )
+    by_id = {p.player_id: p for p in projs}
+    proj = by_id.get(req.player_id)
+    if not proj:
+        raise HTTPException(404, f"player {req.player_id} not in the draft pool")
+    try:
+        dr.replace_pick(pick_number, proj)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    draft_mod.save_draft(dr)
+    return _draft_state(dr)
+
+
+@app.get("/api/lineups")
+def get_lineups(date: str | None = None):
+    d = Date.fromisoformat(date) if date else Date.today()
+    return {"date": d.isoformat(), "lineups": mlb_api.lineups_by_date(d)}
+
+
 @app.delete("/api/drafts/{draft_id}/last_pick")
 def undo_last_pick(draft_id: str):
     try:
@@ -183,6 +216,13 @@ def get_pool(draft_id: str):
             "eligible_slots": eligible,
             "notes": list(p.notes),
         })
+    lineups = mlb_api.lineups_by_date(
+        Date.fromisoformat(dr.date),
+        game_pks=set(dr.game_pks) if dr.game_pks else None,
+    )
+    for p in pool:
+        ls = lineups.get(p["player_id"])
+        p["lineup_status"] = ls.get("status") if ls else "pending"
     return {
         "on_the_clock": on_clock,
         "remaining_slots": remaining,
@@ -200,9 +240,17 @@ def recommend(draft_id: str, top_n: int = 8):
     projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
+    recs = dr.recommend(projs, top_n=top_n)
+    lineups = mlb_api.lineups_by_date(
+        Date.fromisoformat(dr.date),
+        game_pks=set(dr.game_pks) if dr.game_pks else None,
+    )
+    for r in recs:
+        ls = lineups.get(r["player_id"])
+        r["lineup_status"] = ls.get("status") if ls else "pending"
     return {
         "on_the_clock": dr.on_the_clock(),
-        "recommendations": dr.recommend(projs, top_n=top_n),
+        "recommendations": recs,
     }
 
 
@@ -268,22 +316,33 @@ def _proj_to_dict(p) -> dict:
 
 
 def _draft_state(dr) -> dict:
+    try:
+        lineups = mlb_api.lineups_by_date(
+        Date.fromisoformat(dr.date),
+        game_pks=set(dr.game_pks) if dr.game_pks else None,
+    )
+    except Exception:
+        lineups = {}
+    def _pick_dict(p):
+        ls = lineups.get(p.player_id)
+        return {
+            "slot": p.slot, "name": p.name, "player_id": p.player_id,
+            "position": p.position, "role": p.role,
+            "projected": p.projected_points, "pick_number": p.pick_number,
+            "drafter": p.drafter,
+            "lineup_status": (ls.get("status") if ls else "pending"),
+        }
     return {
         "draft_id": dr.draft_id,
         "date": dr.date,
         "drafters": dr.drafters,
-        "picks": [p.__dict__ for p in dr.picks],
+        "picks": [_pick_dict(p) for p in dr.picks],
         "on_the_clock": dr.on_the_clock(),
         "is_complete": dr.is_complete(),
         "game_pks": list(dr.game_pks),
         "selected_games": _selected_games_summary(dr),
         "rosters": {
-            d: [
-                {"slot": p.slot, "name": p.name, "player_id": p.player_id,
-                 "position": p.position, "role": p.role,
-                 "projected": p.projected_points, "pick_number": p.pick_number}
-                for p in dr.roster_for(d)
-            ]
+            d: [_pick_dict(p) for p in dr.roster_for(d)]
             for d in dr.drafters
         },
     }

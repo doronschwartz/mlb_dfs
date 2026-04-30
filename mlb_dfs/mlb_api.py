@@ -172,6 +172,77 @@ def players_in_slate(d: Date) -> dict[int, dict]:
     return pool
 
 
+def lineups_by_date(d: Date, *, game_pks: set[int] | None = None) -> dict[int, dict]:
+    """Map of player_id -> lineup status for everyone the slate cares about.
+
+    Each entry: {
+      "status": "in"|"out"|"pending",   # in lineup / scratched / not posted
+      "game_pk": int | None,
+      "team_id": int,
+      "is_probable_pitcher": bool,
+    }
+
+    Logic:
+      - If a team's lineup card is posted, every player on the team's roster
+        is either in (their id appears in homePlayers/awayPlayers) or out.
+      - Probable pitchers are flagged separately and treated as "in" — they're
+        the announced starter; if they're scratched a substitute pitcher
+        will appear once lineups post.
+      - If lineups aren't yet posted for a game, all of that team's roster
+        players are "pending".
+    """
+    games = schedule(d)
+    pool = players_in_slate(d)
+
+    team_to_lineup: dict[int, set[int]] = {}
+    team_to_game_pk: dict[int, int] = {}
+    team_to_posted: dict[int, bool] = {}
+    probable_pitchers: set[int] = set()
+
+    for g in games:
+        pk = g.get("gamePk")
+        if game_pks is not None and pk not in game_pks:
+            continue
+        teams = g.get("teams") or {}
+        lineups = g.get("lineups") or {}
+        for side_key, players_key in (("home", "homePlayers"), ("away", "awayPlayers")):
+            side = teams.get(side_key) or {}
+            team_id = (side.get("team") or {}).get("id")
+            if not team_id:
+                continue
+            posted_players = lineups.get(players_key)
+            if posted_players is not None:
+                ids = {p.get("id") for p in posted_players if p.get("id")}
+                team_to_lineup.setdefault(team_id, set()).update(ids)
+                team_to_posted[team_id] = team_to_posted.get(team_id, False) or True
+            else:
+                team_to_posted.setdefault(team_id, False)
+            team_to_game_pk[team_id] = pk
+            pp = side.get("probablePitcher") or {}
+            if pp.get("id"):
+                probable_pitchers.add(pp["id"])
+
+    out: dict[int, dict] = {}
+    for pid, meta in pool.items():
+        team_id = meta.get("teamId")
+        if not team_id:
+            continue
+        is_pp = pid in probable_pitchers
+        if is_pp:
+            status = "in"
+        elif team_to_posted.get(team_id):
+            status = "in" if pid in team_to_lineup.get(team_id, set()) else "out"
+        else:
+            status = "pending"
+        out[pid] = {
+            "status": status,
+            "game_pk": team_to_game_pk.get(team_id),
+            "team_id": team_id,
+            "is_probable_pitcher": is_pp,
+        }
+    return out
+
+
 def iter_boxscore_batters(box: dict) -> Iterable[tuple[dict, dict]]:
     """Yield (player_meta, hitting_stats) for everyone with a hitting line."""
     for side in ("home", "away"):

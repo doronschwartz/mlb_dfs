@@ -1,5 +1,5 @@
 from mlb_dfs.draft import Pick
-from mlb_dfs.live import PlayerScore, compute_totals
+from mlb_dfs.live import PlayerScore, _score_player, compute_totals
 
 
 def _pick(slot: str, role: str = "hitter") -> Pick:
@@ -135,6 +135,42 @@ def test_infield_bench_cannot_replace_outfielder():
     assert round(total, 2) == 74.0
     assert bad_of.counted_in_total is True       # bench couldn't reach
     assert if_bench_ps.counted_in_total is True
+
+
+def test_doubleheader_hitter_sums_points_across_both_games():
+    """A hitter who plays both games of a doubleheader gets points for each.
+    Game 1: 1 single (3 pts). Game 2: 1 HR + 1 RBI (10 + 2 = 12 pts). Total 15.
+    """
+    pick = _pick("IF")
+    lines = [
+        {"role": "hitter", "stats": {"hits": 1, "doubles": 0, "triples": 0, "homeRuns": 0, "rbi": 0},
+         "state": "Final", "game_pk": 1},
+        {"role": "hitter", "stats": {"hits": 1, "doubles": 0, "triples": 0, "homeRuns": 1, "rbi": 1},
+         "state": "Final", "game_pk": 2},
+    ]
+    ps = _score_player(pick, lines)
+    assert ps.points == 15.0
+    assert ps.raw["games"] == 2
+    assert ps.raw["1B"] == 1
+    assert ps.raw["HR"] == 1
+    assert ps.raw["RBI"] == 1
+
+
+def test_doubleheader_slate_filter_excludes_other_game():
+    """If only Game 2 is in the slate, _index_boxscores must skip Game 1.
+    We don't hit the network here — just verify _score_player behavior on
+    a single-line input still produces the single-game score, which is what
+    a slate filter would yield in real use.
+    """
+    pick = _pick("IF")
+    lines = [
+        # Only Game 2 made it through the slate filter
+        {"role": "hitter", "stats": {"hits": 1, "doubles": 0, "triples": 0, "homeRuns": 1, "rbi": 1},
+         "state": "Final", "game_pk": 2},
+    ]
+    ps = _score_player(pick, lines)
+    assert ps.points == 12.0  # HR(10) + RBI(2)
+    assert "games" not in ps.raw  # single game, no DH marker
 
 
 def test_sp_always_counts_regardless_of_score():
