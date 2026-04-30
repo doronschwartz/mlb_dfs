@@ -9,7 +9,19 @@ const state = {
   currentDraftId: null,
   selectedGamePks: new Set(),
   slateGames: [],
+  identity: localStorage.getItem("mlb_dfs_identity") || "",
+  lastPicksCount: -1,
 };
+
+function setIdentity(name) {
+  state.identity = name || "";
+  if (name) localStorage.setItem("mlb_dfs_identity", name);
+  else localStorage.removeItem("mlb_dfs_identity");
+}
+
+function isMyTurn(onClock) {
+  return !!(state.identity && onClock && onClock[0] === state.identity);
+}
 
 // Fixed roster shape (matches mlb_dfs.draft.SLOTS).
 const SLOT_TEMPLATE = [
@@ -228,9 +240,15 @@ async function renderDraft() {
     $("#draft-state").innerHTML = `<div class="muted">No draft loaded. Start a new one or pick from the dropdown.</div>`;
     $("#pick-log").innerHTML = "";
     $("#recs-out").innerHTML = "";
+    $("#pool-out").innerHTML = "";
+    $("#identity-bar").hidden = true;
+    state.lastPicksCount = -1;
     return;
   }
   const data = await api(`/api/drafts/${state.currentDraftId}`);
+  state.lastPicksCount = (data.picks || []).length;
+  state._myTurnAtLastRender = isMyTurn(data.on_the_clock);
+  renderIdentityBar(data);
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
   const html = [];
   html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b>`}</div>`);
@@ -283,6 +301,37 @@ async function renderDraft() {
   }
 }
 
+function renderIdentityBar(data) {
+  const bar = $("#identity-bar");
+  bar.hidden = false;
+  const sel = $("#me");
+  const drafters = data.drafters || [];
+  const onClock = data.on_the_clock;
+  const current = state.identity;
+  sel.innerHTML =
+    `<option value="">— pick your name —</option>` +
+    drafters.map((d) => `<option value="${d}" ${d === current ? "selected" : ""}>${d}</option>`).join("") +
+    `<option value="__spectator__" ${current === "__spectator__" ? "selected" : ""}>spectator (read-only)</option>`;
+  const myTurn = isMyTurn(onClock);
+  bar.classList.toggle("your-turn", myTurn);
+  if (data.is_complete) {
+    $("#turn-status").textContent = "· draft complete";
+  } else if (!current) {
+    $("#turn-status").textContent = "· choose your name to enable picks";
+  } else if (current === "__spectator__") {
+    $("#turn-status").textContent = "· spectator — picks disabled";
+  } else if (myTurn) {
+    $("#turn-status").textContent = "· YOUR TURN — pick away ⚾";
+  } else {
+    $("#turn-status").textContent = `· waiting for ${onClock?.[0] ?? "—"}`;
+  }
+}
+
+$("#me").addEventListener("change", (e) => {
+  setIdentity(e.target.value);
+  renderDraft();
+});
+
 function renderPickLog(data) {
   if (!data.picks.length) {
     $("#pick-log").innerHTML = "";
@@ -317,6 +366,8 @@ async function renderRecs() {
   $("#recs-out").innerHTML = `<div class="muted">Loading recommendations…</div>`;
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}/recommend?top_n=10`);
+    const myTurn = isMyTurn(data.on_the_clock);
+    const lock = myTurn ? "" : "locked";
     const rows = data.recommendations
       .map(
         (r) => {
@@ -326,7 +377,7 @@ async function renderRecs() {
           const pills = slots
             .map((s) => {
               const recommended = s === r.recommend_slot ? "recommended" : "";
-              return `<span class="slot-pill ${recommended}" data-pid="${r.player_id}" data-slot="${s}">${s}</span>`;
+              return `<span class="slot-pill ${recommended} ${lock}" data-pid="${r.player_id}" data-slot="${s}">${s}</span>`;
             })
             .join("");
           return `
@@ -347,15 +398,20 @@ async function renderRecs() {
       </table>
       <div class="muted" style="margin-top:6px;font-size:11px;">Click any slot to draft into it. The starred slot is the recommender's default — but pick whatever you want.</div>`;
     $$("#recs-out .slot-pill").forEach((b) => {
+      if (b.classList.contains("locked")) return;
       b.addEventListener("click", async () => {
-        await api(`/api/drafts/${state.currentDraftId}/pick`, {
-          method: "POST",
-          body: JSON.stringify({
-            draft_id: state.currentDraftId,
-            player_id: Number(b.dataset.pid),
-            slot: b.dataset.slot,
-          }),
-        });
+        try {
+          await api(`/api/drafts/${state.currentDraftId}/pick`, {
+            method: "POST",
+            body: JSON.stringify({
+              draft_id: state.currentDraftId,
+              player_id: Number(b.dataset.pid),
+              slot: b.dataset.slot,
+            }),
+          });
+        } catch (e) {
+          alert(e.message);
+        }
         await renderDraft();
       });
     });
@@ -384,6 +440,7 @@ async function renderPool() {
 function drawPool() {
   const search = ($("#pool-search").value || "").toLowerCase().trim();
   const filter = $("#pool-filter").value;
+  const lock = state._myTurnAtLastRender ? "" : "locked";
   const rows = poolCache.pool.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search)) return false;
     if (filter === "hitter") return p.role === "hitter";
@@ -414,7 +471,7 @@ function drawPool() {
               ? p.eligible_slots
                   .map(
                     (s) =>
-                      `<span class="slot-pill" data-pid="${p.player_id}" data-slot="${s}">${s}</span>`,
+                      `<span class="slot-pill ${lock}" data-pid="${p.player_id}" data-slot="${s}">${s}</span>`,
                   )
                   .join("")
               : `<span class="slot-pill disabled">no slot left</span>`
@@ -426,16 +483,20 @@ function drawPool() {
     </table>`;
   $("#pool-out").innerHTML = html;
   $$("#pool-out .slot-pill").forEach((el) => {
-    if (el.classList.contains("disabled")) return;
+    if (el.classList.contains("disabled") || el.classList.contains("locked")) return;
     el.addEventListener("click", async () => {
-      await api(`/api/drafts/${state.currentDraftId}/pick`, {
-        method: "POST",
-        body: JSON.stringify({
-          draft_id: state.currentDraftId,
-          player_id: Number(el.dataset.pid),
-          slot: el.dataset.slot,
-        }),
-      });
+      try {
+        await api(`/api/drafts/${state.currentDraftId}/pick`, {
+          method: "POST",
+          body: JSON.stringify({
+            draft_id: state.currentDraftId,
+            player_id: Number(el.dataset.pid),
+            slot: el.dataset.slot,
+          }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
       await renderDraft();
     });
   });
@@ -492,7 +553,7 @@ $("#score-load").addEventListener("click", async () => {
   $("#score-out").innerHTML = top + `<div class="score-grid">${cards}</div>`;
 });
 
-// ---------- bootstrap ----------
+// ---------- bootstrap + polling ----------
 async function ensureSlateLoaded() {
   const d = $("#date").value;
   if (state.slateGames.length && state._slateDate === d) return;
@@ -503,6 +564,34 @@ async function ensureSlateLoaded() {
   } catch {}
 }
 
+let pollHandle = null;
+
+async function pollDraft() {
+  if (!state.currentDraftId) return;
+  if (state.tab !== "draft") return;
+  try {
+    const data = await api(`/api/drafts/${state.currentDraftId}`);
+    const newCount = (data.picks || []).length;
+    const myTurn = isMyTurn(data.on_the_clock);
+    // Re-render fully if a pick happened or the turn flipped to/from us.
+    if (newCount !== state.lastPicksCount || myTurn !== state._myTurnAtLastRender) {
+      await renderDraft();
+    } else {
+      // Cheap update: identity bar / status text only.
+      renderIdentityBar(data);
+    }
+  } catch {}
+}
+
+function startPolling() {
+  if (pollHandle) return;
+  pollHandle = setInterval(pollDraft, 4000);
+}
+function stopPolling() {
+  if (pollHandle) clearInterval(pollHandle);
+  pollHandle = null;
+}
+
 async function refresh() {
   await loadDraftList().catch(() => {});
   if (state.tab === "slate") await loadSlate();
@@ -511,6 +600,9 @@ async function refresh() {
     await ensureSlateLoaded();
     renderGamePicker();
     await renderDraft();
+    startPolling();
+  } else {
+    stopPolling();
   }
 }
 refresh();

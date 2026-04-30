@@ -17,6 +17,7 @@ draft assistant can show *why* it likes a player.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
@@ -199,6 +200,28 @@ def _per_start_pitcher_points(stats: dict) -> float:
     pts += _safe_float(stats.get("completeGames")) * p["completeGame"]
     pts += _safe_float(stats.get("shutouts")) * p["shutout"]
     return pts / gs
+
+
+# In-memory cache for project_slate so repeated polls don't hammer MLB Stats API.
+_PROJ_CACHE: dict[tuple, tuple[float, list]] = {}
+_PROJ_TTL_SEC = 300  # 5 minutes
+
+
+def project_slate_cached(d: Date, *, team_filter: set[int] | None = None) -> list["Projection"]:
+    """Same as project_slate but memoizes per (date, team_filter) for 5 minutes.
+
+    Projections are based on rolling stat windows + season averages — these
+    don't move minute-to-minute, so a TTL cache makes draft polling cheap
+    without staleness that matters in practice.
+    """
+    key = (d.isoformat(), tuple(sorted(team_filter)) if team_filter else None)
+    now = time.time()
+    cached = _PROJ_CACHE.get(key)
+    if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
+        return cached[1]
+    projs = project_slate(d, team_filter=team_filter)
+    _PROJ_CACHE[key] = (now, projs)
+    return projs
 
 
 def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Projection]:

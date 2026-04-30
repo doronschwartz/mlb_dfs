@@ -103,7 +103,7 @@ def make_pick(draft_id: str, req: PickRequest):
         raise HTTPException(404, f"draft {draft_id} not found")
 
     team_filter = _team_filter_for(dr)
-    projs = projections.project_slate(
+    projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
     by_id = {p.player_id: p for p in projs}
@@ -159,7 +159,7 @@ def get_pool(draft_id: str):
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
     team_filter = _team_filter_for(dr)
-    projs = projections.project_slate(
+    projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
     picked = dr.picked_ids()
@@ -197,7 +197,7 @@ def recommend(draft_id: str, top_n: int = 8):
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
     team_filter = _team_filter_for(dr)
-    projs = projections.project_slate(
+    projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
     return {
