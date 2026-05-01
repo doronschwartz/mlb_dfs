@@ -519,6 +519,17 @@ def stats_players(top_n: int = 50):
     }
 
 
+@app.get("/api/team_totals")
+def get_team_totals_endpoint(date: str | None = None):
+    """Vegas-implied team run totals (the-odds-api totals + spreads markets)."""
+    d = Date.fromisoformat(date) if date else Date.today()
+    return {
+        "configured": odds_api.is_configured(),
+        "date": d.isoformat(),
+        "totals": odds_api.get_team_totals(d.isoformat()),
+    }
+
+
 @app.get("/api/k_props/odds")
 def get_kprops_odds(date: str | None = None, refresh: bool = False):
     """Pull live pitcher-K prop lines from the-odds-api.com (when configured).

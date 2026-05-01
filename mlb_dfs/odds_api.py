@@ -117,6 +117,55 @@ def _get(path: str, params: dict | None = None):
     return data
 
 
+def get_team_totals(date_iso: str) -> dict[str, float]:
+    """{team_full_name: implied_team_total}. Uses bulk /odds (1 credit) for
+    moneyline + total + run-line, derives each team's implied run total via:
+        team_total = game_total/2 ± run_line/2
+    If team_totals market is offered we prefer it (more accurate than
+    moneyline-derived).
+    """
+    if not is_configured():
+        return {}
+    try:
+        events = _get(
+            "/sports/baseball_mlb/odds",
+            params={"markets": "totals,spreads", "regions": "us", "oddsFormat": "american"},
+        )
+    except Exception:
+        return {}
+    out: dict[str, float] = {}
+    for ev in events:
+        if not str(ev.get("commence_time", "")).startswith(date_iso):
+            continue
+        away = ev.get("away_team")
+        home = ev.get("home_team")
+        # Median total + median spread across books.
+        totals = []
+        spreads = []  # (team_name, point) for the favorite
+        for bm in ev.get("bookmakers", []):
+            for mkt in bm.get("markets", []):
+                if mkt.get("key") == "totals":
+                    pts = [o.get("point") for o in mkt.get("outcomes", []) if o.get("point") is not None]
+                    if pts:
+                        totals.append(pts[0])
+                elif mkt.get("key") == "spreads":
+                    for o in mkt.get("outcomes", []):
+                        if o.get("point") is not None and o.get("name") == home:
+                            spreads.append(o["point"])
+        if not totals:
+            continue
+        total = median(totals)
+        run_line = median(spreads) if spreads else 0  # home line; favorite is negative
+        # If home is -1.5, home wins by 1.5 expected; home_total = total/2 + 0.75
+        home_total = total / 2 - run_line / 2
+        away_total = total / 2 + run_line / 2
+        if away:
+            out[away] = round(away_total, 2)
+        if home:
+            out[home] = round(home_total, 2)
+    return out
+
+
 def get_pitcher_strikeout_lines_cached(date_iso: str, *, force_refresh: bool = False) -> tuple[dict[str, dict], dict]:
     """Cache-first: if a saved file exists for this date and force_refresh
     is False, return it. Otherwise hit the API and persist the result.
