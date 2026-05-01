@@ -14,7 +14,17 @@ import requests
 
 UA = {"User-Agent": "mlb_dfs/0.1"}
 _CACHE: dict[str, tuple[float, dict]] = {}
-_TTL = 21600  # 6h
+_TTL = 21600  # 6h in-memory
+
+from . import disk_cache
+
+
+@disk_cache.cached_disk(86400, namespace="savant_csv")  # 24h on disk
+def _csv_disk(url: str) -> list[dict]:
+    r = requests.get(url, headers=UA, timeout=20)
+    r.raise_for_status()
+    text = r.text.lstrip("﻿")
+    return list(csv.DictReader(io.StringIO(text)))
 
 
 def _csv(url: str) -> list[dict]:
@@ -23,11 +33,7 @@ def _csv(url: str) -> list[dict]:
     if cached and now - cached[0] < _TTL:
         return cached[1]
     try:
-        r = requests.get(url, headers=UA, timeout=15)
-        r.raise_for_status()
-        # Strip BOM and parse
-        text = r.text.lstrip("﻿")
-        rows = list(csv.DictReader(io.StringIO(text)))
+        rows = _csv_disk(url)
         _CACHE[url] = (now, rows)
         return rows
     except Exception:

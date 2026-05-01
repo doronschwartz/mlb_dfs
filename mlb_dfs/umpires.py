@@ -16,16 +16,29 @@ UA = {"User-Agent": "mlb_dfs/0.1"}
 _CACHE: dict[str, tuple[float, object]] = {}
 _TTL = 21600  # 6h — historical data, doesn't move much intra-day
 
+from . import disk_cache
+
+
+@disk_cache.cached_disk(86400, namespace="umpscorecards_get")  # 24h on disk
+def _get_disk(url: str, params_tuple: tuple) -> object:
+    params = dict(params_tuple)
+    r = requests.get(url, headers=UA, params=params, timeout=12)
+    r.raise_for_status()
+    return r.json()
+
 
 def _get(url: str, params: dict | None = None):
+    """In-memory + disk-cached GET. Disk TTL 24h, in-memory 6h."""
     key = f"{url}?{params}"
     now = time.time()
     cached = _CACHE.get(key)
     if cached and now - cached[0] < _TTL:
         return cached[1]
-    r = requests.get(url, headers=UA, params=params, timeout=10)
-    r.raise_for_status()
-    data = r.json()
+    params_tuple = tuple(sorted((params or {}).items()))
+    try:
+        data = _get_disk(url, params_tuple)
+    except Exception:
+        return {"rows": []}
     _CACHE[key] = (now, data)
     return data
 
