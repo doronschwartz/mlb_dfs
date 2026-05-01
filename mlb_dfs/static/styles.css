@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0e1116;
   --panel: #161b22;
   --border: #2a313c;
@@ -41,6 +42,15 @@ input, select, button {
 }
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
+
+/* The native calendar picker icon defaults to dark grey on dark backgrounds.
+   Force it to a bright accent color so the user can actually see it. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4) sepia(1) saturate(5) hue-rotate(170deg);
+  cursor: pointer;
+  opacity: 0.85;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .tab { display: none; }
 .tab.active { display: block; }

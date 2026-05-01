@@ -340,10 +340,30 @@ def _ensure_dir() -> None:
 
 
 def save_draft(draft: Draft) -> str:
+    """Atomic, durable write to disk.
+
+    Writes to a temp file in the same directory, fsyncs, then renames over
+    the destination. Fly volumes get unmounted on every deploy; without an
+    explicit fsync, recent writes may sit in the page cache and be lost when
+    the volume goes away.
+    """
     _ensure_dir()
     path = os.path.join(DRAFT_DIR, f"{draft.draft_id}.json")
-    with open(path, "w") as f:
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
         json.dump(draft.to_dict(), f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    # Sync the directory entry so the rename itself is durable.
+    try:
+        dir_fd = os.open(os.path.dirname(path) or ".", os.O_DIRECTORY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError:
+        pass
     return path
 
 
