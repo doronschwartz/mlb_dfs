@@ -66,6 +66,7 @@ def pitcher_k_profile(pid: int, season: int) -> dict | None:
     so = _safe_float(s.get("strikeOuts"))
     gs = _safe_float(s.get("gamesStarted"))
     sav = savant.lookup_pitcher(pid, season) or {}
+    qoc = savant.lookup_pitcher_qoc(pid, season) or {}
     return {
         "k_pct": (so / bf) if bf >= 50 else ROOKIE_PITCHER_K_PCT,
         "avg_bf_per_start": (bf / gs) if gs >= 1 else LEAGUE_AVG_BF_PER_START,
@@ -74,20 +75,26 @@ def pitcher_k_profile(pid: int, season: int) -> dict | None:
         "season_bf": int(bf),
         "xera": _safe_float(sav.get("xera"), default=0.0) or None,
         "xwoba_against": _safe_float(sav.get("est_woba"), default=0.0) or None,
+        "barrel_pct_allowed": _safe_float(qoc.get("brl_percent"), default=0.0) or None,
+        "hardhit_pct_allowed": _safe_float(qoc.get("ev95percent"), default=0.0) or None,
     }
 
 
 def batter_k_profile(pid: int, season: int) -> dict | None:
-    """Returns {k_pct, pa} or None if no data."""
+    """Returns {k_pct, pa, barrel_pct, hardhit_pct, sweet_spot_pct} or None."""
     s = mlb_api.player_stats(pid, group="hitting", season=season)
     if not s:
         return None
     pa = _safe_float(s.get("plateAppearances"))
     so = _safe_float(s.get("strikeOuts"))
+    qoc = savant.lookup_batter_qoc(pid, season) or {}
     return {
         "k_pct": (so / pa) if pa >= 30 else ROOKIE_DEFAULT_K_PCT,
         "pa": int(pa),
         "so": int(so),
+        "barrel_pct": _safe_float(qoc.get("brl_percent"), default=0.0) or None,
+        "hardhit_pct": _safe_float(qoc.get("ev95percent"), default=0.0) or None,
+        "sweet_spot_pct": _safe_float(qoc.get("anglesweetspotpercent"), default=0.0) or None,
     }
 
 

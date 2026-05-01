@@ -68,3 +68,29 @@ def lookup_pitcher(pid: int, season: int) -> dict | None:
 
 def lookup_batter(pid: int, season: int) -> dict | None:
     return batter_expected(season).get(int(pid))
+
+
+def batter_statcast(season: int) -> dict[int, dict]:
+    """Quality-of-contact metrics: barrel %, hard-hit %, sweet-spot %, EV."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/statcast"
+        f"?type=batter&year={season}&min=q&csv=true"
+    )
+    return _idx(rows)
+
+
+def pitcher_statcast(season: int) -> dict[int, dict]:
+    """Pitcher quality-of-contact ALLOWED."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/statcast"
+        f"?type=pitcher&year={season}&min=q&csv=true"
+    )
+    return _idx(rows)
+
+
+def lookup_batter_qoc(pid: int, season: int) -> dict | None:
+    return batter_statcast(season).get(int(pid))
+
+
+def lookup_pitcher_qoc(pid: int, season: int) -> dict | None:
+    return pitcher_statcast(season).get(int(pid))

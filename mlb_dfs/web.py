@@ -521,11 +521,15 @@ def stats_players(top_n: int = 50):
 
 @app.get("/api/insights")
 def get_insights(date: str | None = None):
-    """One row per game with vegas team totals, weather, and umpire data merged."""
+    """One row per game with vegas team totals, weather, and umpire data merged.
+    Each upstream is wrapped in try/except so a slow third-party doesn't 502
+    the whole tab."""
     d = Date.fromisoformat(date) if date else Date.today()
     games = mlb_api.schedule(d)
-    totals = odds_api.get_team_totals(d.isoformat())
-    ump_rows = umpires.umpires_for_date(d.isoformat())
+    try: totals = odds_api.get_team_totals(d.isoformat())
+    except Exception: totals = {}
+    try: ump_rows = umpires.umpires_for_date(d.isoformat())
+    except Exception: ump_rows = []
     ump_by_pk = {u["game_pk"]: u for u in ump_rows if u.get("game_pk")}
     out = []
     for g in games:

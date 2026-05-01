@@ -31,12 +31,15 @@ def _get(url: str, params: dict | None = None):
 
 
 def _season_averages(season: int = 2026) -> dict[str, dict]:
-    """{ump_name: {accuracy_above_x, favor, called_pitches, games}} from
-    games this season."""
+    """{ump_name: {accuracy_above_x, favor, ...}}. Last 90 days only — full
+    season range was ~25k rows and timing out on Fly's 8s edge."""
+    from datetime import date as _D, timedelta as _T
+    end = _D.today()
+    start = end - _T(days=90)
     try:
         rows = _get(
             "https://umpscorecards.com/api/games",
-            params={"start_date": f"{season}-01-01", "end_date": f"{season}-12-31"},
+            params={"start_date": start.isoformat(), "end_date": end.isoformat()},
         ).get("rows", [])
     except Exception:
         return {}
