@@ -84,6 +84,11 @@ tr.pitcher td:first-child { color: var(--warn); }
 }
 .game-card:hover { border-color: var(--accent); }
 .game-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: #0d2030; }
+#game-picker.editing-draft .game-card.selected {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2) inset;
+  background: rgba(52,211,153,0.08);
+}
 .game-card .matchup { font-weight: 600; font-size: 13px; }
 .game-card .sps { color: var(--muted); font-size: 11px; }
 .game-card .status { font-size: 10px; color: var(--accent); text-transform: uppercase; }

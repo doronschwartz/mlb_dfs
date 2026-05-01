@@ -55,6 +55,10 @@ class MoveRequest(BaseModel):
     new_slot: str
 
 
+class UpdateGamesRequest(BaseModel):
+    game_pks: list[int]
+
+
 # -------------------- API routes --------------------
 
 
@@ -159,6 +163,21 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
         dr.replace_pick(pick_number, proj, game_pk=game_pk)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    draft_mod.save_draft(dr)
+    return _draft_state(dr)
+
+
+@app.post("/api/drafts/{draft_id}/games")
+def update_games(draft_id: str, req: UpdateGamesRequest):
+    """Replace the draft's selected gamePks. Picks are not modified — they
+    keep their original game_pk so previously-drafted players still score
+    from their original game even if it's no longer in the slate. Pool /
+    recommend / projections will be filtered to the new game_pks set."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    dr.game_pks = sorted(set(req.game_pks))
     draft_mod.save_draft(dr)
     return _draft_state(dr)
 

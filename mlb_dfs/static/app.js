@@ -159,17 +159,34 @@ function renderGamePicker() {
     })
     .join("");
   $$("#game-picker .game-card").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", async () => {
       const pk = Number(el.dataset.pk);
       if (state.selectedGamePks.has(pk)) state.selectedGamePks.delete(pk);
       else state.selectedGamePks.add(pk);
       renderGamePicker();
+      // If a draft is loaded, persist the new selection to the server so
+      // the pool / recommendations / scoring update live.
+      if (state.currentDraftId) {
+        try {
+          await api(`/api/drafts/${state.currentDraftId}/games`, {
+            method: "POST",
+            body: JSON.stringify({ game_pks: Array.from(state.selectedGamePks) }),
+          });
+          poolCache = { draftId: null, pool: [] };
+          await renderDraft();
+        } catch (e) {
+          alert(e.message);
+        }
+      }
     });
   });
   const n = state.selectedGamePks.size;
-  $("#game-count").textContent = n
-    ? `· ${n} selected`
-    : `· ${state.slateGames.length} total`;
+  let suffix = n ? `· ${n} selected` : `· ${state.slateGames.length} total`;
+  if (state.currentDraftId) {
+    suffix += ` · ✏️ live-editing slate for ${state.currentDraftId}`;
+  }
+  $("#game-count").textContent = suffix;
+  $("#game-picker").classList.toggle("editing-draft", !!state.currentDraftId);
 }
 
 // ---------- projections ----------
@@ -289,9 +306,39 @@ $("#show-eligibility").addEventListener("click", () => {
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
 });
 
+async function syncToLoadedDraft() {
+  if (!state.currentDraftId) return;
+  let data;
+  try {
+    data = await api(`/api/drafts/${state.currentDraftId}`);
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+  // Switch the date input + slate to the draft's date.
+  if (data.date && $("#date").value !== data.date) {
+    $("#date").value = data.date;
+    state._slateDate = null;
+    state.slateGames = [];
+  }
+  await ensureSlateLoaded();
+  // Pre-check the draft's games in the picker.
+  state.selectedGamePks = new Set(data.game_pks || []);
+  renderGamePicker();
+  await renderDraft();
+}
+
 $("#load-draft").addEventListener("click", async () => {
   state.currentDraftId = $("#draft-id").value;
-  await renderDraft();
+  await syncToLoadedDraft();
+});
+
+$("#draft-id").addEventListener("change", async () => {
+  // Auto-load on dropdown change (the user no longer has to also press Load).
+  if ($("#draft-id").value) {
+    state.currentDraftId = $("#draft-id").value;
+    await syncToLoadedDraft();
+  }
 });
 
 $("#undo").addEventListener("click", async () => {
