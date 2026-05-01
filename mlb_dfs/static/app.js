@@ -1009,40 +1009,132 @@ function stopPolling() {
   pollHandle = null;
 }
 
+// ---- K Prop math (ported from Yaakov's Colab notebook) ----
+function estimateOverProbability(prediction, line, stdDev = 1.5) {
+  const z = (line + 0.5 - prediction) / stdDev;
+  if (z > 3) return 0.01;
+  if (z < -3) return 0.99;
+  return 1 / (1 + Math.exp(1.7 * z));
+}
+function americanToImplied(odds) {
+  return odds > 0 ? 100 / (odds + 100) : Math.abs(odds) / (Math.abs(odds) + 100);
+}
+function americanToDecimal(odds) {
+  return odds > 0 ? odds / 100 + 1 : 100 / Math.abs(odds) + 1;
+}
+function calcEV(winProb, odds) {
+  return (winProb * (americanToDecimal(odds) - 1) - (1 - winProb)) * 100;
+}
+function fmtPct(p) { return (p * 100).toFixed(1) + "%"; }
+function fmtSigned(n, digits = 1) { return (n > 0 ? "+" : "") + n.toFixed(digits); }
+function kpropsKey(date, pid) { return `kprops:${date}:${pid}`; }
+function loadKpropEntry(date, pid) {
+  try { return JSON.parse(localStorage.getItem(kpropsKey(date, pid))) || {}; }
+  catch { return {}; }
+}
+function saveKpropEntry(date, pid, entry) {
+  localStorage.setItem(kpropsKey(date, pid), JSON.stringify(entry));
+}
+
 async function loadKProps() {
   const d = $("#date").value;
-  $("#kprops-out").innerHTML = `<div class="muted">Predicting Ks for ${d}… (one MLB stats call per pitcher + lineup batter)</div>`;
+  $("#kprops-out").innerHTML = `<div class="muted">Predicting Ks for ${d}…</div>`;
+  let data;
   try {
-    const data = await api(`/api/k_props?date=${d}`);
-    if (!data.rows.length) {
-      $("#kprops-out").innerHTML = `<div class="muted">No probable SPs announced for ${d}.</div>`;
-      return;
-    }
-    const rows = data.rows.map((r) => {
-      const note = r.lineup_posted ? "" : `<span class="muted" style="font-size:10px;"> (no lineup yet — using rookie K%)</span>`;
-      const c = r.components || {};
-      return `
-        <tr>
-          <td><b>${r.pitcher_name}</b><br/><span class="muted" style="font-size:11px;">${r.pitcher_team} @ ${r.home_team}${note}</span></td>
-          <td>${(r.pitcher_k_pct * 100).toFixed(1)}%</td>
-          <td>${r.avg_bf_per_start.toFixed(1)}</td>
-          <td>${(c.weighted_lineup_k_pct ? (c.weighted_lineup_k_pct * 100).toFixed(1) + "%" : "—")}</td>
-          <td>${r.park_factor.toFixed(2)}</td>
-          <td><b>${r.predicted_ks.toFixed(2)}</b></td>
-          <td><b style="color:var(--warn);">${r.predicted_k_pts.toFixed(1)}</b></td>
-        </tr>`;
-    }).join("");
-    $("#kprops-out").innerHTML = `
-      <table>
-        <thead><tr>
-          <th>Pitcher</th><th>K%</th><th>Avg BF/start</th>
-          <th>Lineup K%</th><th>Park</th><th>Pred Ks</th><th>K pts</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+    data = await api(`/api/k_props?date=${d}`);
   } catch (e) {
     $("#kprops-out").innerHTML = `<div class="muted">${e.message}</div>`;
+    return;
   }
+  if (!data.rows.length) {
+    $("#kprops-out").innerHTML = `<div class="muted">No probable SPs announced for ${d}.</div>`;
+    return;
+  }
+
+  state._kpropsRows = data.rows;
+  state._kpropsDate = d;
+
+  $("#kprops-out").innerHTML = `
+    <p class="muted" style="font-size:12px;">
+      Type the sportsbook line + American odds for each pitcher.
+      "Our %" is from the prediction with σ=1.5 (logistic approx of normal CDF,
+      same formula as the Colab). "Edge" is Our − Implied. "EV" is per $100 bet.
+      Positive-EV picks are highlighted in green.
+    </p>
+    <table id="kprops-table">
+      <thead><tr>
+        <th>Pitcher</th>
+        <th>Pred Ks</th>
+        <th>Line</th>
+        <th>Over odds</th>
+        <th>Under odds</th>
+        <th>Implied O%</th>
+        <th>Our O%</th>
+        <th>Edge</th>
+        <th>Over EV</th>
+        <th>Under EV</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>`;
+  redrawKProps();
+}
+
+function redrawKProps() {
+  const rows = state._kpropsRows || [];
+  const date = state._kpropsDate;
+  const tbody = document.querySelector("#kprops-table tbody");
+  if (!tbody) return;
+  const html = rows.map((r) => {
+    const saved = loadKpropEntry(date, r.pitcher_id);
+    const line = saved.line ?? "";
+    const over = saved.over ?? "";
+    const under = saved.under ?? "";
+    const note = r.lineup_posted ? "" : `<br/><span class="muted" style="font-size:10px;">no lineup yet — rookie K%</span>`;
+
+    let calc = { ours: null, implied: null, edge: null, evO: null, evU: null };
+    if (line !== "" && !isNaN(parseFloat(line))) {
+      calc.ours = estimateOverProbability(r.predicted_ks, parseFloat(line));
+      if (over !== "" && !isNaN(parseFloat(over))) {
+        calc.implied = americanToImplied(parseFloat(over));
+        calc.edge = calc.ours - calc.implied;
+        calc.evO = calcEV(calc.ours, parseFloat(over));
+      }
+      if (under !== "" && !isNaN(parseFloat(under))) {
+        calc.evU = calcEV(1 - calc.ours, parseFloat(under));
+      }
+    }
+
+    const goodEV = (calc.evO != null && calc.evO >= 3) || (calc.evU != null && calc.evU >= 3);
+    return `
+      <tr class="${goodEV ? "kprops-good" : ""}" data-pid="${r.pitcher_id}">
+        <td><b>${r.pitcher_name}</b><span class="muted" style="font-size:11px;"> · ${r.pitcher_team}@${r.home_team} · K%${(r.pitcher_k_pct*100).toFixed(0)} · park ${r.park_factor.toFixed(2)}</span>${note}</td>
+        <td><b>${r.predicted_ks.toFixed(2)}</b></td>
+        <td><input class="kp-line" type="number" step="0.5" value="${line}" placeholder="6.5" style="width:60px;" /></td>
+        <td><input class="kp-over" type="number" step="5" value="${over}" placeholder="-110" style="width:70px;" /></td>
+        <td><input class="kp-under" type="number" step="5" value="${under}" placeholder="-110" style="width:70px;" /></td>
+        <td>${calc.implied != null ? fmtPct(calc.implied) : "—"}</td>
+        <td>${calc.ours != null ? fmtPct(calc.ours) : "—"}</td>
+        <td class="${calc.edge != null ? (calc.edge > 0 ? "edge-pos" : "edge-neg") : ""}">${calc.edge != null ? fmtSigned(calc.edge * 100) + "%" : "—"}</td>
+        <td class="${calc.evO != null ? (calc.evO > 0 ? "edge-pos" : "edge-neg") : ""}">${calc.evO != null ? fmtSigned(calc.evO) : "—"}</td>
+        <td class="${calc.evU != null ? (calc.evU > 0 ? "edge-pos" : "edge-neg") : ""}">${calc.evU != null ? fmtSigned(calc.evU) : "—"}</td>
+      </tr>`;
+  }).join("");
+  tbody.innerHTML = html;
+
+  // Wire input listeners — auto-save + recompute on blur/change.
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const pid = Number(tr.dataset.pid);
+    const onChange = () => {
+      const entry = {
+        line:  tr.querySelector(".kp-line").value,
+        over:  tr.querySelector(".kp-over").value,
+        under: tr.querySelector(".kp-under").value,
+      };
+      saveKpropEntry(date, pid, entry);
+      redrawKProps();
+    };
+    tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", onChange));
+  });
 }
 
 async function refresh() {

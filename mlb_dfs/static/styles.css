@@ -290,6 +290,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 #tab-stats td.rank-1 { color: var(--accent-2); font-weight: 700; }
 #tab-stats td.rank-3 { color: var(--bad); }
 
+#kprops-table .edge-pos { color: var(--accent-2); font-weight: 600; }
+#kprops-table .edge-neg { color: var(--bad); }
+#kprops-table tr.kprops-good { background: rgba(52,211,153,0.08); }
+#kprops-table input { padding: 2px 6px; font-size: 12px; }
+
 .score-row .player-cell { position: relative; }
 .breakdown-tooltip {
   display: none; position: absolute; z-index: 50;
