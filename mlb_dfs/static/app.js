@@ -1048,8 +1048,11 @@ async function fetchKPropsOdds(forceRefresh = false) {
     }
     const pitchers = data.pitchers || {};
     let matched = 0;
+    const norm = (s) => (s || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+    const normIdx = {};
+    for (const [k, v] of Object.entries(pitchers)) normIdx[norm(k)] = v;
     for (const r of (state._kpropsRows || [])) {
-      const odds = pitchers[r.pitcher_name];
+      const odds = pitchers[r.pitcher_name] || normIdx[norm(r.pitcher_name)];
       if (!odds) continue;
       const entry = {
         line: String(odds.line),
