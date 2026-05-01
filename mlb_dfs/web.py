@@ -24,7 +24,7 @@ from . import draft as draft_mod
 from . import historic
 from . import k_props
 from . import live as live_mod
-from . import mlb_api, odds_api, projections, weather as weather_mod
+from . import mlb_api, odds_api, projections, umpires, weather as weather_mod
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
@@ -517,6 +517,14 @@ def stats_players(top_n: int = 50):
         "hitters": [p for p in out if p["role"] == "hitter"][:top_n],
         "pitchers": [p for p in out if p["role"] == "pitcher"][:top_n],
     }
+
+
+@app.get("/api/umpires")
+def get_umpires_endpoint(date: str | None = None):
+    """Assigned HP umpire per game + season-average pitcher-favor and
+    derived K-factor (favor/50)."""
+    d = Date.fromisoformat(date) if date else Date.today()
+    return {"date": d.isoformat(), "games": umpires.umpires_for_date(d.isoformat())}
 
 
 @app.get("/api/weather")
