@@ -13,9 +13,24 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime
 from statistics import median
+from zoneinfo import ZoneInfo
 
 import requests
+
+_ET = ZoneInfo("America/New_York")
+
+
+def _commence_et_date(commence_iso: str) -> str:
+    """Convert the-odds-api UTC commence_time to a YYYY-MM-DD ET date string.
+    Late games on a UTC date map to the previous ET date — that's the natural
+    'baseball date' the user picked."""
+    try:
+        dt = datetime.fromisoformat(commence_iso.replace("Z", "+00:00"))
+        return dt.astimezone(_ET).date().isoformat()
+    except Exception:
+        return ""
 
 BASE = "https://api.the-odds-api.com/v4"
 
@@ -135,7 +150,7 @@ def get_team_totals(date_iso: str) -> dict[str, float]:
         return {}
     out: dict[str, float] = {}
     for ev in events:
-        if not str(ev.get("commence_time", "")).startswith(date_iso):
+        if not _commence_et_date(ev.get("commence_time", "")) == date_iso:
             continue
         away = ev.get("away_team")
         home = ev.get("home_team")
@@ -197,7 +212,7 @@ def get_pitcher_strikeout_lines(date_iso: str) -> dict[str, dict]:
     events = _get("/sports/baseball_mlb/events")
     today_events = [
         e for e in events
-        if str(e.get("commence_time", "")).startswith(date_iso)
+        if _commence_et_date(e.get("commence_time", "")) == date_iso
     ]
 
     out: dict[str, dict] = {}
