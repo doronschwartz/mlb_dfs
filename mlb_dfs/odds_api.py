@@ -10,6 +10,7 @@ so that a tab refresh doesn't re-burn credits.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from statistics import median
@@ -20,6 +21,75 @@ BASE = "https://api.the-odds-api.com/v4"
 
 _CACHE: dict[str, tuple[float, object]] = {}
 _TTL_SEC = 600  # 10 min
+
+# Saved-odds-per-day directory. Lives on the Fly volume next to drafts/.
+ODDS_DIR = os.environ.get(
+    "MLB_DFS_ODDS_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "odds"),
+)
+
+
+def _ensure_odds_dir() -> None:
+    os.makedirs(ODDS_DIR, exist_ok=True)
+
+
+def _odds_path(date_iso: str) -> str:
+    return os.path.join(ODDS_DIR, f"{date_iso}.json")
+
+
+def saved_odds(date_iso: str) -> dict | None:
+    """Returns {fetched_at, date, pitchers} from disk if previously saved."""
+    path = _odds_path(date_iso)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_odds(date_iso: str, pitchers: dict) -> None:
+    _ensure_odds_dir()
+    payload = {
+        "fetched_at": time.time(),
+        "date": date_iso,
+        "pitchers": pitchers,
+    }
+    path = _odds_path(date_iso)
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    try:
+        dir_fd = os.open(os.path.dirname(path) or ".", os.O_DIRECTORY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError:
+        pass
+
+
+def cleanup_old_odds(keep_from: str) -> int:
+    """Delete saved-odds files for dates strictly before `keep_from`.
+    Returns the count removed. Called automatically on every fetch so we
+    never accumulate yesterday's lines."""
+    _ensure_odds_dir()
+    removed = 0
+    for fn in os.listdir(ODDS_DIR):
+        if not fn.endswith(".json"):
+            continue
+        date_part = fn[:-5]
+        if date_part < keep_from:
+            try:
+                os.remove(os.path.join(ODDS_DIR, fn))
+                removed += 1
+            except OSError:
+                pass
+    return removed
 
 
 def is_configured() -> bool:
@@ -45,6 +115,24 @@ def _get(path: str, params: dict | None = None):
     data = r.json()
     _CACHE[cache_key] = (now, data)
     return data
+
+
+def get_pitcher_strikeout_lines_cached(date_iso: str, *, force_refresh: bool = False) -> tuple[dict[str, dict], dict]:
+    """Cache-first: if a saved file exists for this date and force_refresh
+    is False, return it. Otherwise hit the API and persist the result.
+    Always runs cleanup_old_odds(date_iso) so yesterday's file is cleared.
+
+    Returns (pitchers, meta) where meta = {cached: bool, fetched_at: float|None}.
+    """
+    cleanup_old_odds(date_iso)
+    if not force_refresh:
+        saved = saved_odds(date_iso)
+        if saved and saved.get("pitchers"):
+            return saved["pitchers"], {"cached": True, "fetched_at": saved.get("fetched_at")}
+    fresh = get_pitcher_strikeout_lines(date_iso)
+    if fresh:
+        save_odds(date_iso, fresh)
+    return fresh, {"cached": False, "fetched_at": time.time() if fresh else None}
 
 
 def get_pitcher_strikeout_lines(date_iso: str) -> dict[str, dict]:

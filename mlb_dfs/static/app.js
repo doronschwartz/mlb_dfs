@@ -1036,11 +1036,11 @@ function saveKpropEntry(date, pid, entry) {
   localStorage.setItem(kpropsKey(date, pid), JSON.stringify(entry));
 }
 
-$("#kprops-fetch-odds")?.addEventListener("click", async () => {
+async function fetchKPropsOdds(forceRefresh = false) {
   const d = $("#date").value;
-  $("#kprops-odds-status").textContent = "Fetching odds…";
+  $("#kprops-odds-status").textContent = forceRefresh ? "Force-refreshing from books…" : "Loading odds…";
   try {
-    const data = await api(`/api/k_props/odds?date=${d}`);
+    const data = await api(`/api/k_props/odds?date=${d}${forceRefresh ? "&refresh=true" : ""}`);
     if (!data.configured) {
       $("#kprops-odds-status").innerHTML =
         `Not configured. Sign up at <a href="https://the-odds-api.com" target="_blank" style="color:var(--accent);">the-odds-api.com</a> (free 500 req/mo), then run: <code>fly secrets set ODDS_API_KEY=&lt;your_key&gt; --app mlb-dfs-doron</code>`;
@@ -1049,7 +1049,6 @@ $("#kprops-fetch-odds")?.addEventListener("click", async () => {
     const pitchers = data.pitchers || {};
     let matched = 0;
     for (const r of (state._kpropsRows || [])) {
-      // Match by name; the-odds-api uses the same MLB official name format.
       const odds = pitchers[r.pitcher_name];
       if (!odds) continue;
       const entry = {
@@ -1060,12 +1059,20 @@ $("#kprops-fetch-odds")?.addEventListener("click", async () => {
       saveKpropEntry(d, r.pitcher_id, entry);
       matched += 1;
     }
-    $("#kprops-odds-status").textContent = `✓ Pulled ${Object.keys(pitchers).length} pitcher line(s); matched ${matched} / ${(state._kpropsRows || []).length} in the table.`;
+    const total = (state._kpropsRows || []).length;
+    const fetchedTime = data.fetched_at
+      ? new Date(data.fetched_at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+      : "?";
+    const src = data.cached ? `📁 cached from ${fetchedTime}` : `🆕 fresh from books at ${fetchedTime}`;
+    $("#kprops-odds-status").innerHTML = `${src}, matched ${matched}/${total}. <span class="muted">(One save per day; yesterday's auto-deleted.)</span>`;
     redrawKProps();
   } catch (e) {
     $("#kprops-odds-status").textContent = `Error: ${e.message}`;
   }
-});
+}
+
+$("#kprops-fetch-odds")?.addEventListener("click", () => fetchKPropsOdds(false));
+$("#kprops-refresh-odds")?.addEventListener("click", () => fetchKPropsOdds(true));
 
 async function loadKProps() {
   const d = $("#date").value;

@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir -e .
 
 # Drafts persist on a mounted volume in production; default to /data.
 ENV MLB_DFS_DRAFT_DIR=/data/drafts
-RUN mkdir -p /data/drafts
+ENV MLB_DFS_ODDS_DIR=/data/odds
+RUN mkdir -p /data/drafts /data/odds
 
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn mlb_dfs.web:app --host 0.0.0.0 --port ${PORT:-8000}"]

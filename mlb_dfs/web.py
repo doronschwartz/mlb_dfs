@@ -520,13 +520,24 @@ def stats_players(top_n: int = 50):
 
 
 @app.get("/api/k_props/odds")
-def get_kprops_odds(date: str | None = None):
-    """Pull live pitcher-K prop lines from the-odds-api.com (when configured)."""
+def get_kprops_odds(date: str | None = None, refresh: bool = False):
+    """Pull live pitcher-K prop lines from the-odds-api.com (when configured).
+
+    Cache-first: if we already pulled odds for this date today, return the
+    saved file (no API credits burned). Pass refresh=true to force a re-pull.
+    Yesterday's saved file is auto-deleted on every call so we never serve
+    stale data.
+    """
     d = Date.fromisoformat(date) if date else Date.today()
+    pitchers, meta = odds_api.get_pitcher_strikeout_lines_cached(
+        d.isoformat(), force_refresh=refresh,
+    )
     return {
         "configured": odds_api.is_configured(),
         "date": d.isoformat(),
-        "pitchers": odds_api.get_pitcher_strikeout_lines(d.isoformat()),
+        "pitchers": pitchers,
+        "cached": meta["cached"],
+        "fetched_at": meta["fetched_at"],
     }
 
 
