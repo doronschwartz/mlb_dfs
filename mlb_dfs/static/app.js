@@ -857,7 +857,7 @@ function drawPool() {
   const html = `
     <table>
       <thead>
-        <tr><th>Proj</th><th>Player</th><th>Pos</th><th>Role</th><th>Pick into…</th><th>Notes</th></tr>
+        <tr><th>Proj</th><th>Player</th><th>Pos</th><th>Role</th><th>Statcast</th><th>Pick into…</th><th>Notes</th></tr>
       </thead>
       <tbody>${rows
         .map(

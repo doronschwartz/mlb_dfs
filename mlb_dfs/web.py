@@ -697,6 +697,7 @@ def get_pool(draft_id: str):
             "projected_points": p.projected_points,
             "eligible_slots": eligible,
             "notes": list(p.notes),
+            "components": p.components,
         })
     lineups = mlb_api.lineups_by_date(
         Date.fromisoformat(dr.date),

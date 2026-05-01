@@ -22,11 +22,57 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
 
-from . import mlb_api
+from . import mlb_api, savant
 from .scoring import HITTER_POINTS, PITCHER_POINTS
 
 LEAGUE_AVG_HITTER_POINTS_PER_GAME = 6.5
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
+
+# League-median Statcast benchmarks for the multiplier (rough 2024-25 medians).
+LG_BARREL_PCT_HITTER = 6.5      # %
+LG_HARDHIT_PCT_HITTER = 38.0
+LG_BARREL_PCT_ALLOWED = 6.5
+LG_XWOBA_AGAINST = 0.310
+
+
+def _qoc_multiplier_hitter(qoc: dict | None) -> tuple[float, list[str]]:
+    """Tiny multiplier on top of the base projection from quality-of-contact.
+    Capped at ±15% so it can't dominate small-sample noise."""
+    if not qoc:
+        return 1.0, []
+    notes = []
+    factor = 1.0
+    brl = _safe_float(qoc.get("brl_percent"))
+    hh  = _safe_float(qoc.get("ev95percent"))
+    if brl:
+        delta = (brl - LG_BARREL_PCT_HITTER) / LG_BARREL_PCT_HITTER  # e.g. +0.5 = 50% above lg
+        factor *= 1.0 + max(-0.10, min(delta * 0.15, 0.10))
+        notes.append(f"barrel {brl:.1f}%")
+    if hh:
+        delta = (hh - LG_HARDHIT_PCT_HITTER) / LG_HARDHIT_PCT_HITTER
+        factor *= 1.0 + max(-0.06, min(delta * 0.10, 0.06))
+        notes.append(f"hard-hit {hh:.0f}%")
+    return max(0.85, min(factor, 1.15)), notes
+
+
+def _qoc_multiplier_pitcher(qoc: dict | None, expected: dict | None) -> tuple[float, list[str]]:
+    """Pitcher version — barrel% / hard-hit% allowed move things the OTHER way:
+    high barrel% allowed = worse pitcher = lower projection."""
+    factor = 1.0
+    notes = []
+    if qoc:
+        brl_a = _safe_float(qoc.get("brl_percent"))
+        if brl_a:
+            delta = (brl_a - LG_BARREL_PCT_ALLOWED) / LG_BARREL_PCT_ALLOWED
+            factor *= 1.0 - max(-0.10, min(delta * 0.15, 0.15))  # inverted
+            notes.append(f"brl-allowed {brl_a:.1f}%")
+    if expected:
+        xwoba = _safe_float(expected.get("est_woba"))
+        if xwoba:
+            delta = (xwoba - LG_XWOBA_AGAINST) / LG_XWOBA_AGAINST
+            factor *= 1.0 - max(-0.10, min(delta * 0.20, 0.15))
+            notes.append(f"xwOBA {xwoba:.3f}")
+    return max(0.80, min(factor, 1.20)), notes
 
 
 @dataclass
@@ -86,7 +132,12 @@ def project_hitter(
             sp_factor = max(0.6, min(sp_factor, 1.45))
             notes.append(f"opposing SP adj x{sp_factor:.2f} (ERA {era:.2f} WHIP {whip:.2f})")
 
-    proj = base_pg * sp_factor
+    qoc = savant.lookup_batter_qoc(pid, season) or None
+    qoc_factor, qoc_notes = _qoc_multiplier_hitter(qoc)
+    if qoc_notes:
+        notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
+
+    proj = base_pg * sp_factor * qoc_factor
     return Projection(
         player_id=pid,
         name=name,
@@ -94,7 +145,14 @@ def project_hitter(
         position=position,
         role="hitter",
         projected_points=round(proj, 2),
-        components={"base_pg": round(base_pg, 2), "sp_factor": round(sp_factor, 3)},
+        components={
+            "base_pg": round(base_pg, 2),
+            "sp_factor": round(sp_factor, 3),
+            "qoc_factor": round(qoc_factor, 3),
+            "barrel_pct": _safe_float((qoc or {}).get("brl_percent")) or None,
+            "hardhit_pct": _safe_float((qoc or {}).get("ev95percent")) or None,
+            "sweet_spot_pct": _safe_float((qoc or {}).get("anglesweetspotpercent")) or None,
+        },
         notes=notes,
     )
 
@@ -144,7 +202,13 @@ def project_pitcher(
         except Exception:
             pass
 
-    proj = base * opp_factor
+    qoc = savant.lookup_pitcher_qoc(pid, season) or None
+    expected = savant.lookup_pitcher(pid, season) or None
+    qoc_factor, qoc_notes = _qoc_multiplier_pitcher(qoc, expected)
+    if qoc_notes:
+        notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
+
+    proj = base * opp_factor * qoc_factor
     return Projection(
         player_id=pid,
         name=name,
@@ -152,7 +216,15 @@ def project_pitcher(
         position="SP",
         role="pitcher",
         projected_points=round(proj, 2),
-        components={"base_per_start": round(base, 2), "opp_factor": round(opp_factor, 3)},
+        components={
+            "base_per_start": round(base, 2),
+            "opp_factor": round(opp_factor, 3),
+            "qoc_factor": round(qoc_factor, 3),
+            "xera": _safe_float((expected or {}).get("xera")) or None,
+            "xwoba_against": _safe_float((expected or {}).get("est_woba")) or None,
+            "barrel_pct_allowed": _safe_float((qoc or {}).get("brl_percent")) or None,
+            "hardhit_pct_allowed": _safe_float((qoc or {}).get("ev95percent")) or None,
+        },
         notes=notes,
     )
 
