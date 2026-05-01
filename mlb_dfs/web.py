@@ -24,7 +24,7 @@ from . import draft as draft_mod
 from . import historic
 from . import k_props
 from . import live as live_mod
-from . import mlb_api, odds_api, projections
+from . import mlb_api, odds_api, projections, weather as weather_mod
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
