@@ -519,6 +519,27 @@ def stats_players(top_n: int = 50):
     }
 
 
+@app.get("/api/weather")
+def get_weather_endpoint(date: str | None = None):
+    """Per-park forecast for the slate, including HR-factor (wind direction
+    relative to CF orientation × wind speed)."""
+    d = Date.fromisoformat(date) if date else Date.today()
+    games = mlb_api.schedule(d)
+    out = []
+    for g in games:
+        teams = g.get("teams") or {}
+        home_abbr = ((teams.get("home") or {}).get("team") or {}).get("abbreviation") or ""
+        away_abbr = ((teams.get("away") or {}).get("team") or {}).get("abbreviation") or ""
+        fc = weather_mod.park_forecast(home_abbr, g.get("gameDate") or "")
+        out.append({
+            "gamePk": g.get("gamePk"),
+            "matchup": f"{away_abbr}@{home_abbr}",
+            "home": home_abbr,
+            "weather": fc,
+        })
+    return {"date": d.isoformat(), "games": out}
+
+
 @app.get("/api/team_totals")
 def get_team_totals_endpoint(date: str | None = None):
     """Vegas-implied team run totals (the-odds-api totals + spreads markets)."""
