@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date as Date
 from typing import Iterable
 
-from . import mlb_api
+from . import mlb_api, savant
 
 # Tuneable knobs from the notebook.
 ROOKIE_DEFAULT_K_PCT = 0.25
@@ -58,19 +58,22 @@ def _safe_float(x, default=0.0) -> float:
 
 
 def pitcher_k_profile(pid: int, season: int) -> dict | None:
-    """Returns {k_pct, avg_bf_per_start, gs} or None if not enough data."""
+    """Returns {k_pct, avg_bf_per_start, gs, xwoba} or None if not enough data."""
     s = mlb_api.player_stats(pid, group="pitching", season=season)
     if not s:
         return None
     bf = _safe_float(s.get("battersFaced"))
     so = _safe_float(s.get("strikeOuts"))
     gs = _safe_float(s.get("gamesStarted"))
+    sav = savant.lookup_pitcher(pid, season) or {}
     return {
         "k_pct": (so / bf) if bf >= 50 else ROOKIE_PITCHER_K_PCT,
         "avg_bf_per_start": (bf / gs) if gs >= 1 else LEAGUE_AVG_BF_PER_START,
         "gs": int(gs),
         "season_so": int(so),
         "season_bf": int(bf),
+        "xera": _safe_float(sav.get("xera"), default=0.0) or None,
+        "xwoba_against": _safe_float(sav.get("est_woba"), default=0.0) or None,
     }
 
 
