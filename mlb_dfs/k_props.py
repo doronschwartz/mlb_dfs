@@ -157,6 +157,8 @@ def k_props_for_date(d: Date) -> list[dict]:
             sp_team_abbr = ((side_data.get("team") or {}).get("abbreviation"))
             opp_team_abbr = ((opp_data.get("team") or {}).get("abbreviation"))
             home_team_abbr = ((teams.get("home", {}).get("team") or {}).get("abbreviation"))
+            away_team_abbr = ((teams.get("away", {}).get("team") or {}).get("abbreviation"))
+            is_home = sp_team_abbr == home_team_abbr
 
             pp = pitcher_k_profile(sp_id, season)
             if not pp:
@@ -188,6 +190,9 @@ def k_props_for_date(d: Date) -> list[dict]:
                 "pitcher_team": sp_team_abbr,
                 "opp_team": opp_team_abbr,
                 "home_team": home_team_abbr,
+                "away_team": away_team_abbr,
+                "is_home": is_home,
+                "matchup": f"{away_team_abbr}@{home_team_abbr}",
                 "lineup_posted": bool(lineup_profiles),
                 "predicted_ks": predicted,
                 "predicted_k_pts": round(predicted * POINTS_PER_K, 2),

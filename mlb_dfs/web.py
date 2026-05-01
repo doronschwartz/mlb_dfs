@@ -24,7 +24,7 @@ from . import draft as draft_mod
 from . import historic
 from . import k_props
 from . import live as live_mod
-from . import mlb_api, projections
+from . import mlb_api, odds_api, projections
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
@@ -516,6 +516,17 @@ def stats_players(top_n: int = 50):
     return {
         "hitters": [p for p in out if p["role"] == "hitter"][:top_n],
         "pitchers": [p for p in out if p["role"] == "pitcher"][:top_n],
+    }
+
+
+@app.get("/api/k_props/odds")
+def get_kprops_odds(date: str | None = None):
+    """Pull live pitcher-K prop lines from the-odds-api.com (when configured)."""
+    d = Date.fromisoformat(date) if date else Date.today()
+    return {
+        "configured": odds_api.is_configured(),
+        "date": d.isoformat(),
+        "pitchers": odds_api.get_pitcher_strikeout_lines(d.isoformat()),
     }
 
 

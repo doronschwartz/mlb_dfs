@@ -95,13 +95,14 @@
       <h2>K Props</h2>
       <p class="muted" style="font-size:13px;">
         Predicted strikeouts per probable SP on the slate. Ported from the
-        K Prop Tester Colab — combines pitcher K% × avg batters-faced/start
-        with the opposing lineup's weighted K% (batting order positions
-        1-9 weighted highest-to-lowest), then applied park K factor.
-        Last column is the SP's expected fantasy K-points (predicted Ks ×
-        1.5 from the spreadsheet rules) — useful for sanity-checking the
-        SP slot pick.
+        K Prop Tester Colab — pitcher K% × avg BF/start combined with the
+        opposing lineup's weighted K% (batting order positions 1-9 weighted
+        highest-to-lowest), then applied park K factor.
       </p>
+      <div class="setup-row">
+        <button id="kprops-fetch-odds" class="btn-pick">📈 Fetch odds from books</button>
+        <span id="kprops-odds-status" class="muted" style="font-size:12px;"></span>
+      </div>
       <div id="kprops-out"></div>
     </section>
 

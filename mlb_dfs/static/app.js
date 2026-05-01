@@ -1036,6 +1036,37 @@ function saveKpropEntry(date, pid, entry) {
   localStorage.setItem(kpropsKey(date, pid), JSON.stringify(entry));
 }
 
+$("#kprops-fetch-odds")?.addEventListener("click", async () => {
+  const d = $("#date").value;
+  $("#kprops-odds-status").textContent = "Fetching odds…";
+  try {
+    const data = await api(`/api/k_props/odds?date=${d}`);
+    if (!data.configured) {
+      $("#kprops-odds-status").innerHTML =
+        `Not configured. Sign up at <a href="https://the-odds-api.com" target="_blank" style="color:var(--accent);">the-odds-api.com</a> (free 500 req/mo), then run: <code>fly secrets set ODDS_API_KEY=&lt;your_key&gt; --app mlb-dfs-doron</code>`;
+      return;
+    }
+    const pitchers = data.pitchers || {};
+    let matched = 0;
+    for (const r of (state._kpropsRows || [])) {
+      // Match by name; the-odds-api uses the same MLB official name format.
+      const odds = pitchers[r.pitcher_name];
+      if (!odds) continue;
+      const entry = {
+        line: String(odds.line),
+        over: odds.over_odds != null ? String(odds.over_odds) : "",
+        under: odds.under_odds != null ? String(odds.under_odds) : "",
+      };
+      saveKpropEntry(d, r.pitcher_id, entry);
+      matched += 1;
+    }
+    $("#kprops-odds-status").textContent = `✓ Pulled ${Object.keys(pitchers).length} pitcher line(s); matched ${matched} / ${(state._kpropsRows || []).length} in the table.`;
+    redrawKProps();
+  } catch (e) {
+    $("#kprops-odds-status").textContent = `Error: ${e.message}`;
+  }
+});
+
 async function loadKProps() {
   const d = $("#date").value;
   $("#kprops-out").innerHTML = `<div class="muted">Predicting Ks for ${d}…</div>`;
@@ -1107,7 +1138,7 @@ function redrawKProps() {
     const goodEV = (calc.evO != null && calc.evO >= 3) || (calc.evU != null && calc.evU >= 3);
     return `
       <tr class="${goodEV ? "kprops-good" : ""}" data-pid="${r.pitcher_id}">
-        <td><b>${r.pitcher_name}</b><span class="muted" style="font-size:11px;"> · ${r.pitcher_team}@${r.home_team} · K%${(r.pitcher_k_pct*100).toFixed(0)} · park ${r.park_factor.toFixed(2)}</span>${note}</td>
+        <td><b>${r.pitcher_name}</b><span class="muted" style="font-size:11px;"> · ${r.matchup || (r.pitcher_team + "@" + r.home_team)} (${r.is_home ? "home" : "away"}) · K%${(r.pitcher_k_pct*100).toFixed(0)} · park ${r.park_factor.toFixed(2)}</span>${note}</td>
         <td><b>${r.predicted_ks.toFixed(2)}</b></td>
         <td><input class="kp-line" type="number" step="0.5" value="${line}" placeholder="6.5" style="width:60px;" /></td>
         <td><input class="kp-over" type="number" step="5" value="${over}" placeholder="-110" style="width:70px;" /></td>
