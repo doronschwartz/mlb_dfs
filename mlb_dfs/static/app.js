@@ -398,6 +398,30 @@ async function renderDraft() {
     html.push(`<div class="muted" style="font-size:11px;margin-bottom:8px;">Pool: full slate</div>`);
   }
 
+  // Slate-start + draft-order strip
+  let earliestIso = null;
+  const selectedPks = new Set((data.game_pks || []));
+  for (const g of state.slateGames || []) {
+    if (selectedPks.size && !selectedPks.has(g.gamePk)) continue;
+    if (!earliestIso || g.gameDate < earliestIso) earliestIso = g.gameDate;
+  }
+  const startTime = earliestIso
+    ? new Date(earliestIso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : "—";
+  // Snake-order: order of THIS round.
+  const nDrafters = data.drafters.length;
+  const round = Math.floor((data.picks || []).length / nDrafters);
+  const order = round % 2 === 0 ? data.drafters : [...data.drafters].reverse();
+  const onClock = onClock_(data.on_the_clock);
+  const orderHtml = order.map((d) => {
+    const cls = d === onClock ? "on-clock" : (data.rosters[d]?.length > round ? "done" : "");
+    return `<div class="drafter-strip-row ${cls}">${d}</div>`;
+  }).join("");
+  html.push(`<div class="draft-strip">
+    <div class="strip-time">⏰ ${startTime}</div>
+    <div class="strip-round">Round ${data.is_complete ? nDrafters * 10 / nDrafters : round + 1}</div>
+    ${orderHtml}
+  </div>`);
   html.push(`<div class="rosters">`);
   for (const d of data.drafters) {
     const onC = onClock && onClock[0] === d;
@@ -476,6 +500,8 @@ async function renderDraft() {
     $("#pool-out").innerHTML = "";
   }
 }
+
+function onClock_(oc) { return oc ? oc[0] : null; }
 
 function renderIdentityBar(data) {
   const bar = $("#identity-bar");

@@ -203,6 +203,24 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 }
 .slot-pill.locked:hover { filter: grayscale(0.6); }
 
+.draft-strip {
+  display: inline-flex; flex-direction: column; gap: 4px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; margin: 8px 0;
+  font-size: 13px; min-width: 140px;
+}
+.draft-strip .strip-time { font-weight: 700; color: var(--accent); font-size: 14px; }
+.draft-strip .strip-round { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.drafter-strip-row {
+  padding: 4px 8px; border-radius: 4px; font-weight: 500;
+  background: #0d141c; color: var(--muted);
+}
+.drafter-strip-row.on-clock {
+  background: var(--accent); color: #000; font-weight: 700;
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+.drafter-strip-row.done { opacity: 0.45; text-decoration: line-through; }
+
 .bench-tag {
   display: inline-block; background: var(--border); color: var(--muted);
   border-radius: 8px; padding: 0 6px; font-size: 10px; margin-left: 4px;
