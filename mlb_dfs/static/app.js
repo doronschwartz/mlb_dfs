@@ -412,9 +412,9 @@ async function renderDraft() {
   const nDrafters = data.drafters.length;
   const round = Math.floor((data.picks || []).length / nDrafters);
   const order = round % 2 === 0 ? data.drafters : [...data.drafters].reverse();
-  const onClock = onClock_(data.on_the_clock);
+  const onClockName = data.on_the_clock ? data.on_the_clock[0] : null;
   const orderHtml = order.map((d) => {
-    const cls = d === onClock ? "on-clock" : (data.rosters[d]?.length > round ? "done" : "");
+    const cls = d === onClockName ? "on-clock" : (data.rosters[d]?.length > round ? "done" : "");
     return `<div class="drafter-strip-row ${cls}">${d}</div>`;
   }).join("");
   html.push(`<div class="draft-strip">
@@ -500,8 +500,6 @@ async function renderDraft() {
     $("#pool-out").innerHTML = "";
   }
 }
-
-function onClock_(oc) { return oc ? oc[0] : null; }
 
 function renderIdentityBar(data) {
   const bar = $("#identity-bar");
