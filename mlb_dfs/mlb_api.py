@@ -144,6 +144,15 @@ def player_stats(
     return splits[0].get("stat", {})
 
 
+# Two-way / multi-position overrides — the league's call, not the MLB API's.
+# Key: player_id. Value: position abbreviation that drives slot eligibility.
+# Example: Shohei Ohtani is listed DH but his last non-P fielding position
+# was OF, so the league wants OF eligibility for his hitter row.
+POSITION_OVERRIDES = {
+    660271: "OF",   # Shohei Ohtani
+}
+
+
 def players_in_slate(d: Date) -> dict[int, dict]:
     """Map of player_id -> {name, primaryPosition, teamId} for everyone on a roster
     of a team playing today. This is the draft pool."""
@@ -162,10 +171,11 @@ def players_in_slate(d: Date) -> dict[int, dict]:
             pid = person.get("id")
             if not pid:
                 continue
+            pos = (r.get("position") or {}).get("abbreviation")
             pool[pid] = {
                 "id": pid,
                 "name": person.get("fullName"),
-                "position": (r.get("position") or {}).get("abbreviation"),
+                "position": POSITION_OVERRIDES.get(pid, pos),
                 "positionType": (r.get("position") or {}).get("type"),
                 "teamId": tid,
             }
