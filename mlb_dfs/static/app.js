@@ -1106,6 +1106,60 @@ async function fetchKPropsOdds(forceRefresh = false) {
 $("#kprops-fetch-odds")?.addEventListener("click", () => fetchKPropsOdds(false));
 $("#kprops-refresh-odds")?.addEventListener("click", () => fetchKPropsOdds(true));
 
+async function loadInsights() {
+  const d = $("#date").value;
+  $("#insights-out").innerHTML = `<div class="muted">Loading insights for ${d}…</div>`;
+  let data;
+  try {
+    data = await api(`/api/insights?date=${d}`);
+  } catch (e) {
+    $("#insights-out").innerHTML = `<div class="muted">${e.message}</div>`;
+    return;
+  }
+  if (!data.games.length) {
+    $("#insights-out").innerHTML = `<div class="muted">No games for ${d}.</div>`;
+    return;
+  }
+  const fmt = (v, d=1) => v == null ? "—" : Number(v).toFixed(d);
+  const fmtPlusMinus = (v, d=2) => v == null ? "—" : (v > 0 ? "+" : "") + Number(v).toFixed(d);
+  const colorFactor = (f) => {
+    if (f == null || f === 1) return "";
+    if (f > 1.05) return "color:var(--accent-2);font-weight:600;";
+    if (f < 0.95) return "color:var(--bad);font-weight:600;";
+    return "color:var(--muted);";
+  };
+  const rows = data.games.map(g => {
+    const wx = g.weather || {};
+    const ump = g.ump || {};
+    const wxStr = wx.dome
+      ? "🏟️ dome"
+      : wx.wind_mph != null ? `${wx.temp_f ?? "?"}°F · wind ${wx.wind_mph}mph ${wx.wind_dir}` : "—";
+    return `<tr>
+      <td><b>${g.matchup}</b><br/><span class="muted" style="font-size:11px;">${
+        g.gameDate ? new Date(g.gameDate).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})+" ET" : ""
+      }</span></td>
+      <td>${fmt(g.away_total, 2)}</td>
+      <td>${fmt(g.home_total, 2)}</td>
+      <td>${fmt((g.away_total||0)+(g.home_total||0), 2)}</td>
+      <td>${wxStr}</td>
+      <td style="${colorFactor(wx.hr_factor)}">${fmt(wx.hr_factor, 3)}</td>
+      <td>${ump.ump || "—"}</td>
+      <td>${ump.season ? fmtPlusMinus(ump.season.favor, 2) : "—"}</td>
+      <td style="${colorFactor(ump.k_factor)}">${fmt(ump.k_factor, 3)}</td>
+    </tr>`;
+  }).join("");
+  $("#insights-out").innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Matchup</th>
+        <th>Away total</th><th>Home total</th><th>Game total</th>
+        <th>Weather</th><th>HR factor</th>
+        <th>HP Ump</th><th>Favor</th><th>K factor</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 async function loadKProps() {
   const d = $("#date").value;
   $("#kprops-out").innerHTML = `<div class="muted">Predicting Ks for ${d}…</div>`;
@@ -1212,6 +1266,7 @@ async function refresh() {
   if (state.tab === "slate") await loadSlate();
   if (state.tab === "project") await loadProjections();
   if (state.tab === "kprops") await loadKProps();
+  if (state.tab === "insights") await loadInsights();
   if (state.tab === "draft") {
     await ensureSlateLoaded();
     renderGamePicker();

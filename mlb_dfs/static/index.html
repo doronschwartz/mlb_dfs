@@ -17,6 +17,7 @@
       <button data-tab="schedule">Schedule</button>
       <button data-tab="stats">Stats</button>
       <button data-tab="kprops">K Props</button>
+      <button data-tab="insights">Insights</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -89,6 +90,17 @@
         <span id="pool-count" class="muted"></span>
       </div>
       <div id="pool-out"></div>
+    </section>
+
+    <section id="tab-insights" class="tab">
+      <h2>Insights</h2>
+      <p class="muted" style="font-size:13px;">
+        Per-game Vegas team totals, weather + HR factor, and home-plate
+        umpire tendency. Higher implied total = more hitter projections;
+        wind out + warm = HR bump; pitcher-friendly umpire (positive favor)
+        = K bump.
+      </p>
+      <div id="insights-out"></div>
     </section>
 
     <section id="tab-kprops" class="tab">

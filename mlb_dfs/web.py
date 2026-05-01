@@ -519,6 +519,37 @@ def stats_players(top_n: int = 50):
     }
 
 
+@app.get("/api/insights")
+def get_insights(date: str | None = None):
+    """One row per game with vegas team totals, weather, and umpire data merged."""
+    d = Date.fromisoformat(date) if date else Date.today()
+    games = mlb_api.schedule(d)
+    totals = odds_api.get_team_totals(d.isoformat())
+    ump_rows = umpires.umpires_for_date(d.isoformat())
+    ump_by_pk = {u["game_pk"]: u for u in ump_rows if u.get("game_pk")}
+    out = []
+    for g in games:
+        teams = g.get("teams") or {}
+        home = (teams.get("home") or {}).get("team") or {}
+        away = (teams.get("away") or {}).get("team") or {}
+        home_abbr = home.get("abbreviation") or ""
+        away_abbr = away.get("abbreviation") or ""
+        wx = weather_mod.park_forecast(home_abbr, g.get("gameDate") or "")
+        ump = ump_by_pk.get(g.get("gamePk"))
+        out.append({
+            "gamePk": g.get("gamePk"),
+            "gameDate": g.get("gameDate"),
+            "matchup": f"{away_abbr}@{home_abbr}",
+            "away_abbr": away_abbr,
+            "home_abbr": home_abbr,
+            "away_total": totals.get(away.get("name") or ""),
+            "home_total": totals.get(home.get("name") or ""),
+            "weather": wx,
+            "ump": ump,
+        })
+    return {"date": d.isoformat(), "games": out}
+
+
 @app.get("/api/umpires")
 def get_umpires_endpoint(date: str | None = None):
     """Assigned HP umpire per game + season-average pitcher-favor and
