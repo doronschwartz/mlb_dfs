@@ -861,12 +861,25 @@ function drawPool() {
       </thead>
       <tbody>${rows
         .map(
-          (p) => `
+          (p) => {
+            const c = p.components || {};
+            let stat = "—";
+            if (p.role === "hitter" && (c.barrel_pct != null || c.hardhit_pct != null)) {
+              const brl = c.barrel_pct != null ? c.barrel_pct.toFixed(1) : "—";
+              const hh = c.hardhit_pct != null ? c.hardhit_pct.toFixed(0) : "—";
+              stat = `<span title="barrel ${brl}% · hard-hit ${hh}% · qoc x${(c.qoc_factor||1).toFixed(2)}">brl ${brl}% · hh ${hh}%</span>`;
+            } else if (p.role === "pitcher" && (c.xera != null || c.xwoba_against != null)) {
+              const xe = c.xera != null ? c.xera.toFixed(2) : "—";
+              const xw = c.xwoba_against != null ? c.xwoba_against.toFixed(3) : "—";
+              stat = `<span title="xERA ${xe} · xwOBA ${xw} · qoc x${(c.qoc_factor||1).toFixed(2)}">xERA ${xe}</span>`;
+            }
+            return `
         <tr class="${p.role}">
           <td>${p.projected_points.toFixed(2)}</td>
           <td>${p.name}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
+          <td class="muted" style="font-size:11px;">${stat}</td>
           <td>${
             p.eligible_slots.length
               ? (() => {
@@ -881,7 +894,8 @@ function drawPool() {
               : `<span class="slot-pill disabled">no slot left</span>`
           }</td>
           <td class="notes">${(p.notes || []).join(" · ")}</td>
-        </tr>`,
+        </tr>`;
+          },
         )
         .join("")}</tbody>
     </table>`;
