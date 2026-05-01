@@ -913,6 +913,7 @@ def _selected_games_summary(dr) -> list[dict]:
             "gamePk": g.get("gamePk"),
             "away_abbr": away.get("abbreviation"),
             "home_abbr": home.get("abbreviation"),
+            "gameDate": g.get("gameDate"),
         })
     return out
 

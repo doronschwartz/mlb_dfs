@@ -398,15 +398,20 @@ async function renderDraft() {
     html.push(`<div class="muted" style="font-size:11px;margin-bottom:8px;">Pool: full slate</div>`);
   }
 
-  // Slate-start + draft-order strip
+  // Slate-start (earliest game in selected slate, displayed in Eastern Time)
   let earliestIso = null;
-  const selectedPks = new Set((data.game_pks || []));
-  for (const g of state.slateGames || []) {
-    if (selectedPks.size && !selectedPks.has(g.gamePk)) continue;
-    if (!earliestIso || g.gameDate < earliestIso) earliestIso = g.gameDate;
+  for (const g of (data.selected_games || [])) {
+    if (g.gameDate && (!earliestIso || g.gameDate < earliestIso)) earliestIso = g.gameDate;
+  }
+  if (!earliestIso) {
+    for (const g of state.slateGames || []) {
+      if (!earliestIso || g.gameDate < earliestIso) earliestIso = g.gameDate;
+    }
   }
   const startTime = earliestIso
-    ? new Date(earliestIso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    ? new Date(earliestIso).toLocaleTimeString("en-US", {
+        hour: "numeric", minute: "2-digit", timeZone: "America/New_York"
+      }) + " ET"
     : "—";
   // Snake-order: order of THIS round.
   const nDrafters = data.drafters.length;
