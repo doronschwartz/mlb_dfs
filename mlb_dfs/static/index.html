@@ -16,6 +16,7 @@
       <button data-tab="score">Live Score</button>
       <button data-tab="schedule">Schedule</button>
       <button data-tab="stats">Stats</button>
+      <button data-tab="kprops">K Props</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -58,7 +59,6 @@
         <h3>Or load an existing draft</h3>
         <div class="setup-row">
           <select id="draft-id"></select>
-          <button id="load-draft">Load</button>
           <button id="undo">Undo last pick</button>
           <button id="reset" class="btn-danger-outline">Reset picks</button>
           <button id="delete" class="btn-danger">Delete draft</button>
@@ -89,6 +89,20 @@
         <span id="pool-count" class="muted"></span>
       </div>
       <div id="pool-out"></div>
+    </section>
+
+    <section id="tab-kprops" class="tab">
+      <h2>K Props</h2>
+      <p class="muted" style="font-size:13px;">
+        Predicted strikeouts per probable SP on the slate. Ported from the
+        K Prop Tester Colab — combines pitcher K% × avg batters-faced/start
+        with the opposing lineup's weighted K% (batting order positions
+        1-9 weighted highest-to-lowest), then applied park K factor.
+        Last column is the SP's expected fantasy K-points (predicted Ks ×
+        1.5 from the spreadsheet rules) — useful for sanity-checking the
+        SP slot pick.
+      </p>
+      <div id="kprops-out"></div>
     </section>
 
     <section id="tab-stats" class="tab">

@@ -22,6 +22,7 @@ BUILD_VERSION = str(int(time.time()))
 
 from . import draft as draft_mod
 from . import historic
+from . import k_props
 from . import live as live_mod
 from . import mlb_api, projections
 
@@ -271,9 +272,15 @@ def schedule_builder(
                 if aa: counts[aa] += 1
                 if ha: counts[ha] += 1
 
+    # The friend league plays Sun-Thu only — skip Friday (weekday 4) and
+    # Saturday (weekday 5) when proposing slates.
+    SKIP_WEEKDAYS = {4, 5}
     days = []
     cur = s
     while cur <= e:
+        if cur.weekday() in SKIP_WEEKDAYS:
+            cur += timedelta(days=1)
+            continue
         try:
             games = mlb_api.slate(cur)
         except Exception:
@@ -510,6 +517,18 @@ def stats_players(top_n: int = 50):
         "hitters": [p for p in out if p["role"] == "hitter"][:top_n],
         "pitchers": [p for p in out if p["role"] == "pitcher"][:top_n],
     }
+
+
+@app.get("/api/k_props")
+def get_k_props(date: str | None = None):
+    """Predicted strikeouts for every probable SP on the slate.
+
+    Combines pitcher K% + lineup K% (weighted by batting order) + park
+    factor — same algorithm as Yaakov's K Prop Tester Colab, minus the
+    Baseball Savant whiff-rate component.
+    """
+    d = Date.fromisoformat(date) if date else Date.today()
+    return {"date": d.isoformat(), "rows": k_props.k_props_for_date(d)}
 
 
 @app.get("/api/lineups")

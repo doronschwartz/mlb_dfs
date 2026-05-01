@@ -328,7 +328,9 @@ async function syncToLoadedDraft() {
   await renderDraft();
 }
 
-$("#load-draft").addEventListener("click", async () => {
+// "Load" button removed in favor of dropdown auto-load; handler kept for
+// any older HTML that still has the button.
+$("#load-draft")?.addEventListener("click", async () => {
   state.currentDraftId = $("#draft-id").value;
   await syncToLoadedDraft();
 });
@@ -1007,10 +1009,47 @@ function stopPolling() {
   pollHandle = null;
 }
 
+async function loadKProps() {
+  const d = $("#date").value;
+  $("#kprops-out").innerHTML = `<div class="muted">Predicting Ks for ${d}… (one MLB stats call per pitcher + lineup batter)</div>`;
+  try {
+    const data = await api(`/api/k_props?date=${d}`);
+    if (!data.rows.length) {
+      $("#kprops-out").innerHTML = `<div class="muted">No probable SPs announced for ${d}.</div>`;
+      return;
+    }
+    const rows = data.rows.map((r) => {
+      const note = r.lineup_posted ? "" : `<span class="muted" style="font-size:10px;"> (no lineup yet — using rookie K%)</span>`;
+      const c = r.components || {};
+      return `
+        <tr>
+          <td><b>${r.pitcher_name}</b><br/><span class="muted" style="font-size:11px;">${r.pitcher_team} @ ${r.home_team}${note}</span></td>
+          <td>${(r.pitcher_k_pct * 100).toFixed(1)}%</td>
+          <td>${r.avg_bf_per_start.toFixed(1)}</td>
+          <td>${(c.weighted_lineup_k_pct ? (c.weighted_lineup_k_pct * 100).toFixed(1) + "%" : "—")}</td>
+          <td>${r.park_factor.toFixed(2)}</td>
+          <td><b>${r.predicted_ks.toFixed(2)}</b></td>
+          <td><b style="color:var(--warn);">${r.predicted_k_pts.toFixed(1)}</b></td>
+        </tr>`;
+    }).join("");
+    $("#kprops-out").innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Pitcher</th><th>K%</th><th>Avg BF/start</th>
+          <th>Lineup K%</th><th>Park</th><th>Pred Ks</th><th>K pts</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch (e) {
+    $("#kprops-out").innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+}
+
 async function refresh() {
   await loadDraftList().catch(() => {});
   if (state.tab === "slate") await loadSlate();
   if (state.tab === "project") await loadProjections();
+  if (state.tab === "kprops") await loadKProps();
   if (state.tab === "draft") {
     await ensureSlateLoaded();
     renderGamePicker();
@@ -1158,6 +1197,10 @@ async function setDefaultScheduleRange() {
     const start = new Date(baseline);
     start.setDate(start.getDate() + 1);
     if (start < today) start.setTime(today.getTime());
+    // League plays Sun-Thu only — skip Fri (5) and Sat (6) for the start date.
+    while (start.getDay() === 5 || start.getDay() === 6) {
+      start.setDate(start.getDate() + 1);
+    }
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     $("#sched-start").value = start.toISOString().slice(0, 10);
