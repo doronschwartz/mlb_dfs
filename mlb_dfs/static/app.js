@@ -120,7 +120,17 @@ $$("nav button").forEach((b) => {
   });
 });
 
-$("#refresh").addEventListener("click", refresh);
+$("#refresh").addEventListener("click", async () => {
+  // Bust the server-side projections cache so updated probable SPs / lineups show up.
+  const d = $("#date").value;
+  try { await api(`/api/projections?date=${d}&refresh=true`); } catch {}
+  // Reset client-side caches for the same reason.
+  projCache = { date: null, data: [] };
+  poolCache = { draftId: null, pool: [] };
+  state._slateDate = null;
+  state.slateGames = [];
+  await refresh();
+});
 
 $("#lineup-go")?.addEventListener("click", async () => {
   const names = ($("#lineup-names").value || "").split("\n").map(s => s.trim()).filter(Boolean);
