@@ -146,6 +146,8 @@ def make_pick(draft_id: str, req: PickRequest):
             notify.notify(
                 f"⚾ {new_pick.drafter} picked {new_pick.name} ({new_pick.slot}) — pick #{new_pick.pick_number} of {dr.total_picks()}{next_msg}"
             )
+            if dr.is_complete():
+                notify.notify(f"🏁 Draft {dr.date} complete — {dr.total_picks()} picks in. Live scoring is on.")
         except Exception:
             pass
     return _draft_state(dr)
@@ -238,7 +240,10 @@ def fantrax_roster(league_id: str, team_id: str | None = None):
 @app.get("/api/notify/test")
 def notify_test():
     if not notify.is_configured():
-        return {"configured": False, "hint": "Set CALLMEBOT_RECIPIENTS env var"}
+        return {
+            "configured": False,
+            "hint": "Set fly secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM (e.g. whatsapp:+14155238886), TWILIO_TO (comma-separated whatsapp:+15551234567)",
+        }
     return notify.notify("✅ MLB DFS notifications working")
 
 
