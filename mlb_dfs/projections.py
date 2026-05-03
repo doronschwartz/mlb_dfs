@@ -130,15 +130,17 @@ def project_hitter(
     base_pg = LEAGUE_AVG_HITTER_POINTS_PER_GAME
     notes: list[str] = []
 
+    games_season = _safe_float(seasn.get("gamesPlayed"))
     pg_3 = _per_game_hitter_points(last3) if games_3 >= 1 else None
     pg_7 = _per_game_hitter_points(last7) if games_7 >= 2 else None
     pg_14 = _per_game_hitter_points(last14) if games_14 >= 5 else None
-    pg_season = _per_game_hitter_points(seasn) if _safe_float(seasn.get("gamesPlayed")) >= 10 else None
+    pg_season = _per_game_hitter_points(seasn) if games_season >= 10 else None
 
     weighted = _weighted_pg_hitter(
         pts_g_3=(pg_3, int(games_3)),
         pts_g_7=(pg_7, int(games_7)),
         pts_g_14=(pg_14, int(games_14)),
+        pts_g_season=(pg_season, int(games_season)),
     )
     if weighted is not None:
         base_pg = weighted
@@ -326,38 +328,47 @@ def project_pitcher(
     )
 
 
-def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14):
-    """Sample-size × recency weighting on non-overlapping buckets.
+def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14, pts_g_season=(None, 0)):
+    """Sample-size × recency weighting on non-overlapping buckets, with a
+    season-as-prior bucket so small recent samples don't blow up.
 
     The MLB API returns cumulative stats per window — L7 *includes* L3, L14
-    *includes* L7. Naive averaging double-counts the most recent games. We
-    back out three disjoint buckets by subtraction, then weight each bucket
-    by (games × recency_multiplier). Recent games get boosted but small
-    samples can't dominate a well-sampled older bucket.
+    *includes* L7, season *includes* L14. We back out four disjoint buckets
+    by subtraction (recent / mid / old / season-prior), then weight each by
+    (games × recency_multiplier). The season prior has low recency weight
+    but high game count for a regular — for a backup catcher with 1 hot L3
+    game and 30 season games of mediocrity, the season bucket dominates and
+    pulls the projection back to reality.
     """
     pg3, g3 = pts_g_3
     pg7, g7 = pts_g_7
     pg14, g14 = pts_g_14
-    # Build (pts_per_g, games, recency_weight) buckets, all disjoint.
+    pgs, gs = pts_g_season
     buckets: list[tuple[float, int, float]] = []
     if pg3 is not None and g3 > 0:
         buckets.append((pg3, g3, 2.5))                    # last ~3 days
     if pg7 is not None and g7 > 0:
-        # bucket = L7 minus L3 (games 4-7)
         if pg3 is not None and g3 > 0 and g7 > g3:
             mid_g = g7 - g3
             mid_pts = pg7 * g7 - pg3 * g3
             buckets.append((mid_pts / mid_g, mid_g, 1.5))
         elif pg3 is None:
-            buckets.append((pg7, g7, 1.5))                # L3 missing — treat L7 as the recent block
+            buckets.append((pg7, g7, 1.5))
     if pg14 is not None and g14 > 0:
-        # bucket = L14 minus L7 (games 8-14)
         if pg7 is not None and g7 > 0 and g14 > g7:
             old_g = g14 - g7
             old_pts = pg14 * g14 - pg7 * g7
             buckets.append((old_pts / old_g, old_g, 1.0))
         elif pg7 is None:
             buckets.append((pg14, g14, 1.0))
+    if pgs is not None and gs > 0:
+        # season-minus-L14 bucket (true talent prior)
+        if pg14 is not None and g14 > 0 and gs > g14:
+            prior_g = gs - g14
+            prior_pts = pgs * gs - pg14 * g14
+            buckets.append((prior_pts / prior_g, prior_g, 0.4))
+        elif pg14 is None:
+            buckets.append((pgs, gs, 0.4))
     if not buckets:
         return None
     total_w = sum(g * r for _, g, r in buckets)
