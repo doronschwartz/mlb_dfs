@@ -547,40 +547,45 @@ def _proj_from_dict(d: dict) -> "Projection":
 def project_slate_cached(
     d: Date, *, team_filter: set[int] | None = None, force_refresh: bool = False
 ) -> list["Projection"]:
-    """Memoized per (date, team_filter). 6h TTL, persisted to disk so a redeploy
-    doesn't force a full recompute (~50 MLB API calls on a typical slate)."""
-    key = (d.isoformat(), tuple(sorted(team_filter)) if team_filter else None)
+    """Memoized per date (full slate). team_filter is applied downstream so
+    projections-tab and draft-tab share one cache entry — first hit pays the
+    ~50 MLB API calls, the rest are instant. 6h TTL, persisted to disk so
+    redeploys don't force a recompute."""
+    key = (d.isoformat(), None)
     now = time.time()
+    full: list["Projection"] | None = None
     if not force_refresh:
         cached = _PROJ_CACHE.get(key)
         if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
-            return cached[1]
-        # Fall through to disk
-        path = _proj_disk_path(key)
+            full = cached[1]
+        if full is None:
+            path = _proj_disk_path(key)
+            try:
+                if os.path.exists(path) and (now - os.path.getmtime(path)) < _PROJ_TTL_SEC:
+                    with open(path) as f:
+                        raw = json.load(f)
+                    full = [_proj_from_dict(x) for x in raw]
+                    _PROJ_CACHE[key] = (os.path.getmtime(path), full)
+            except Exception:
+                full = None
+    if full is None:
+        full = project_slate(d, team_filter=None)
+        _PROJ_CACHE[key] = (now, full)
         try:
-            if os.path.exists(path) and (now - os.path.getmtime(path)) < _PROJ_TTL_SEC:
-                with open(path) as f:
-                    raw = json.load(f)
-                projs = [_proj_from_dict(x) for x in raw]
-                _PROJ_CACHE[key] = (os.path.getmtime(path), projs)
-                return projs
+            from .disk_cache import CACHE_DIR
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            path = _proj_disk_path(key)
+            tmp = path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump([_proj_to_dict(p) for p in full], f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
         except Exception:
             pass
-    projs = project_slate(d, team_filter=team_filter)
-    _PROJ_CACHE[key] = (now, projs)
-    try:
-        from .disk_cache import CACHE_DIR
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        path = _proj_disk_path(key)
-        tmp = path + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump([_proj_to_dict(p) for p in projs], f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except Exception:
-        pass
-    return projs
+    if team_filter:
+        return [p for p in full if p.team_id in team_filter]
+    return full
 
 
 def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Projection]:
