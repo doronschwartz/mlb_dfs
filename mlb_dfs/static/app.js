@@ -1527,10 +1527,13 @@ async function refresh() {
   if (state.tab === "score") {
     const today = new Date().toISOString().slice(0, 10);
     const sel = $("#score-draft-id");
-    if (sel && Array.from(sel.options).some((o) => o.value === today)) {
-      sel.value = today;
+    if (sel && sel.options.length) {
+      const opts = Array.from(sel.options).map((o) => o.value);
+      if (opts.includes(today)) sel.value = today;
+      else if (state.currentDraftId && opts.includes(state.currentDraftId)) sel.value = state.currentDraftId;
+      else if (!sel.value) sel.value = opts[0];
+      if (sel.value) $("#score-load").click();
     }
-    if (sel && sel.value) $("#score-load").click();
   }
 }
 
