@@ -14,10 +14,36 @@ import os
 import requests
 from fantraxapi import FantraxAPI
 
+_COOKIE_FILE = os.path.join(
+    os.environ.get("MLB_DFS_CACHE_DIR", "/data/cache"), "fantrax_cookie.txt"
+)
+
+
+def _read_cookie_from_disk() -> str:
+    try:
+        with open(_COOKIE_FILE) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+
+def save_cookie(cookie: str) -> None:
+    os.makedirs(os.path.dirname(_COOKIE_FILE), exist_ok=True)
+    tmp = f"{_COOKIE_FILE}.tmp"
+    with open(tmp, "w") as f:
+        f.write(cookie.strip())
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, _COOKIE_FILE)
+
+
+def is_authenticated() -> bool:
+    return bool(os.environ.get("FANTRAX_COOKIE") or _read_cookie_from_disk())
+
 
 def _session() -> requests.Session:
     s = requests.Session()
-    cookie = os.environ.get("FANTRAX_COOKIE")
+    cookie = os.environ.get("FANTRAX_COOKIE") or _read_cookie_from_disk()
     if cookie:
         s.headers.update({"Cookie": cookie})
     s.headers.update({"User-Agent": "Mozilla/5.0 mlb_dfs/0.1"})
