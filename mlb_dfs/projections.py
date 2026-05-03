@@ -55,6 +55,22 @@ def _qoc_multiplier_hitter(qoc: dict | None) -> tuple[float, list[str]]:
     return max(0.85, min(factor, 1.15)), notes
 
 
+def _qoc_tier_hitter(brl: float, hh: float) -> str:
+    if brl and brl >= 11: return "ELITE"
+    if brl and brl >= 8: return "SOLID"
+    if brl and brl >= 5: return "AVERAGE"
+    if brl: return "POOR"
+    return "—"
+
+
+def _qoc_tier_pitcher(brl_a: float, xera: float) -> str:
+    if (brl_a and brl_a <= 4) or (xera and xera <= 2.75): return "ELITE"
+    if (brl_a and brl_a <= 6) or (xera and xera <= 3.50): return "SOLID"
+    if (brl_a and brl_a <= 8) or (xera and xera <= 4.50): return "AVERAGE"
+    if brl_a or xera: return "POOR"
+    return "—"
+
+
 def _qoc_multiplier_pitcher(qoc: dict | None, expected: dict | None) -> tuple[float, list[str]]:
     """Pitcher version — barrel% / hard-hit% allowed move things the OTHER way:
     high barrel% allowed = worse pitcher = lower projection."""
@@ -138,6 +154,18 @@ def project_hitter(
         notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
 
     proj = base_pg * sp_factor * qoc_factor
+    brl = _safe_float((qoc or {}).get("brl_percent"))
+    hh = _safe_float((qoc or {}).get("ev95percent"))
+    pitfalls: list[str] = []
+    if games_14 < 7:
+        pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
+    if sp_factor < 0.85:
+        pitfalls.append("Tough opposing SP (high K%, low ERA)")
+    if brl and brl < 4.5:
+        pitfalls.append(f"Below-avg barrel rate ({brl:.1f}% vs lg ~6.5%)")
+    if hh and hh < 32:
+        pitfalls.append(f"Low hard-hit% ({hh:.0f}% vs lg ~38%) — quality of contact lagging")
+    qoc_tier = _qoc_tier_hitter(brl, hh)
     return Projection(
         player_id=pid,
         name=name,
@@ -149,6 +177,9 @@ def project_hitter(
             "base_pg": round(base_pg, 2),
             "sp_factor": round(sp_factor, 3),
             "qoc_factor": round(qoc_factor, 3),
+            "qoc_tier": qoc_tier,
+            "pitfalls": pitfalls,
+            "sample_games_14d": int(games_14),
             "barrel_pct": _safe_float((qoc or {}).get("brl_percent")) or None,
             "hardhit_pct": _safe_float((qoc or {}).get("ev95percent")) or None,
             "sweet_spot_pct": _safe_float((qoc or {}).get("anglesweetspotpercent")) or None,
@@ -209,6 +240,20 @@ def project_pitcher(
         notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
 
     proj = base * opp_factor * qoc_factor
+    brl_a = _safe_float((qoc or {}).get("brl_percent")) or None
+    hh_a = _safe_float((qoc or {}).get("ev95percent")) or None
+    xera = _safe_float((expected or {}).get("xera")) or None
+    xwoba_a = _safe_float((expected or {}).get("est_woba")) or None
+    pitfalls: list[str] = []
+    if starts_14 < 4:
+        pitfalls.append(f"Small sample — only {int(starts_14)} GS in last 14d")
+    if opp_factor > 1.15:
+        pitfalls.append("Hot offensive opponent (high R/G)")
+    if brl_a and brl_a > 8:
+        pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}%)")
+    if xera and xera > 4.75:
+        pitfalls.append(f"Underlying xERA {xera:.2f} — luck-adjusted line is rough")
+    qoc_tier = _qoc_tier_pitcher(brl_a or 0, xera or 0)
     return Projection(
         player_id=pid,
         name=name,
@@ -220,10 +265,13 @@ def project_pitcher(
             "base_per_start": round(base, 2),
             "opp_factor": round(opp_factor, 3),
             "qoc_factor": round(qoc_factor, 3),
-            "xera": _safe_float((expected or {}).get("xera")) or None,
-            "xwoba_against": _safe_float((expected or {}).get("est_woba")) or None,
-            "barrel_pct_allowed": _safe_float((qoc or {}).get("brl_percent")) or None,
-            "hardhit_pct_allowed": _safe_float((qoc or {}).get("ev95percent")) or None,
+            "qoc_tier": qoc_tier,
+            "pitfalls": pitfalls,
+            "sample_starts_14d": int(starts_14),
+            "xera": xera,
+            "xwoba_against": xwoba_a,
+            "barrel_pct_allowed": brl_a,
+            "hardhit_pct_allowed": hh_a,
         },
         notes=notes,
     )
