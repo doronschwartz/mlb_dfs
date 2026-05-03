@@ -91,6 +91,24 @@ $$("nav button").forEach((b) => {
     $$(".tab").forEach((t) => t.classList.remove("active"));
     $(`#tab-${b.dataset.tab}`).classList.add("active");
     state.tab = b.dataset.tab;
+    // When entering the Draft tab, reset to today's date + auto-load today's
+    // draft if one exists on the volume.
+    if (b.dataset.tab === "draft") {
+      const today = new Date().toISOString().slice(0, 10);
+      if ($("#date").value !== today) {
+        $("#date").value = today;
+        state._slateDate = null;
+        state.slateGames = [];
+      }
+      const sel = $("#draft-id");
+      if (sel && Array.from(sel.options).some((o) => o.value === today)) {
+        sel.value = today;
+        state.currentDraftId = today;
+        syncToLoadedDraft().catch(() => {});
+      } else {
+        state.currentDraftId = null;
+      }
+    }
     refresh();
   });
 });
