@@ -864,7 +864,7 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
   const data = await api(`/api/drafts/${state.currentDraftId}/pool`).catch(() => null);
   if (!data) return alert("Couldn't load replacement candidates.");
   const allCandidates = data.pool
-    .filter((p) => p.eligible_slots.includes(slot))
+    .filter((p) => (p.position_slots || p.eligible_slots).includes(slot))
     .sort((a, b) => {
       const order = { in: 0, pending: 1, out: 2, undefined: 1 };
       const da = order[a.lineup_status] ?? 1;
