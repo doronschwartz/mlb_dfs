@@ -63,6 +63,42 @@ main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .game .matchup { font-weight: 600; }
 .game .sps { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .game .status { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.game.is-live { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(96,165,250,0.25) inset; }
+.game .status.live { color: #fca5a5; font-weight: 700; }
+.game .status.final { color: var(--muted); }
+.game .live-score {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 6px 0 8px; padding: 6px 8px;
+  background: rgba(0,0,0,0.25); border-radius: 6px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 14px;
+}
+.game .live-score .line {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1px 0; opacity: 0.7;
+}
+.game .live-score .line.active { opacity: 1; font-weight: 700; color: var(--accent-2); }
+.game .live-score .abbr { font-weight: 600; }
+.game .live-score .runs { font-variant-numeric: tabular-nums; }
+.game .live-block {
+  display: flex; gap: 12px; align-items: center;
+  margin: 4px 0 8px; padding: 6px;
+  background: rgba(0,0,0,0.2); border-radius: 6px;
+}
+.game .diamond {
+  position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  transform: rotate(45deg);
+}
+.game .diamond .base {
+  position: absolute; width: 14px; height: 14px;
+  background: transparent; border: 1.5px solid var(--border);
+}
+.game .diamond .base.first  { right: 0;   bottom: 21px; }
+.game .diamond .base.second { right: 21px; top: 0; }
+.game .diamond .base.third  { left: 0;   bottom: 21px; }
+.game .diamond .base.on { background: var(--accent-2); border-color: var(--accent-2); }
+.game .count-and-ab { font-size: 12px; line-height: 1.4; flex: 1; min-width: 0; }
+.game .count-and-ab .count { display: flex; gap: 10px; font-family: ui-monospace, Menlo, monospace; }
+.game .count-and-ab .ab { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }

@@ -198,6 +198,8 @@ async function api(path, opts = {}) {
 }
 
 // ---------- slate ----------
+let _slatePollHandle = null;
+
 async function loadSlate() {
   const d = $("#date").value;
   const out = $("#slate-out");
@@ -209,6 +211,15 @@ async function loadSlate() {
       ? data.games.map(renderGame).join("")
       : `<div class="muted">No games scheduled.</div>`;
     renderGamePicker();
+    // Auto-refresh every 30s if any game is live, while the user is on this tab.
+    const anyLive = data.games.some((g) => g.live && !g.live.isFinal);
+    if (_slatePollHandle) { clearInterval(_slatePollHandle); _slatePollHandle = null; }
+    if (anyLive && state.tab === "slate") {
+      _slatePollHandle = setInterval(() => {
+        if (state.tab !== "slate") { clearInterval(_slatePollHandle); _slatePollHandle = null; return; }
+        loadSlate();
+      }, 30000);
+    }
   } catch (e) {
     out.innerHTML = `<div class="muted">${e.message}</div>`;
   }
@@ -217,10 +228,63 @@ async function loadSlate() {
 function renderGame(g) {
   const ap = g.away.probablePitcher?.name ?? "TBD";
   const hp = g.home.probablePitcher?.name ?? "TBD";
+  const live = g.live;
+  const isLive = live && !live.isFinal;
+  const isFinal = live && live.isFinal;
+  const awayScore = g.away.score ?? (live ? 0 : null);
+  const homeScore = g.home.score ?? (live ? 0 : null);
+
+  // Live status header — inning + half indicator, or FINAL
+  let topBar = `<div class="status">${g.detailedStatus ?? ""}</div>`;
+  if (isLive) {
+    const half = live.inningHalf || "";
+    const arrow = half === "Top" ? "▲" : half === "Bottom" ? "▼" : "•";
+    topBar = `<div class="status live">${arrow} ${live.inningOrdinal ?? ""} ${half}</div>`;
+  } else if (isFinal) {
+    topBar = `<div class="status final">FINAL</div>`;
+  }
+
+  // Score line
+  let scoreLine = "";
+  if (awayScore !== null && homeScore !== null && (isLive || isFinal)) {
+    const aw = isLive && live.inningHalf === "Top" ? "active" : "";
+    const hw = isLive && live.inningHalf === "Bottom" ? "active" : "";
+    scoreLine = `
+      <div class="live-score">
+        <div class="line ${aw}"><span class="abbr">${g.away.abbr}</span><span class="runs">${awayScore}</span></div>
+        <div class="line ${hw}"><span class="abbr">${g.home.abbr}</span><span class="runs">${homeScore}</span></div>
+      </div>`;
+  }
+
+  // Diamond + count + current batter (live only)
+  let liveBlock = "";
+  if (isLive) {
+    const r = live.runners || {};
+    liveBlock = `
+      <div class="live-block">
+        <div class="diamond">
+          <div class="base second ${r.second ? "on" : ""}"></div>
+          <div class="base third ${r.third ? "on" : ""}"></div>
+          <div class="base first ${r.first ? "on" : ""}"></div>
+        </div>
+        <div class="count-and-ab">
+          <div class="count">
+            <span><b>${live.balls ?? 0}</b>-<b>${live.strikes ?? 0}</b></span>
+            <span class="muted">${live.outs ?? 0} out${(live.outs ?? 0) === 1 ? "" : "s"}</span>
+          </div>
+          ${live.batter ? `<div class="ab"><span class="muted">AB:</span> ${live.batter}</div>` : ""}
+          ${live.pitcher ? `<div class="ab"><span class="muted">P:</span> ${live.pitcher}</div>` : ""}
+          ${live.onDeck ? `<div class="ab muted">On deck: ${live.onDeck}</div>` : ""}
+        </div>
+      </div>`;
+  }
+
   return `
-    <div class="game">
-      <div class="status">${g.detailedStatus ?? ""}</div>
+    <div class="game ${isLive ? "is-live" : ""} ${isFinal ? "is-final" : ""}">
+      ${topBar}
       <div class="matchup">${g.away.abbr ?? g.away.name} @ ${g.home.abbr ?? g.home.name}</div>
+      ${scoreLine}
+      ${liveBlock}
       <div class="sps">SP: ${ap} vs ${hp}</div>
       <div class="muted" style="font-size:11px;margin-top:4px;">${g.venue ?? ""}</div>
     </div>`;
@@ -942,7 +1006,6 @@ async function renderRecs() {
             .join("");
           return `
           <tr class="${r.role} score-row">
-            <td>${r.score.toFixed(2)}</td>
             <td>${r.projected_points.toFixed(2)}</td>
             <td class="player-cell">${r.name} ${formBadge((r.components||{}).form_tag)}${projTooltip(r)}</td>
             <td>${r.position ?? "-"}</td>
@@ -953,7 +1016,7 @@ async function renderRecs() {
       .join("");
     $("#recs-out").innerHTML = `
       <table>
-        <thead><tr><th>Score</th><th>Proj</th><th>Player</th><th>Pos</th><th>Pick into…</th></tr></thead>
+        <thead><tr><th>Proj</th><th>Player</th><th>Pos</th><th>Pick into…</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <div class="muted" style="margin-top:6px;font-size:11px;">Click any slot to draft into it. The starred slot is the recommender's default — but pick whatever you want.</div>`;

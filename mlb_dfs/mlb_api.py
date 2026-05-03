@@ -59,7 +59,8 @@ def schedule(d: Date) -> list[dict]:
 
 
 def slate(d: Date) -> list[dict]:
-    """Normalized slate — one row per game with the bits the UI/draft cares about."""
+    """Normalized slate — one row per game with the bits the UI/draft cares about,
+    including live game state (score, inning, count, runners, current batter)."""
     rows = []
     for g in schedule(d):
         teams = g.get("teams", {})
@@ -76,15 +77,56 @@ def slate(d: Date) -> list[dict]:
                 "name": (away.get("team") or {}).get("name"),
                 "abbr": (away.get("team") or {}).get("abbreviation"),
                 "probablePitcher": _probable(away),
+                "score": _safe_int((away.get("score"))),
             },
             "home": {
                 "id": (home.get("team") or {}).get("id"),
                 "name": (home.get("team") or {}).get("name"),
                 "abbr": (home.get("team") or {}).get("abbreviation"),
                 "probablePitcher": _probable(home),
+                "score": _safe_int((home.get("score"))),
             },
+            "live": _extract_live(g),
         })
     return rows
+
+
+def _safe_int(x):
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_live(g: dict) -> dict | None:
+    """Pull the gameday-style live state out of the linescore hydration."""
+    abstract = (g.get("status") or {}).get("abstractGameState")
+    if abstract not in ("Live", "Final"):
+        return None
+    ls = g.get("linescore") or {}
+    offense = ls.get("offense") or {}
+    defense = ls.get("defense") or {}
+    runners = {
+        "first": bool(offense.get("first")),
+        "second": bool(offense.get("second")),
+        "third": bool(offense.get("third")),
+    }
+    batter = (offense.get("batter") or {}).get("fullName")
+    on_deck = (offense.get("onDeck") or {}).get("fullName")
+    pitcher = (defense.get("pitcher") or {}).get("fullName")
+    return {
+        "inning": ls.get("currentInning"),
+        "inningHalf": ls.get("inningHalf"),         # "Top" | "Bottom" | "End" | "Middle"
+        "inningOrdinal": ls.get("currentInningOrdinal"),
+        "balls": ls.get("balls"),
+        "strikes": ls.get("strikes"),
+        "outs": ls.get("outs"),
+        "runners": runners,
+        "batter": batter,
+        "onDeck": on_deck,
+        "pitcher": pitcher,
+        "isFinal": abstract == "Final",
+    }
 
 
 def _probable(side: dict) -> dict | None:
