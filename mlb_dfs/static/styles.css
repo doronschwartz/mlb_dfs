@@ -85,16 +85,16 @@ main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
   background: rgba(0,0,0,0.2); border-radius: 6px;
 }
 .game .diamond {
-  position: relative; width: 56px; height: 56px; flex-shrink: 0;
-  transform: rotate(45deg);
+  position: relative; width: 60px; height: 60px; flex-shrink: 0;
 }
 .game .diamond .base {
   position: absolute; width: 14px; height: 14px;
   background: transparent; border: 1.5px solid var(--border);
+  transform: rotate(45deg);
 }
-.game .diamond .base.first  { right: 0;   bottom: 21px; }
-.game .diamond .base.second { right: 21px; top: 0; }
-.game .diamond .base.third  { left: 0;   bottom: 21px; }
+.game .diamond .base.first  { right: 4px;  top: 50%; margin-top: -7px; }
+.game .diamond .base.second { left: 50%;   top: 4px; margin-left: -7px; }
+.game .diamond .base.third  { left: 4px;   top: 50%; margin-top: -7px; }
 .game .diamond .base.on { background: var(--accent-2); border-color: var(--accent-2); }
 .game .count-and-ab { font-size: 12px; line-height: 1.4; flex: 1; min-width: 0; }
 .game .count-and-ab .count { display: flex; gap: 10px; font-family: ui-monospace, Menlo, monospace; }
