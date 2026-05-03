@@ -151,6 +151,59 @@ def make_pick(draft_id: str, req: PickRequest):
     return _draft_state(dr)
 
 
+class LineupRequest(BaseModel):
+    date: str | None = None
+    names: list[str]
+
+
+@app.post("/api/lineup")
+def lineup_advice(req: LineupRequest):
+    """For each pasted player name, look up our daily projection + Statcast.
+
+    Inputs are matched case-insensitively, with substring fallback (e.g.,
+    'Ohtani' matches 'Shohei Ohtani'). Hitters are ranked by projected pts;
+    pitchers separately. Top-N of each get 'START', rest 'SIT'.
+    """
+    d = Date.fromisoformat(req.date) if req.date else Date.today()
+    projs = projections.project_slate_cached(d)
+    by_lower = {p.name.lower(): p for p in projs}
+
+    results = []
+    for raw in req.names:
+        name = raw.strip()
+        if not name:
+            continue
+        lower = name.lower()
+        proj = by_lower.get(lower)
+        if not proj:
+            for n, p in by_lower.items():
+                if lower in n or any(part in n for part in lower.split() if len(part) > 2):
+                    proj = p
+                    break
+        results.append({
+            "input": name,
+            "matched_name": proj.name if proj else None,
+            "role": proj.role if proj else None,
+            "position": proj.position if proj else None,
+            "projection": proj.projected_points if proj else 0.0,
+            "team_id": proj.team_id if proj else None,
+            "components": (proj.components if proj else {}),
+            "playing_today": proj is not None,
+        })
+    # Rank hitters / pitchers separately, mark top-N as START.
+    hitters = [r for r in results if r["role"] == "hitter"]
+    pitchers = [r for r in results if r["role"] == "pitcher"]
+    hitters.sort(key=lambda r: r["projection"], reverse=True)
+    pitchers.sort(key=lambda r: r["projection"], reverse=True)
+    # Heuristic: top 8 hitters START, top 2 pitchers START. Tweak per league.
+    for i, r in enumerate(hitters):
+        r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
+    for i, r in enumerate(pitchers):
+        r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
+    return {"date": d.isoformat(), "hitters": hitters, "pitchers": pitchers,
+            "unmatched": [r for r in results if not r["playing_today"]]}
+
+
 @app.get("/api/notify/test")
 def notify_test():
     if not notify.is_configured():

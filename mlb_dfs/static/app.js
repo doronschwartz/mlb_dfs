@@ -121,6 +121,41 @@ $$("nav button").forEach((b) => {
 });
 
 $("#refresh").addEventListener("click", refresh);
+
+$("#lineup-go")?.addEventListener("click", async () => {
+  const names = ($("#lineup-names").value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  if (!names.length) return alert("Paste at least one player name.");
+  localStorage.setItem("mlb_dfs_lineup_names", $("#lineup-names").value);
+  $("#lineup-out").innerHTML = `<div class="muted">Projecting ${names.length} players…</div>`;
+  const data = await api(`/api/lineup`, {
+    method: "POST",
+    body: JSON.stringify({ date: $("#date").value, names }),
+  });
+  const renderTable = (title, rows, emptyMsg) => {
+    if (!rows.length) return `<h3>${title}</h3><div class="muted">${emptyMsg}</div>`;
+    const trs = rows.map(r => {
+      const recCls = r.recommendation === "START" ? "edge-pos" : (r.recommendation === "SIT" ? "edge-neg" : "muted");
+      const c = r.components || {};
+      const stat = r.role === "hitter" && (c.barrel_pct != null || c.hardhit_pct != null)
+        ? `brl ${(c.barrel_pct ?? 0).toFixed(1)}% · hh ${(c.hardhit_pct ?? 0).toFixed(0)}%`
+        : (r.role === "pitcher" && c.xera != null ? `xERA ${c.xera.toFixed(2)}` : "—");
+      return `<tr><td class="${recCls}"><b>${r.recommendation}</b></td><td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td><td>${r.position ?? "—"}</td><td>${r.projection.toFixed(2)}</td><td class="muted" style="font-size:11px;">${stat}</td></tr>`;
+    }).join("");
+    return `<h3>${title}</h3><table><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Proj</th><th>Statcast</th></tr></thead><tbody>${trs}</tbody></table>`;
+  };
+  let html = renderTable("Hitters", data.hitters, "No hitters matched.");
+  html += renderTable("Pitchers", data.pitchers, "No pitchers matched.");
+  if (data.unmatched.length) {
+    html += `<h3>Not playing today / unmatched</h3><div class="muted">${data.unmatched.map(r => r.input).join(", ")}</div>`;
+  }
+  $("#lineup-out").innerHTML = html;
+});
+
+// Restore last roster
+window.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("mlb_dfs_lineup_names");
+  if (saved && $("#lineup-names")) $("#lineup-names").value = saved;
+});
 $("#date").addEventListener("change", refresh);
 
 // ---------- API ----------
@@ -1313,6 +1348,7 @@ async function refresh() {
   if (state.tab === "project") await loadProjections();
   if (state.tab === "kprops") await loadKProps();
   if (state.tab === "insights") await loadInsights();
+  if (state.tab === "lineup") {/* nothing to load — user-driven */}
   if (state.tab === "draft") {
     await ensureSlateLoaded();
     renderGamePicker();

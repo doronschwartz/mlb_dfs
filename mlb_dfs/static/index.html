@@ -18,6 +18,7 @@
       <button data-tab="stats">Stats</button>
       <button data-tab="kprops">K Props</button>
       <button data-tab="insights">Insights</button>
+      <button data-tab="lineup">Lineup</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -90,6 +91,21 @@
         <span id="pool-count" class="muted"></span>
       </div>
       <div id="pool-out"></div>
+    </section>
+
+    <section id="tab-lineup" class="tab">
+      <h2>Lineup Tool</h2>
+      <p class="muted" style="font-size:13px;">
+        Paste your Fantrax (or any) roster — one player name per line. We
+        project each for the date above using projections + Statcast +
+        Vegas + park + weather, rank, and flag <b>START</b> on the top 8
+        hitters / top 2 pitchers. <b>OFF</b> = no game today.
+      </p>
+      <div class="setup-row">
+        <textarea id="lineup-names" rows="14" style="flex:1; min-width:300px; font-family:ui-monospace,Menlo,monospace;" placeholder="Shohei Ohtani&#10;Aaron Judge&#10;Mookie Betts&#10;Paul Skenes&#10;..."></textarea>
+        <button id="lineup-go" class="btn-pick" style="align-self:flex-start;">Project lineup</button>
+      </div>
+      <div id="lineup-out"></div>
     </section>
 
     <section id="tab-insights" class="tab">
