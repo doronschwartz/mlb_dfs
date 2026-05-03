@@ -683,7 +683,7 @@ async function renderDraft() {
         <div class="slot-label">${label}</div>
         <div class="slot-body">
           <div class="slot-line1">
-            <span class="slot-name">${pick.name}</span>
+            <span class="slot-name player-cell score-row">${pick.name} ${formBadge((pick.components||{}).form_tag)}${projTooltip(pick)}</span>
             <span class="slot-proj">${pick.projected.toFixed(1)}</span>
           </div>
           <div class="slot-line2">${meta.join("")}</div>

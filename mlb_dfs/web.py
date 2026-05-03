@@ -948,8 +948,14 @@ def _draft_state(dr) -> dict:
         labels = _game_label_map_full(dr)
     except Exception:
         labels = {}
+    try:
+        projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
+        proj_by_id = {p.player_id: p for p in projs}
+    except Exception:
+        proj_by_id = {}
     def _pick_dict(p):
         ls = lineups.get(p.player_id)
+        proj = proj_by_id.get(p.player_id)
         return {
             "slot": p.slot, "name": p.name, "player_id": p.player_id,
             "position": p.position, "role": p.role,
@@ -958,6 +964,8 @@ def _draft_state(dr) -> dict:
             "lineup_status": (ls.get("status") if ls else "pending"),
             "game_pk": p.game_pk,
             "game_label": labels.get(p.game_pk, "") if p.game_pk else "",
+            "components": proj.components if proj else {},
+            "notes": list(proj.notes) if proj else [],
         }
     return {
         "draft_id": dr.draft_id,
