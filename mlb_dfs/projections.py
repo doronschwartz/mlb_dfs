@@ -17,6 +17,8 @@ draft assistant can show *why* it likes a player.
 
 from __future__ import annotations
 
+import json
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import date as Date
@@ -344,31 +346,41 @@ def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14, pts_g_season=(None, 0)):
     pg7, g7 = pts_g_7
     pg14, g14 = pts_g_14
     pgs, gs = pts_g_season
+    # Each bucket: (pts_per_g, games, recency_boost). Recency is scaled by
+    # min(1, games/3) so a 1-game sample only gets a third of its recency
+    # bonus — that's what stops backup catchers with 1 hot game from blowing up.
+    def _add(buckets, pg, games, recency):
+        if pg is None or games <= 0:
+            return
+        scaled = recency * min(1.0, games / 3.0)
+        buckets.append((pg, games, scaled))
+
     buckets: list[tuple[float, int, float]] = []
-    if pg3 is not None and g3 > 0:
-        buckets.append((pg3, g3, 2.5))                    # last ~3 days
+    _add(buckets, pg3, g3, 2.5)
     if pg7 is not None and g7 > 0:
         if pg3 is not None and g3 > 0 and g7 > g3:
-            mid_g = g7 - g3
-            mid_pts = pg7 * g7 - pg3 * g3
-            buckets.append((mid_pts / mid_g, mid_g, 1.5))
+            _add(buckets, (pg7 * g7 - pg3 * g3) / (g7 - g3), g7 - g3, 1.5)
         elif pg3 is None:
-            buckets.append((pg7, g7, 1.5))
+            _add(buckets, pg7, g7, 1.5)
     if pg14 is not None and g14 > 0:
         if pg7 is not None and g7 > 0 and g14 > g7:
-            old_g = g14 - g7
-            old_pts = pg14 * g14 - pg7 * g7
-            buckets.append((old_pts / old_g, old_g, 1.0))
+            _add(buckets, (pg14 * g14 - pg7 * g7) / (g14 - g7), g14 - g7, 1.0)
         elif pg7 is None:
-            buckets.append((pg14, g14, 1.0))
+            _add(buckets, pg14, g14, 1.0)
     if pgs is not None and gs > 0:
-        # season-minus-L14 bucket (true talent prior)
         if pg14 is not None and g14 > 0 and gs > g14:
-            prior_g = gs - g14
-            prior_pts = pgs * gs - pg14 * g14
-            buckets.append((prior_pts / prior_g, prior_g, 0.4))
+            _add(buckets, (pgs * gs - pg14 * g14) / (gs - g14), gs - g14, 0.4)
         elif pg14 is None:
-            buckets.append((pgs, gs, 0.4))
+            _add(buckets, pgs, gs, 0.4)
+
+    # Dynamic league-average ghost prior. Only fills the gap when real sample
+    # weight is small — well-sampled regulars are unaffected.
+    real_w = sum(g * r for _, g, r in buckets)
+    GHOST_TARGET = 5.0
+    if real_w < GHOST_TARGET:
+        ghost_w = GHOST_TARGET - real_w
+        buckets.append((LEAGUE_AVG_HITTER_POINTS_PER_GAME, 1, ghost_w))
+
     if not buckets:
         return None
     total_w = sum(g * r for _, g, r in buckets)
@@ -382,24 +394,34 @@ def _weighted_ps_pitcher(*, ps_g_7, ps_g_14, ps_g_season):
     ps7, s7 = ps_g_7
     ps14, s14 = ps_g_14
     pss, ss = ps_g_season
+    # Pitchers start every ~5d, so a single-start sample is even noisier than
+    # a single-game hitter sample. Cap recency by min(1, starts/2).
+    def _add(buckets, ps, starts, recency):
+        if ps is None or starts <= 0:
+            return
+        scaled = recency * min(1.0, starts / 2.0)
+        buckets.append((ps, starts, scaled))
+
     buckets: list[tuple[float, int, float]] = []
-    if ps7 is not None and s7 > 0:
-        buckets.append((ps7, s7, 2.0))
+    _add(buckets, ps7, s7, 2.0)
     if ps14 is not None and s14 > 0:
         if ps7 is not None and s7 > 0 and s14 > s7:
-            mid_s = s14 - s7
-            mid_pts = ps14 * s14 - ps7 * s7
-            buckets.append((mid_pts / mid_s, mid_s, 1.3))
+            _add(buckets, (ps14 * s14 - ps7 * s7) / (s14 - s7), s14 - s7, 1.3)
         elif ps7 is None:
-            buckets.append((ps14, s14, 1.3))
+            _add(buckets, ps14, s14, 1.3)
     if pss is not None and ss > 0:
-        # season minus L14 = "older, but still this year" — useful regression toward true talent
         if ps14 is not None and s14 > 0 and ss > s14:
-            old_s = ss - s14
-            old_pts = pss * ss - ps14 * s14
-            buckets.append((old_pts / old_s, old_s, 0.7))
+            _add(buckets, (pss * ss - ps14 * s14) / (ss - s14), ss - s14, 0.7)
         elif ps14 is None:
-            buckets.append((pss, ss, 0.7))
+            _add(buckets, pss, ss, 0.7)
+
+    # Dynamic ghost prior — fills in only when real start weight is thin.
+    real_w = sum(s * r for _, s, r in buckets)
+    GHOST_TARGET = 4.0
+    if real_w < GHOST_TARGET:
+        ghost_w = GHOST_TARGET - real_w
+        buckets.append((LEAGUE_AVG_SP_POINTS_PER_START, 1, ghost_w))
+
     if not buckets:
         return None
     total_w = sum(s * r for _, s, r in buckets)
@@ -490,25 +512,74 @@ def _per_start_pitcher_points(stats: dict) -> float:
     return pts / gs
 
 
-# In-memory cache for project_slate so repeated polls don't hammer MLB Stats API.
+# Two-tier cache: in-memory (instant) + disk (survives redeploys/restarts).
+# Projections are based on rolling stat windows that only meaningfully change
+# after games complete overnight, so we hold them for 6h.
 _PROJ_CACHE: dict[tuple, tuple[float, list]] = {}
-_PROJ_TTL_SEC = 300  # 5 minutes
+_PROJ_TTL_SEC = 6 * 3600
 
 
-def project_slate_cached(d: Date, *, team_filter: set[int] | None = None) -> list["Projection"]:
-    """Same as project_slate but memoizes per (date, team_filter) for 5 minutes.
+def _proj_disk_path(key: tuple) -> str:
+    import hashlib
+    from .disk_cache import CACHE_DIR
+    digest = hashlib.md5(repr(key).encode()).hexdigest()
+    return os.path.join(CACHE_DIR, f"projections_{digest}.json")
 
-    Projections are based on rolling stat windows + season averages — these
-    don't move minute-to-minute, so a TTL cache makes draft polling cheap
-    without staleness that matters in practice.
-    """
+
+def _proj_to_dict(p: "Projection") -> dict:
+    return {
+        "player_id": p.player_id, "name": p.name, "team_id": p.team_id,
+        "position": p.position, "role": p.role,
+        "projected_points": p.projected_points,
+        "components": p.components, "notes": p.notes,
+    }
+
+
+def _proj_from_dict(d: dict) -> "Projection":
+    return Projection(
+        player_id=d["player_id"], name=d["name"], team_id=d.get("team_id"),
+        position=d.get("position"), role=d["role"],
+        projected_points=d["projected_points"],
+        components=d.get("components", {}), notes=d.get("notes", []),
+    )
+
+
+def project_slate_cached(
+    d: Date, *, team_filter: set[int] | None = None, force_refresh: bool = False
+) -> list["Projection"]:
+    """Memoized per (date, team_filter). 6h TTL, persisted to disk so a redeploy
+    doesn't force a full recompute (~50 MLB API calls on a typical slate)."""
     key = (d.isoformat(), tuple(sorted(team_filter)) if team_filter else None)
     now = time.time()
-    cached = _PROJ_CACHE.get(key)
-    if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
-        return cached[1]
+    if not force_refresh:
+        cached = _PROJ_CACHE.get(key)
+        if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
+            return cached[1]
+        # Fall through to disk
+        path = _proj_disk_path(key)
+        try:
+            if os.path.exists(path) and (now - os.path.getmtime(path)) < _PROJ_TTL_SEC:
+                with open(path) as f:
+                    raw = json.load(f)
+                projs = [_proj_from_dict(x) for x in raw]
+                _PROJ_CACHE[key] = (os.path.getmtime(path), projs)
+                return projs
+        except Exception:
+            pass
     projs = project_slate(d, team_filter=team_filter)
     _PROJ_CACHE[key] = (now, projs)
+    try:
+        from .disk_cache import CACHE_DIR
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        path = _proj_disk_path(key)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump([_proj_to_dict(p) for p in projs], f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        pass
     return projs
 
 

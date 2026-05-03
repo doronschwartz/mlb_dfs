@@ -76,9 +76,9 @@ def get_slate(date: str | None = None):
 
 
 @app.get("/api/projections")
-def get_projections(date: str | None = None):
+def get_projections(date: str | None = None, refresh: bool = False):
     d = Date.fromisoformat(date) if date else Date.today()
-    projs = projections.project_slate(d)
+    projs = projections.project_slate_cached(d, force_refresh=refresh)
     return {
         "date": d.isoformat(),
         "projections": [_proj_to_dict(p) for p in projs],
