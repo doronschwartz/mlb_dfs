@@ -1,51 +1,55 @@
-"""WhatsApp notifications via CallMeBot — free, per-recipient API keys.
+"""WhatsApp notifications via Twilio. Free Sandbox covers any draft volume.
 
-Each recipient sends `I allow callmebot to send me messages` to +34 644 51 95 23
-on WhatsApp; CallMeBot replies with a personal API key. We store {phone:apikey}
-pairs in the env var CALLMEBOT_RECIPIENTS as a JSON object:
+Setup (one time):
+  1. Sign up at twilio.com (free trial credit ~$15).
+  2. Console -> Messaging -> Try it out -> Send a WhatsApp message. The Sandbox
+     gives you a number (e.g. +14155238886) and a join code (e.g. 'join abc-def').
+  3. Each member texts that join code from their phone to the Twilio number once.
+  4. Set Fly secrets:
+        fly secrets set TWILIO_ACCOUNT_SID=AC... \\
+                        TWILIO_AUTH_TOKEN=...    \\
+                        TWILIO_FROM=whatsapp:+14155238886 \\
+                        TWILIO_TO='whatsapp:+15551111111,whatsapp:+15552222222'
 
-    fly secrets set CALLMEBOT_RECIPIENTS='{"+15551234567":"abc12345","+15557654321":"def67890"}'
-
-Then notify(message) blasts the message to each recipient.
+For production-grade (custom number, no Sandbox), apply for a Twilio
+WhatsApp Sender via Meta Business Manager. Same env vars.
 """
 from __future__ import annotations
 
-import json
 import os
-from urllib.parse import quote
 
 import requests
 
 
-def recipients() -> dict[str, str]:
-    raw = os.environ.get("CALLMEBOT_RECIPIENTS", "").strip()
-    if not raw:
-        return {}
-    try:
-        return dict(json.loads(raw))
-    except Exception:
-        return {}
-
-
 def is_configured() -> bool:
-    return bool(recipients())
+    return all(os.environ.get(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM", "TWILIO_TO"))
+
+
+def _recipients() -> list[str]:
+    raw = os.environ.get("TWILIO_TO", "")
+    return [t.strip() for t in raw.split(",") if t.strip()]
 
 
 def notify(message: str) -> dict:
-    """POST to CallMeBot for each recipient. Returns {sent, failed}."""
-    sent = []
-    failed = []
-    for phone, key in recipients().items():
-        url = (
-            "https://api.callmebot.com/whatsapp.php"
-            f"?phone={quote(phone)}&text={quote(message)}&apikey={quote(key)}"
-        )
+    if not is_configured():
+        return {"sent": [], "failed": [], "configured": False}
+    sid = os.environ["TWILIO_ACCOUNT_SID"]
+    token = os.environ["TWILIO_AUTH_TOKEN"]
+    from_ = os.environ["TWILIO_FROM"]
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+    sent, failed = [], []
+    for to in _recipients():
         try:
-            r = requests.get(url, timeout=8)
-            if r.status_code == 200 and "Message queued" in r.text:
-                sent.append(phone)
+            r = requests.post(
+                url,
+                auth=(sid, token),
+                data={"From": from_, "To": to, "Body": message},
+                timeout=8,
+            )
+            if r.status_code in (200, 201):
+                sent.append(to)
             else:
-                failed.append({"phone": phone, "status": r.status_code, "body": r.text[:200]})
+                failed.append({"to": to, "status": r.status_code, "body": r.text[:200]})
         except Exception as e:
-            failed.append({"phone": phone, "error": str(e)})
-    return {"sent": sent, "failed": failed}
+            failed.append({"to": to, "error": str(e)})
+    return {"sent": sent, "failed": failed, "configured": True}

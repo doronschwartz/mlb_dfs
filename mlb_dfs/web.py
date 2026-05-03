@@ -24,7 +24,7 @@ from . import draft as draft_mod
 from . import historic
 from . import k_props
 from . import live as live_mod
-from . import mlb_api, notify, odds_api, projections, umpires, weather as weather_mod
+from . import fantrax, mlb_api, notify, odds_api, projections, umpires, weather as weather_mod
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
@@ -202,6 +202,22 @@ def lineup_advice(req: LineupRequest):
         r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
     return {"date": d.isoformat(), "hitters": hitters, "pitchers": pitchers,
             "unmatched": [r for r in results if not r["playing_today"]]}
+
+
+@app.get("/api/fantrax/teams")
+def fantrax_teams(league_id: str):
+    try:
+        return {"teams": fantrax.list_teams(league_id)}
+    except Exception as e:
+        raise HTTPException(502, f"Fantrax: {e}")
+
+
+@app.get("/api/fantrax/roster")
+def fantrax_roster(league_id: str, team_id: str | None = None):
+    try:
+        return fantrax.get_roster(league_id, team_id)
+    except Exception as e:
+        raise HTTPException(502, f"Fantrax: {e}")
 
 
 @app.get("/api/notify/test")
