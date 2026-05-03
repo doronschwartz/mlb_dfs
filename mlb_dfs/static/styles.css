@@ -283,8 +283,19 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   background: var(--bad); color: #fff; border: 1px solid var(--bad);
   border-radius: 4px; padding: 1px 7px; font-size: 10px;
   font-weight: 600; cursor: pointer; line-height: 1.4;
+  white-space: nowrap;
 }
 .replace-btn:hover { filter: brightness(1.1); }
+@media (max-width: 700px) {
+  .score-grid { grid-template-columns: 1fr; }
+  .score-grid table { font-size: 12px; table-layout: fixed; }
+  .score-grid td, .score-grid th { padding: 4px 4px; word-break: break-word; }
+  .score-grid td:nth-child(2) { font-size: 11px; }       /* Player column tighter */
+  .score-grid th:nth-child(5), .score-grid td:nth-child(5) { display: none; } /* Hide "State" col */
+  .score-grid .replace-btn.score-replace-btn {
+    padding: 6px 10px; font-size: 11px; min-height: 32px; width: 100%;
+  }
+}
 .move-btn {
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
   border-radius: 4px; padding: 1px 7px; font-size: 10px;
