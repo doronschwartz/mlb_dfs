@@ -790,10 +790,13 @@ def get_pool(draft_id: str):
     for p in projs:
         if p.player_id in picked:
             continue
-        eligible = []
+        eligible = []          # open-slot pills (only slots the user can still fill)
+        position_slots = []    # what position(s) this player qualifies for, regardless of need
         for s in ["IF", "OF", "UTIL", "BN", "SP"]:
-            if draft_mod._slot_eligible(s, p) and (not remaining or s in remaining):
-                eligible.append(s)
+            if draft_mod._slot_eligible(s, p):
+                position_slots.append(s)
+                if not remaining or s in remaining:
+                    eligible.append(s)
         pool.append({
             "player_id": p.player_id,
             "name": p.name,
@@ -802,6 +805,7 @@ def get_pool(draft_id: str):
             "team_id": p.team_id,
             "projected_points": p.projected_points,
             "eligible_slots": eligible,
+            "position_slots": position_slots,
             "notes": list(p.notes),
             "components": p.components,
         })

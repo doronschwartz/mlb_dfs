@@ -1075,7 +1075,7 @@ function drawPool() {
     if (search && !p.name.toLowerCase().includes(search)) return false;
     if (filter === "hitter") return p.role === "hitter";
     if (filter === "pitcher") return p.role === "pitcher";
-    if (filter === "IF" || filter === "OF") return p.eligible_slots.includes(filter);
+    if (filter === "IF" || filter === "OF") return (p.position_slots || p.eligible_slots).includes(filter);
     return true;
   });
   $("#pool-count").textContent = `${rows.length} available`;
