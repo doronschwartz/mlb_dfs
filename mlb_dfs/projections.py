@@ -37,24 +37,46 @@ LG_BARREL_PCT_ALLOWED = 6.5
 LG_XWOBA_AGAINST = 0.310
 
 
-def _qoc_multiplier_hitter(qoc: dict | None) -> tuple[float, list[str]]:
-    """Tiny multiplier on top of the base projection from quality-of-contact.
-    Capped at ±15% so it can't dominate small-sample noise."""
+def _statcast_implied_pg_hitter(brl: float, hh: float) -> float | None:
+    """True-talent pts/G estimate from Statcast quality-of-contact metrics.
+    Blended with the rolling base in project_hitter, weight 0.35."""
+    if not brl and not hh:
+        return None
+    # Coefficients tuned so league-average (6.5% barrel, 38% HH) → 6.5 pts/G,
+    # elite (12% barrel, 50% HH) → 9.5 pts/G, poor (3% barrel, 30% HH) → 4.5 pts/G.
+    val = 1.5 + (brl or LG_BARREL_PCT_HITTER) * 0.50 + (hh or LG_HARDHIT_PCT_HITTER) * 0.045
+    return max(3.5, min(val, 11.0))
+
+
+def _statcast_implied_ps_pitcher(xera, xwoba, brl_a) -> float | None:
+    """True-talent pts/start estimate from xERA + xwOBA-against + barrel-allowed.
+    Better Statcast → higher pts/start. League-average 4.20 xERA / 0.310 xwOBA /
+    6.5 brl-allowed → 11 pts/start."""
+    if xera is None and xwoba is None and brl_a is None:
+        return None
+    base = LEAGUE_AVG_SP_POINTS_PER_START
+    if xera is not None:
+        base += (4.20 - xera) * 2.5     # 1.0 xERA edge → +2.5 pts/start
+    if xwoba is not None:
+        base += (0.310 - xwoba) * 30    # 0.030 xwOBA edge → +0.9 pts/start
+    if brl_a is not None:
+        base += (LG_BARREL_PCT_ALLOWED - brl_a) * 0.4
+    return max(5.0, min(base, 22.0))
+
+
+def _qoc_residual_hitter(qoc: dict | None) -> tuple[float, list[str]]:
+    """Narrow residual factor for signals not in the implied baseline (sweet
+    spot %). Capped ±5% — most QoC signal is now in the blended base."""
     if not qoc:
         return 1.0, []
     notes = []
     factor = 1.0
-    brl = _safe_float(qoc.get("brl_percent"))
-    hh  = _safe_float(qoc.get("ev95percent"))
-    if brl:
-        delta = (brl - LG_BARREL_PCT_HITTER) / LG_BARREL_PCT_HITTER  # e.g. +0.5 = 50% above lg
-        factor *= 1.0 + max(-0.10, min(delta * 0.15, 0.10))
-        notes.append(f"barrel {brl:.1f}%")
-    if hh:
-        delta = (hh - LG_HARDHIT_PCT_HITTER) / LG_HARDHIT_PCT_HITTER
-        factor *= 1.0 + max(-0.06, min(delta * 0.10, 0.06))
-        notes.append(f"hard-hit {hh:.0f}%")
-    return max(0.85, min(factor, 1.15)), notes
+    ss = _safe_float(qoc.get("anglesweetspotpercent"))
+    if ss:
+        delta = (ss - 33.0) / 33.0  # league avg ~33
+        factor *= 1.0 + max(-0.04, min(delta * 0.10, 0.04))
+        notes.append(f"sweet-spot {ss:.0f}%")
+    return max(0.95, min(factor, 1.05)), notes
 
 
 def _qoc_tier_hitter(brl: float, hh: float) -> str:
@@ -73,24 +95,18 @@ def _qoc_tier_pitcher(brl_a: float, xera: float) -> str:
     return "—"
 
 
-def _qoc_multiplier_pitcher(qoc: dict | None, expected: dict | None) -> tuple[float, list[str]]:
-    """Pitcher version — barrel% / hard-hit% allowed move things the OTHER way:
-    high barrel% allowed = worse pitcher = lower projection."""
+def _qoc_residual_pitcher(qoc: dict | None, expected: dict | None) -> tuple[float, list[str]]:
+    """Narrow residual factor for pitcher signals not in the implied baseline
+    (hard-hit% allowed). Capped ±5%."""
     factor = 1.0
     notes = []
     if qoc:
-        brl_a = _safe_float(qoc.get("brl_percent"))
-        if brl_a:
-            delta = (brl_a - LG_BARREL_PCT_ALLOWED) / LG_BARREL_PCT_ALLOWED
-            factor *= 1.0 - max(-0.10, min(delta * 0.15, 0.15))  # inverted
-            notes.append(f"brl-allowed {brl_a:.1f}%")
-    if expected:
-        xwoba = _safe_float(expected.get("est_woba"))
-        if xwoba:
-            delta = (xwoba - LG_XWOBA_AGAINST) / LG_XWOBA_AGAINST
-            factor *= 1.0 - max(-0.10, min(delta * 0.20, 0.15))
-            notes.append(f"xwOBA {xwoba:.3f}")
-    return max(0.80, min(factor, 1.20)), notes
+        hh_a = _safe_float(qoc.get("ev95percent"))
+        if hh_a:
+            delta = (hh_a - LG_HARDHIT_PCT_HITTER) / LG_HARDHIT_PCT_HITTER
+            factor *= 1.0 - max(-0.04, min(delta * 0.08, 0.04))
+            notes.append(f"hh-allowed {hh_a:.0f}%")
+    return max(0.95, min(factor, 1.05)), notes
 
 
 @dataclass
@@ -170,13 +186,28 @@ def project_hitter(
             notes.append(f"opposing SP adj x{sp_factor:.2f} (ERA {era:.2f} WHIP {whip:.2f})")
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
-    qoc_factor, qoc_notes = _qoc_multiplier_hitter(qoc)
-    if qoc_notes:
-        notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
-
-    proj = base_pg * sp_factor * qoc_factor
     brl = _safe_float((qoc or {}).get("brl_percent"))
     hh = _safe_float((qoc or {}).get("ev95percent"))
+    # Statcast-implied true-talent pts/G — blended into the rolling base.
+    # Statcast reflects MUCH larger samples than 14 days of game logs, so it
+    # acts as a strong prior on true talent. Hot streaks still help (rolling
+    # base moves), but a Judge-tier batter on a 3-game cold streak doesn't get
+    # punished as hard, and a backup catcher who happened to be on a hot 1-game
+    # streak gets dragged toward his Statcast baseline.
+    statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
+    if statcast_pg is not None:
+        STATCAST_WEIGHT = 0.35
+        blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
+        notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
+        base_pg = blended_base
+    # Tiny residual QoC factor for sweet-spot or other secondary signals not
+    # in the implied baseline. Kept narrow (±5%) since most signal is now in
+    # the blend itself.
+    qoc_factor, qoc_notes = _qoc_residual_hitter(qoc)
+    if qoc_notes:
+        notes.append(f"qoc residual x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
+
+    proj = base_pg * sp_factor * qoc_factor
     pitfalls: list[str] = []
     if games_14 < 7:
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
@@ -278,15 +309,24 @@ def project_pitcher(
 
     qoc = savant.lookup_pitcher_qoc(pid, season) or None
     expected = savant.lookup_pitcher(pid, season) or None
-    qoc_factor, qoc_notes = _qoc_multiplier_pitcher(qoc, expected)
-    if qoc_notes:
-        notes.append(f"qoc x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
-
-    proj = base * opp_factor * qoc_factor
     brl_a = _safe_float((qoc or {}).get("brl_percent")) or None
     hh_a = _safe_float((qoc or {}).get("ev95percent")) or None
     xera = _safe_float((expected or {}).get("xera")) or None
     xwoba_a = _safe_float((expected or {}).get("est_woba")) or None
+    # Statcast-implied true talent baseline (xERA + xwOBA-against + brl-allowed).
+    # Same logic as hitters: large-sample true-talent prior blends into the
+    # rolling base to dampen single-start spikes and protect against streaks.
+    statcast_ps = _statcast_implied_ps_pitcher(xera, xwoba_a, brl_a)
+    if statcast_ps is not None:
+        STATCAST_WEIGHT = 0.35
+        blended_base = (1 - STATCAST_WEIGHT) * base + STATCAST_WEIGHT * statcast_ps
+        notes.append(f"Statcast prior {statcast_ps:.2f} pts/start blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
+        base = blended_base
+    qoc_factor, qoc_notes = _qoc_residual_pitcher(qoc, expected)
+    if qoc_notes:
+        notes.append(f"qoc residual x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
+
+    proj = base * opp_factor * qoc_factor
     pitfalls: list[str] = []
     # SPs typically start every ~5 days, so 2-3 GS in 14d is the norm. Only
     # flag truly tiny samples (1 or 0 starts) — that's where projection noise
