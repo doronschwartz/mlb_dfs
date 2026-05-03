@@ -485,7 +485,7 @@ async function renderDraft() {
     });
     html.push(
       `<div class="roster ${onC ? "on-clock" : ""}">
-        <h4>${d} ${onC ? `<span class="muted">← on the clock</span>` : ""}
+        <h4>${d} ${onC ? `<span class="muted">← on the clock</span>` : ""}${onC && (data.picks || []).length === data.drafters.length * 10 - 1 ? ` <span class="tuh-badge">TUH 🏠</span>` : ""}
           <span class="muted" style="float:right;font-weight:400;">${picks.length}/10 · ${total.toFixed(1)} pts</span>
         </h4>
         <div class="slot-grid">${cells.join("")}</div>
