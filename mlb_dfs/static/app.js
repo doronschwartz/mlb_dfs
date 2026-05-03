@@ -23,6 +23,13 @@ function isMyTurn(onClock) {
   return !!(state.identity && onClock && onClock[0] === state.identity);
 }
 
+// True when the current user is the only drafter with open SP slots — they
+// can pick SPs out of snake order. The draft state response sets
+// sp_jump_drafter to that drafter's name (or null).
+function canJumpForSP() {
+  return !!(state.identity && state._spJumpDrafter && state._spJumpDrafter === state.identity);
+}
+
 // Fixed roster shape (matches mlb_dfs.draft.SLOTS).
 const SLOT_TEMPLATE = [
   { key: "IF", label: "IF" },
@@ -399,6 +406,7 @@ async function renderDraft() {
   }
   const data = await api(`/api/drafts/${state.currentDraftId}`);
   state.lastPicksCount = (data.picks || []).length;
+  state._spJumpDrafter = data.sp_jump_drafter || null;
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock);
   renderIdentityBar(data);
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
@@ -782,7 +790,8 @@ async function renderRecs() {
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}/recommend?top_n=10`);
     const myTurn = isMyTurn(data.on_the_clock);
-    const lock = myTurn ? "" : "locked";
+    const spJump = canJumpForSP();
+    const lockFor = (slot) => (myTurn || (spJump && slot === "SP")) ? "" : "locked";
     const rows = data.recommendations
       .map(
         (r) => {
@@ -793,7 +802,7 @@ async function renderRecs() {
           const pills = slots
             .map((s) => {
               const recommended = s === r.recommend_slot ? "recommended" : "";
-              return `<span class="slot-pill ${recommended} ${lock}" data-pid="${r.player_id}" data-slot="${s}" data-name="${escapeAttr(r.name)}" data-team-games="${tgAttr}">${s}</span>`;
+              return `<span class="slot-pill ${recommended} ${lockFor(s)}" data-pid="${r.player_id}" data-slot="${s}" data-name="${escapeAttr(r.name)}" data-team-games="${tgAttr}">${s}</span>`;
             })
             .join("");
           return `
@@ -826,6 +835,7 @@ async function renderRecs() {
               player_id: Number(b.dataset.pid),
               slot: b.dataset.slot,
               game_pk: gamePk,
+              drafter_override: (b.dataset.slot === "SP" && canJumpForSP()) ? state.identity : undefined,
             }),
           });
         } catch (e) {
@@ -859,7 +869,10 @@ async function renderPool() {
 function drawPool() {
   const search = ($("#pool-search").value || "").toLowerCase().trim();
   const filter = $("#pool-filter").value;
-  const lock = state._myTurnAtLastRender ? "" : "locked";
+  const myTurn = state._myTurnAtLastRender;
+  const spOnly = canJumpForSP();
+  // SP free-for-all: SP pills unlock; non-SP pills stay locked unless it's our turn.
+  const lockFor = (slot) => (myTurn || (spOnly && slot === "SP")) ? "" : "locked";
   const rows = poolCache.pool.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search)) return false;
     if (filter === "hitter") return p.role === "hitter";
@@ -931,6 +944,7 @@ function drawPool() {
             player_id: Number(el.dataset.pid),
             slot: el.dataset.slot,
             game_pk: gamePk,
+            drafter_override: (el.dataset.slot === "SP" && canJumpForSP()) ? state.identity : undefined,
           }),
         });
       } catch (e) {
@@ -1050,7 +1064,7 @@ async function pollDraft() {
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}`);
     const newCount = (data.picks || []).length;
-    const myTurn = isMyTurn(data.on_the_clock);
+    const myTurn = isMyTurn(data.on_the_clock) || canJumpForSP();
     // Re-render fully if a pick happened or the turn flipped to/from us.
     if (newCount !== state.lastPicksCount || myTurn !== state._myTurnAtLastRender) {
       await renderDraft();

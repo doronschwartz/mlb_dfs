@@ -45,6 +45,7 @@ class PickRequest(BaseModel):
     player_id: int
     slot: str
     game_pk: int | None = None  # required if player's team has a DH in slate
+    drafter_override: str | None = None  # for out-of-order SP pick
 
 
 class ReplaceRequest(BaseModel):
@@ -134,7 +135,7 @@ def make_pick(draft_id: str, req: PickRequest):
     except HTTPException:
         raise
     try:
-        dr.make_pick(req.slot, proj, game_pk=game_pk)
+        dr.make_pick(req.slot, proj, game_pk=game_pk, drafter_override=req.drafter_override)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
     draft_mod.save_draft(dr)
@@ -850,6 +851,7 @@ def _draft_state(dr) -> dict:
         "picks": [_pick_dict(p) for p in dr.picks],
         "on_the_clock": dr.on_the_clock(),
         "is_complete": dr.is_complete(),
+        "sp_jump_drafter": _can_jump_for_sp(dr),
         "game_pks": list(dr.game_pks),
         "selected_games": _selected_games_summary(dr),
         "rosters": {
