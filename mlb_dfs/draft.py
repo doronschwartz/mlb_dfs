@@ -290,6 +290,7 @@ class Draft:
                 "eligible_slots": eligible_slots,   # all open slots the drafter can use
                 "score": round(score, 2),
                 "notes": list(proj.notes),
+                "components": dict(proj.components),
             })
 
         scored.sort(key=lambda r: r["score"], reverse=True)

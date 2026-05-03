@@ -918,7 +918,7 @@ async function renderRecs() {
           <tr class="${r.role}">
             <td>${r.score.toFixed(2)}</td>
             <td>${r.projected_points.toFixed(2)}</td>
-            <td>${r.name}</td>
+            <td class="player-cell">${r.name}${projTooltip(r)}</td>
             <td>${r.position ?? "-"}</td>
             <td>${pills}</td>
           </tr>`;
@@ -1016,7 +1016,7 @@ function drawPool() {
             return `
         <tr class="${p.role}">
           <td>${p.projected_points.toFixed(2)}</td>
-          <td>${p.name}</td>
+          <td class="player-cell">${p.name}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
@@ -1433,6 +1433,14 @@ async function refresh() {
   }
   if (state.tab === "schedule") initScheduleTab();
   if (state.tab === "stats") loadStats();
+  if (state.tab === "score") {
+    const today = new Date().toISOString().slice(0, 10);
+    const sel = $("#score-draft-id");
+    if (sel && Array.from(sel.options).some((o) => o.value === today)) {
+      sel.value = today;
+    }
+    if (sel && sel.value) $("#score-load").click();
+  }
 }
 
 // ---------- Stats tab ----------
