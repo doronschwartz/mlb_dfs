@@ -204,6 +204,21 @@ def lineup_advice(req: LineupRequest):
             "unmatched": [r for r in results if not r["playing_today"]]}
 
 
+class FantraxCookieRequest(BaseModel):
+    cookie: str
+
+
+@app.post("/api/fantrax/cookie")
+def fantrax_set_cookie(req: FantraxCookieRequest):
+    fantrax.save_cookie(req.cookie)
+    return {"ok": True, "authenticated": fantrax.is_authenticated()}
+
+
+@app.get("/api/fantrax/auth")
+def fantrax_auth_status():
+    return {"authenticated": fantrax.is_authenticated()}
+
+
 @app.get("/api/fantrax/teams")
 def fantrax_teams(league_id: str):
     try:
