@@ -291,6 +291,18 @@ async function loadProjections() {
   renderProjectionsTable();
 }
 
+function formBadge(tag) {
+  if (!tag) return "";
+  const styles = {
+    HOT:    "background:rgba(239,68,68,0.25);color:#fca5a5;",
+    COLD:   "background:rgba(59,130,246,0.25);color:#93c5fd;",
+    ELITE:  "background:rgba(52,211,153,0.25);color:var(--accent-2);",
+    STEADY: "background:rgba(148,163,184,0.25);color:var(--text);",
+  };
+  const labels = { HOT: "🔥 HOT", COLD: "🧊 COLD", ELITE: "⭐ ELITE", STEADY: "📊 STEADY" };
+  return `<span class="bench-tag" style="${styles[tag] || ""}">${labels[tag] || tag}</span>`;
+}
+
 function projTooltip(p) {
   const c = p.components || {};
   const tier = c.qoc_tier && c.qoc_tier !== "—" ? c.qoc_tier : null;
@@ -302,6 +314,19 @@ function projTooltip(p) {
     return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">${fmt}</span></div>`;
   };
   const rows = [];
+  // Rolling windows row — L3 / L7 / L14 side by side, with cell coloring vs L14.
+  const cellFor = (val, base) => {
+    if (val == null) return `<span class="muted">—</span>`;
+    if (base == null) return val.toFixed(1);
+    const cls = val >= 1.20 * base ? "pos" : val <= 0.80 * base ? "neg" : "";
+    return `<span class="bk-total ${cls}" style="font-weight:600;">${val.toFixed(1)}</span>`;
+  };
+  if (p.role === "hitter" && (c.pg_l3 != null || c.pg_l7 != null || c.pg_l14 != null)) {
+    rows.push(`<div class="bk-row"><span class="bk-label">Form (pts/G)</span><span style="display:flex;gap:8px;">L3: ${cellFor(c.pg_l3, c.pg_l14)} · L7: ${cellFor(c.pg_l7, c.pg_l14)} · L14: ${cellFor(c.pg_l14, c.pg_l14)}</span></div>`);
+  }
+  if (p.role === "pitcher" && (c.ps_l7 != null || c.ps_l14 != null || c.ps_season != null)) {
+    rows.push(`<div class="bk-row"><span class="bk-label">Form (pts/start)</span><span style="display:flex;gap:8px;">L7: ${cellFor(c.ps_l7, c.ps_l14)} · L14: ${cellFor(c.ps_l14, c.ps_l14)} · Szn: ${cellFor(c.ps_season, c.ps_l14)}</span></div>`);
+  }
   if (p.role === "hitter") {
     if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
     if (c.sp_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Opp SP factor</span><span class="bk-total ${c.sp_factor>1?"pos":"neg"}">×${c.sp_factor.toFixed(2)}</span></div>`);
@@ -318,8 +343,9 @@ function projTooltip(p) {
   }
   const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
+  const formB = formBadge(c.form_tag);
   return `<div class="breakdown-tooltip">
-    <div class="bk-title">${p.name} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
+    <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
     <div class="bk-grand"><span>Projection</span><span>${p.projected_points.toFixed(2)} pts</span></div>
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
@@ -334,7 +360,7 @@ function renderProjectionsTable() {
       (p) => `
       <tr class="${p.role} score-row">
         <td>${p.projected_points.toFixed(2)}</td>
-        <td class="player-cell">${p.name}${projTooltip(p)}</td>
+        <td class="player-cell">${p.name} ${formBadge((p.components||{}).form_tag)}${projTooltip(p)}</td>
         <td>${p.position ?? "-"}</td>
         <td>${p.role}</td>
         <td class="notes">${(p.notes || []).join(" · ")}</td>
@@ -918,7 +944,7 @@ async function renderRecs() {
           <tr class="${r.role} score-row">
             <td>${r.score.toFixed(2)}</td>
             <td>${r.projected_points.toFixed(2)}</td>
-            <td class="player-cell">${r.name}${projTooltip(r)}</td>
+            <td class="player-cell">${r.name} ${formBadge((r.components||{}).form_tag)}${projTooltip(r)}</td>
             <td>${r.position ?? "-"}</td>
             <td>${pills}</td>
           </tr>`;
@@ -1016,7 +1042,7 @@ function drawPool() {
             return `
         <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
-          <td class="player-cell">${p.name}${projTooltip(p)}</td>
+          <td class="player-cell">${p.name} ${formBadge((p.components||{}).form_tag)}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
