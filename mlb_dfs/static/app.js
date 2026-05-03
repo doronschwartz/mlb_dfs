@@ -299,24 +299,24 @@ function projTooltip(p) {
     if (val == null) return "";
     const fmt = signed ? (val > 0 ? "+" : "") + Number(val).toFixed(2) : Number(val).toFixed(3);
     const cls = signed ? (val > 0 ? "pos" : val < 0 ? "neg" : "") : "";
-    return `<div class="bk-line"><span class="bk-label">${label}</span><span class="bk-total ${cls}">${fmt}</span></div>`;
+    return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">${fmt}</span></div>`;
   };
   const rows = [];
   if (p.role === "hitter") {
-    if (c.base_pg != null) rows.push(`<div class="bk-line"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
-    if (c.sp_factor != null) rows.push(`<div class="bk-line"><span class="bk-label">Opp SP factor</span><span class="bk-total ${c.sp_factor>1?"pos":"neg"}">×${c.sp_factor.toFixed(2)}</span></div>`);
-    if (c.qoc_factor != null) rows.push(`<div class="bk-line"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
-    if (c.barrel_pct != null) rows.push(`<div class="bk-line"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
-    if (c.hardhit_pct != null) rows.push(`<div class="bk-line"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg 38)</span></span></div>`);
+    if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
+    if (c.sp_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Opp SP factor</span><span class="bk-total ${c.sp_factor>1?"pos":"neg"}">×${c.sp_factor.toFixed(2)}</span></div>`);
+    if (c.qoc_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
+    if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
+    if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg 38)</span></span></div>`);
   } else {
-    if (c.base_per_start != null) rows.push(`<div class="bk-line"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
-    if (c.opp_factor != null) rows.push(`<div class="bk-line"><span class="bk-label">Opp run-env</span><span class="bk-total ${c.opp_factor<1?"pos":"neg"}">×${c.opp_factor.toFixed(2)}</span></div>`);
-    if (c.qoc_factor != null) rows.push(`<div class="bk-line"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
-    if (c.xera != null) rows.push(`<div class="bk-line"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
-    if (c.xwoba_against != null) rows.push(`<div class="bk-line"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
-    if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-line"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
+    if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
+    if (c.opp_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Opp run-env</span><span class="bk-total ${c.opp_factor<1?"pos":"neg"}">×${c.opp_factor.toFixed(2)}</span></div>`);
+    if (c.qoc_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
+    if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
+    if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
+    if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
   }
-  const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-line"><span class="bk-label" style="color:var(--bad);">⚠ ${s}</span></div>`).join("");
+  const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
   return `<div class="breakdown-tooltip">
     <div class="bk-title">${p.name} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>

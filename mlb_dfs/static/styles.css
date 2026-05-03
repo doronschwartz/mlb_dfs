@@ -323,11 +323,20 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   top: calc(100% + 4px); left: 0;
   background: var(--bg); border: 1px solid var(--accent);
   border-radius: 6px; padding: 8px 10px;
-  min-width: 240px; max-width: 320px;
+  min-width: 280px; max-width: 380px; width: max-content;
   box-shadow: 0 6px 24px rgba(0,0,0,0.7);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px; line-height: 1.45;
 }
+.breakdown-tooltip .bk-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 1px 0; white-space: nowrap;
+}
+.breakdown-tooltip .bk-row .bk-label { color: var(--muted); }
+.breakdown-tooltip .bk-row .bk-total { font-weight: 600; text-align: right; }
+.breakdown-tooltip .bk-row .bk-total.pos { color: var(--accent-2); }
+.breakdown-tooltip .bk-row .bk-total.neg { color: var(--bad); }
+.breakdown-tooltip .bk-pitfall { color: var(--bad); white-space: normal; }
 .score-row:hover .breakdown-tooltip { display: block; }
 .breakdown-tooltip .bk-title {
   font-family: -apple-system, system-ui, sans-serif;
