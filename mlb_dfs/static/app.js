@@ -186,19 +186,22 @@ $("#ftx-pull")?.addEventListener("click", async () => {
   }
 });
 $("#date").addEventListener("change", async () => {
-  // Invalidate cached slate so it's re-fetched for the new date.
+  const newDate = $("#date").value;
   state._slateDate = null;
   state.slateGames = [];
-  // If on the Draft tab, try to auto-switch to the draft on the new date (if one exists).
   if (state.tab === "draft") {
-    const newDate = $("#date").value;
+    stopPolling();
     state.currentDraftId = null;
     state.selectedGamePks = new Set();
+    poolCache = { draftId: null, pool: [] };
     try { await loadDraftList(); } catch {}
     const sel = $("#draft-id");
     if (sel && Array.from(sel.options).some((o) => o.value === newDate)) {
       sel.value = newDate;
       state.currentDraftId = newDate;
+      await syncToLoadedDraft();
+      startPolling();
+      return;
     }
   }
   refresh();
