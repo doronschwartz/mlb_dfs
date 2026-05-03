@@ -130,18 +130,24 @@ def project_hitter(
     base_pg = LEAGUE_AVG_HITTER_POINTS_PER_GAME
     notes: list[str] = []
 
-    if games_14 >= 5:
-        base_pg = _per_game_hitter_points(last14)
-        notes.append(f"14d sample: {int(games_14)} G, {base_pg:.2f} pts/G")
-    elif _safe_float(seasn.get("gamesPlayed")) >= 10:
-        base_pg = _per_game_hitter_points(seasn)
-        notes.append(f"season fallback: {int(_safe_float(seasn.get('gamesPlayed')))} G, {base_pg:.2f} pts/G")
-    else:
-        notes.append("no sample, league average")
-
     pg_3 = _per_game_hitter_points(last3) if games_3 >= 1 else None
     pg_7 = _per_game_hitter_points(last7) if games_7 >= 2 else None
     pg_14 = _per_game_hitter_points(last14) if games_14 >= 5 else None
+    pg_season = _per_game_hitter_points(seasn) if _safe_float(seasn.get("gamesPlayed")) >= 10 else None
+
+    weighted = _weighted_pg_hitter(
+        pts_g_3=(pg_3, int(games_3)),
+        pts_g_7=(pg_7, int(games_7)),
+        pts_g_14=(pg_14, int(games_14)),
+    )
+    if weighted is not None:
+        base_pg = weighted
+        notes.append(f"weighted L3/L7/L14: {base_pg:.2f} pts/G")
+    elif pg_season is not None:
+        base_pg = pg_season
+        notes.append(f"season fallback: {int(_safe_float(seasn.get('gamesPlayed')))} G, {base_pg:.2f} pts/G")
+    else:
+        notes.append("no sample, league average")
     form_tag, form_note = _form_tag_hitter(pg_3, pg_7, pg_14, games_3, games_14)
     if form_note:
         notes.append(form_note)
@@ -224,18 +230,23 @@ def project_pitcher(
     starts_7 = _safe_float(last7.get("gamesStarted"))
     starts_14 = _safe_float(last14.get("gamesStarted"))
     starts_season = _safe_float(seasn.get("gamesStarted"))
-    if starts_14 >= 1:
-        base = _per_start_pitcher_points(last14)
-        notes.append(f"14d sample: {int(starts_14)} GS, {base:.2f} pts/start")
-    elif starts_season >= 2:
-        base = _per_start_pitcher_points(seasn)
-        notes.append(f"season fallback: {int(starts_season)} GS, {base:.2f} pts/start")
-    else:
-        notes.append("no sample, league average")
-
     ps_l7 = _per_start_pitcher_points(last7) if starts_7 >= 1 else None
     ps_l14 = _per_start_pitcher_points(last14) if starts_14 >= 1 else None
     ps_season = _per_start_pitcher_points(seasn) if starts_season >= 3 else None
+
+    weighted_ps = _weighted_ps_pitcher(
+        ps_g_7=(ps_l7, int(starts_7)),
+        ps_g_14=(ps_l14, int(starts_14)),
+        ps_g_season=(ps_season, int(starts_season)),
+    )
+    if weighted_ps is not None:
+        base = weighted_ps
+        notes.append(f"weighted L7/L14/season: {base:.2f} pts/start")
+    elif ps_season is not None:
+        base = ps_season
+        notes.append(f"season fallback: {int(starts_season)} GS, {base:.2f} pts/start")
+    else:
+        notes.append("no sample, league average")
     form_tag, form_note = _form_tag_pitcher(ps_l7, ps_l14, ps_season, starts_7, starts_14)
     if form_note:
         notes.append(form_note)
@@ -313,6 +324,77 @@ def project_pitcher(
         },
         notes=notes,
     )
+
+
+def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14):
+    """Sample-size × recency weighting on non-overlapping buckets.
+
+    The MLB API returns cumulative stats per window — L7 *includes* L3, L14
+    *includes* L7. Naive averaging double-counts the most recent games. We
+    back out three disjoint buckets by subtraction, then weight each bucket
+    by (games × recency_multiplier). Recent games get boosted but small
+    samples can't dominate a well-sampled older bucket.
+    """
+    pg3, g3 = pts_g_3
+    pg7, g7 = pts_g_7
+    pg14, g14 = pts_g_14
+    # Build (pts_per_g, games, recency_weight) buckets, all disjoint.
+    buckets: list[tuple[float, int, float]] = []
+    if pg3 is not None and g3 > 0:
+        buckets.append((pg3, g3, 2.5))                    # last ~3 days
+    if pg7 is not None and g7 > 0:
+        # bucket = L7 minus L3 (games 4-7)
+        if pg3 is not None and g3 > 0 and g7 > g3:
+            mid_g = g7 - g3
+            mid_pts = pg7 * g7 - pg3 * g3
+            buckets.append((mid_pts / mid_g, mid_g, 1.5))
+        elif pg3 is None:
+            buckets.append((pg7, g7, 1.5))                # L3 missing — treat L7 as the recent block
+    if pg14 is not None and g14 > 0:
+        # bucket = L14 minus L7 (games 8-14)
+        if pg7 is not None and g7 > 0 and g14 > g7:
+            old_g = g14 - g7
+            old_pts = pg14 * g14 - pg7 * g7
+            buckets.append((old_pts / old_g, old_g, 1.0))
+        elif pg7 is None:
+            buckets.append((pg14, g14, 1.0))
+    if not buckets:
+        return None
+    total_w = sum(g * r for _, g, r in buckets)
+    if total_w <= 0:
+        return None
+    return sum(pg * g * r for pg, g, r in buckets) / total_w
+
+
+def _weighted_ps_pitcher(*, ps_g_7, ps_g_14, ps_g_season):
+    """Pitcher version: starts are sparse so windows are L7 / L14 / season."""
+    ps7, s7 = ps_g_7
+    ps14, s14 = ps_g_14
+    pss, ss = ps_g_season
+    buckets: list[tuple[float, int, float]] = []
+    if ps7 is not None and s7 > 0:
+        buckets.append((ps7, s7, 2.0))
+    if ps14 is not None and s14 > 0:
+        if ps7 is not None and s7 > 0 and s14 > s7:
+            mid_s = s14 - s7
+            mid_pts = ps14 * s14 - ps7 * s7
+            buckets.append((mid_pts / mid_s, mid_s, 1.3))
+        elif ps7 is None:
+            buckets.append((ps14, s14, 1.3))
+    if pss is not None and ss > 0:
+        # season minus L14 = "older, but still this year" — useful regression toward true talent
+        if ps14 is not None and s14 > 0 and ss > s14:
+            old_s = ss - s14
+            old_pts = pss * ss - ps14 * s14
+            buckets.append((old_pts / old_s, old_s, 0.7))
+        elif ps14 is None:
+            buckets.append((pss, ss, 0.7))
+    if not buckets:
+        return None
+    total_w = sum(s * r for _, s, r in buckets)
+    if total_w <= 0:
+        return None
+    return sum(ps * s * r for ps, s, r in buckets) / total_w
 
 
 def _form_tag_hitter(pg_3, pg_7, pg_14, g3, g14):
