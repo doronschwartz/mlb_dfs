@@ -1027,7 +1027,7 @@ function drawPool() {
                   return p.eligible_slots
                     .map(
                       (s) =>
-                        `<span class="slot-pill ${lock}" data-pid="${p.player_id}" data-slot="${s}" data-name="${escapeAttr(p.name)}" data-team-games="${tg}">${s}</span>`,
+                        `<span class="slot-pill ${lockFor(s)}" data-pid="${p.player_id}" data-slot="${s}" data-name="${escapeAttr(p.name)}" data-team-games="${tg}">${s}</span>`,
                     )
                     .join("");
                 })()
