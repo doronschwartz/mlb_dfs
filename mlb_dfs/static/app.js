@@ -356,6 +356,15 @@ async function loadDraftList() {
       .map((id) => `<option value="${id}">${id}</option>`)
       .join("");
   }
+  // Re-select whatever's currently loaded so the dropdown stays in sync
+  // with the rest of the page after refilling.
+  if (state.currentDraftId) {
+    for (const sel of [$("#draft-id"), $("#score-draft-id")]) {
+      if (Array.from(sel.options).some((o) => o.value === state.currentDraftId)) {
+        sel.value = state.currentDraftId;
+      }
+    }
+  }
 }
 
 $("#new-draft").addEventListener("click", async () => {
