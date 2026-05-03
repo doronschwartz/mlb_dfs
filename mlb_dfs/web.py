@@ -24,7 +24,7 @@ from . import draft as draft_mod
 from . import historic
 from . import k_props
 from . import live as live_mod
-from . import mlb_api, odds_api, projections, umpires, weather as weather_mod
+from . import mlb_api, notify, odds_api, projections, umpires, weather as weather_mod
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
@@ -135,11 +135,27 @@ def make_pick(draft_id: str, req: PickRequest):
     except HTTPException:
         raise
     try:
-        dr.make_pick(req.slot, proj, game_pk=game_pk, drafter_override=req.drafter_override)
+        new_pick = dr.make_pick(req.slot, proj, game_pk=game_pk, drafter_override=req.drafter_override)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
     draft_mod.save_draft(dr)
+    if notify.is_configured():
+        next_info = dr.on_the_clock()
+        next_msg = f". Next up: {next_info[0]}" if next_info and next_info[0] != "*" else ""
+        try:
+            notify.notify(
+                f"⚾ {new_pick.drafter} picked {new_pick.name} ({new_pick.slot}) — pick #{new_pick.pick_number} of {dr.total_picks()}{next_msg}"
+            )
+        except Exception:
+            pass
     return _draft_state(dr)
+
+
+@app.get("/api/notify/test")
+def notify_test():
+    if not notify.is_configured():
+        return {"configured": False, "hint": "Set CALLMEBOT_RECIPIENTS env var"}
+    return notify.notify("✅ MLB DFS notifications working")
 
 
 @app.post("/api/drafts/{draft_id}/picks/{pick_number}/replace")
