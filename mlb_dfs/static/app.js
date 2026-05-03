@@ -151,10 +151,39 @@ $("#lineup-go")?.addEventListener("click", async () => {
   $("#lineup-out").innerHTML = html;
 });
 
-// Restore last roster
+// Restore last roster + Fantrax IDs
 window.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem("mlb_dfs_lineup_names");
   if (saved && $("#lineup-names")) $("#lineup-names").value = saved;
+  const lg = localStorage.getItem("mlb_dfs_ftx_league");
+  const tm = localStorage.getItem("mlb_dfs_ftx_team");
+  if (lg && $("#ftx-league")) $("#ftx-league").value = lg;
+  if (tm && $("#ftx-team")) $("#ftx-team").value = tm;
+});
+
+$("#ftx-pull")?.addEventListener("click", async () => {
+  const lg = $("#ftx-league").value.trim();
+  const tm = $("#ftx-team").value.trim();
+  if (!lg) return alert("Enter your Fantrax league_id (visible in any league URL).");
+  localStorage.setItem("mlb_dfs_ftx_league", lg);
+  if (tm) localStorage.setItem("mlb_dfs_ftx_team", tm);
+  $("#ftx-status").textContent = "Pulling roster…";
+  try {
+    const url = `/api/fantrax/roster?league_id=${encodeURIComponent(lg)}` + (tm ? `&team_id=${encodeURIComponent(tm)}` : "");
+    const data = await api(url);
+    if (data.error) {
+      const teamList = (data.teams || []).map(t => `${t.team_id}: ${t.name}`).join("\n");
+      $("#ftx-status").textContent = "Multiple teams — paste a team_id:";
+      alert(data.error + "\n\nTeams in this league:\n" + teamList);
+      return;
+    }
+    const names = (data.players || []).map(p => p.name).filter(Boolean);
+    $("#lineup-names").value = names.join("\n");
+    localStorage.setItem("mlb_dfs_lineup_names", $("#lineup-names").value);
+    $("#ftx-status").textContent = `✓ Pulled ${names.length} from ${data.team_name || "team"}. Click Project lineup.`;
+  } catch (e) {
+    $("#ftx-status").textContent = `Error: ${e.message}`;
+  }
 });
 $("#date").addEventListener("change", refresh);
 

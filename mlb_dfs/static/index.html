@@ -102,6 +102,12 @@
         hitters / top 2 pitchers. <b>OFF</b> = no game today.
       </p>
       <div class="setup-row">
+        <input id="ftx-league" placeholder="Fantrax league_id" style="width:200px;" />
+        <input id="ftx-team" placeholder="team_id (optional)" style="width:160px;" />
+        <button id="ftx-pull" type="button">📥 Pull from Fantrax</button>
+        <span id="ftx-status" class="muted" style="font-size:12px;"></span>
+      </div>
+      <div class="setup-row">
         <textarea id="lineup-names" rows="14" style="flex:1; min-width:300px; font-family:ui-monospace,Menlo,monospace;" placeholder="Shohei Ohtani&#10;Aaron Judge&#10;Mookie Betts&#10;Paul Skenes&#10;..."></textarea>
         <button id="lineup-go" class="btn-pick" style="align-self:flex-start;">Project lineup</button>
       </div>
