@@ -245,8 +245,11 @@ def project_pitcher(
     xera = _safe_float((expected or {}).get("xera")) or None
     xwoba_a = _safe_float((expected or {}).get("est_woba")) or None
     pitfalls: list[str] = []
-    if starts_14 < 4:
-        pitfalls.append(f"Small sample — only {int(starts_14)} GS in last 14d")
+    # SPs typically start every ~5 days, so 2-3 GS in 14d is the norm. Only
+    # flag truly tiny samples (1 or 0 starts) — that's where projection noise
+    # actually dominates.
+    if starts_14 < 2 and _safe_float(seasn.get("gamesStarted")) < 4:
+        pitfalls.append(f"Tiny sample — {int(starts_14)} 14d GS, {int(_safe_float(seasn.get('gamesStarted')))} season")
     if opp_factor > 1.15:
         pitfalls.append("Hot offensive opponent (high R/G)")
     if brl_a and brl_a > 8:
