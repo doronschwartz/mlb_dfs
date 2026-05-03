@@ -51,6 +51,22 @@ class Draft:
     def is_complete(self) -> bool:
         return len(self.picks) >= self.total_picks()
 
+    def can_pick_sp_out_of_order(self, drafter: str) -> bool:
+        """True iff `drafter` is the only one with SP slots still open. They
+        can grab an SP whenever, since snake-order has nothing to gate."""
+        if drafter not in self.drafters:
+            return False
+        cap = SLOTS.count("SP")
+        self_needs = False
+        for d in self.drafters:
+            taken_sp = sum(1 for p in self.picks if p.drafter == d and p.slot == "SP")
+            if taken_sp < cap:
+                if d == drafter:
+                    self_needs = True
+                else:
+                    return False
+        return self_needs
+
     def on_the_clock(self) -> tuple[str, str] | None:
         """Returns (drafter, slot) for the next pick, or None if complete."""
         if self.is_complete():
@@ -173,11 +189,21 @@ class Draft:
         )
         return self.picks[idx]
 
-    def make_pick(self, slot: str, projection: Projection, *, game_pk: int | None = None) -> Pick:
+    def make_pick(self, slot: str, projection: Projection, *, game_pk: int | None = None, drafter_override: str | None = None) -> Pick:
         info = self.on_the_clock()
         if info is None:
             raise RuntimeError("draft already complete")
-        drafter, _suggested_slot = info  # suggestion only — drafter picks any open slot
+        drafter, _suggested_slot = info
+        # Out-of-order SP pick — allowed only when the requesting drafter is
+        # the LAST one with an open SP slot (everyone else is done with SPs).
+        if drafter_override and drafter_override != drafter:
+            if slot != "SP":
+                raise ValueError("out-of-order pick allowed only for SP slot")
+            if not self.can_pick_sp_out_of_order(drafter_override):
+                raise ValueError(
+                    f"out-of-order SP pick: {drafter_override} isn't the last drafter with an open SP slot"
+                )
+            drafter = drafter_override
         if projection.player_id in self.picked_ids():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(slot, projection):
