@@ -411,7 +411,7 @@ function projTooltip(p) {
   return `<div class="breakdown-tooltip">
     <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
-    <div class="bk-grand"><span>Projection</span><span>${p.projected_points.toFixed(2)} pts</span></div>
+    <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
     ${(p.notes||[]).length ? `<div class="bk-rows muted" style="margin-top:4px;font-size:10px;">${p.notes.join(" · ")}</div>` : ""}
   </div>`;
