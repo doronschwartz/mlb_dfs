@@ -915,7 +915,7 @@ async function renderRecs() {
             })
             .join("");
           return `
-          <tr class="${r.role}">
+          <tr class="${r.role} score-row">
             <td>${r.score.toFixed(2)}</td>
             <td>${r.projected_points.toFixed(2)}</td>
             <td class="player-cell">${r.name}${projTooltip(r)}</td>
@@ -1014,7 +1014,7 @@ function drawPool() {
               stat = `<span title="xERA ${xe} · xwOBA ${xw} · qoc x${(c.qoc_factor||1).toFixed(2)}">xERA ${xe}</span>`;
             }
             return `
-        <tr class="${p.role}">
+        <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
           <td class="player-cell">${p.name}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
@@ -1081,8 +1081,10 @@ $("#score-load").addEventListener("click", async () => {
       <h3 style="margin-top:0">Standings</h3>
       ${standings
         .map(
-          (s) =>
-            `<div class="row"><span>${s.rank}. <b>${s.drafter}</b></span><span class="total">${s.total.toFixed(2)} <span class="muted">(full ${s.full_total.toFixed(2)})</span></span></div>`,
+          (s) => {
+            const rankClass = s.rank === 1 ? "rank-1" : s.rank === 2 ? "rank-2" : s.rank === 3 ? "rank-3" : "";
+            return `<div class="row ${rankClass}"><span>${s.rank}. <b>${s.drafter}</b></span><span class="total">${s.total.toFixed(2)} <span class="muted">(full ${s.full_total.toFixed(2)})</span></span></div>`;
+          },
         )
         .join("")}
     </div>`;

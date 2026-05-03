@@ -179,6 +179,10 @@ tr.pitcher td:first-child { color: var(--warn); }
 }
 .standings .row { display: flex; justify-content: space-between; padding: 4px 0; }
 .standings .row .total { font-variant-numeric: tabular-nums; font-weight: 600; }
+.standings .row.rank-1 { color: #16a34a; font-weight: 700; }
+.standings .row.rank-2 { color: #ca8a04; font-weight: 600; }
+.standings .row.rank-3 { color: #dc2626; font-weight: 600; }
+.standings .row.rank-1 .muted, .standings .row.rank-2 .muted, .standings .row.rank-3 .muted { color: inherit; opacity: 0.7; }
 .score-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
 tr.benched-out { opacity: 0.5; }
 tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration: line-through; }
