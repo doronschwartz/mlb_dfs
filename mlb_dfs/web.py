@@ -906,6 +906,16 @@ def _proj_to_dict(p) -> dict:
     }
 
 
+def _can_jump_for_sp(dr) -> str | None:
+    """Drafter name iff exactly one drafter still has open SP slots."""
+    needers = []
+    for d in dr.drafters:
+        cnt = sum(1 for p in dr.picks if p.drafter == d and p.slot == "SP")
+        if cnt < draft_mod.SLOTS.count("SP"):
+            needers.append(d)
+    return needers[0] if len(needers) == 1 else None
+
+
 def _draft_state(dr) -> dict:
     try:
         lineups = mlb_api.lineups_by_date(
