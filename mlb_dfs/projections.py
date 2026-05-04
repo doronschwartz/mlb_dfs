@@ -196,7 +196,13 @@ def project_hitter(
     # streak gets dragged toward his Statcast baseline.
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        STATCAST_WEIGHT = 0.20
+        # Adaptive blend: Statcast is THE most predictive signal for true talent
+        # on a typical day, so it gets full weight (0.35) for steady/untagged
+        # players. But when the player is HOT or COLD, the rolling base is
+        # capturing a real streak signal that Statcast can't see — calibration
+        # showed HOT players were under-projected by ~+5 pts at w=0.35. Drop
+        # Statcast weight for streaking players so the streak signal carries.
+        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.35
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
@@ -318,7 +324,7 @@ def project_pitcher(
     # rolling base to dampen single-start spikes and protect against streaks.
     statcast_ps = _statcast_implied_ps_pitcher(xera, xwoba_a, brl_a)
     if statcast_ps is not None:
-        STATCAST_WEIGHT = 0.20
+        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.35
         blended_base = (1 - STATCAST_WEIGHT) * base + STATCAST_WEIGHT * statcast_ps
         notes.append(f"Statcast prior {statcast_ps:.2f} pts/start blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base = blended_base
