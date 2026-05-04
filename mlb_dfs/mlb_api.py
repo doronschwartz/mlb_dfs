@@ -247,6 +247,7 @@ def lineups_by_date(d: Date, *, game_pks: set[int] | None = None) -> dict[int, d
     pool = players_in_slate(d)
 
     team_to_lineup: dict[int, set[int]] = {}
+    team_to_order: dict[int, dict[int, int]] = {}   # team_id -> {pid: batting_order 1..9}
     team_to_game_pk: dict[int, int] = {}
     team_to_posted: dict[int, bool] = {}
     probable_pitchers: set[int] = set()
@@ -267,6 +268,12 @@ def lineups_by_date(d: Date, *, game_pks: set[int] | None = None) -> dict[int, d
                 ids = {p.get("id") for p in posted_players if p.get("id")}
                 team_to_lineup.setdefault(team_id, set()).update(ids)
                 team_to_posted[team_id] = team_to_posted.get(team_id, False) or True
+                # Capture batting order — first 9 entries are slots 1-9.
+                order_map = team_to_order.setdefault(team_id, {})
+                for i, p in enumerate(posted_players[:9]):
+                    pid = p.get("id")
+                    if pid:
+                        order_map[pid] = i + 1
             else:
                 team_to_posted.setdefault(team_id, False)
             team_to_game_pk[team_id] = pk
@@ -291,6 +298,7 @@ def lineups_by_date(d: Date, *, game_pks: set[int] | None = None) -> dict[int, d
             "game_pk": team_to_game_pk.get(team_id),
             "team_id": team_id,
             "is_probable_pitcher": is_pp,
+            "batting_order": team_to_order.get(team_id, {}).get(pid),  # 1-9 or None
         }
     return out
 

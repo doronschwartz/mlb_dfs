@@ -148,6 +148,7 @@ def project_hitter(
     season: int,
     opposing_sp_id: int | None,
     park: dict | None = None,
+    batting_order: int | None = None,
 ) -> Projection:
     last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3)
     last7 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=7)
@@ -247,7 +248,17 @@ def project_hitter(
         venue = park.get("venue", "")
         notes.append(f"park {venue} x{park_factor:.2f} (run {run_env:.2f}, HR {hr_f:.2f})")
 
-    proj = base_pg * sp_factor * qoc_factor * park_factor
+    # Batting-order PA factor: leadoff hitters get ~4.6 PA/game, #9 gets ~3.7.
+    # That's a ~22% PA spread top to bottom. Only applies when lineup is posted.
+    order_factor = 1.0
+    if batting_order and 1 <= batting_order <= 9:
+        # Per-spot multiplier centered at 1.0 (~ #5 hitter is league avg PA).
+        ORDER_FACTORS = {1: 1.10, 2: 1.07, 3: 1.05, 4: 1.02, 5: 1.00,
+                         6: 0.97, 7: 0.94, 8: 0.91, 9: 0.88}
+        order_factor = ORDER_FACTORS[batting_order]
+        notes.append(f"batting #{batting_order} x{order_factor:.2f} (PA adj)")
+
+    proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor
     pitfalls: list[str] = []
     if games_14 < 7:
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
@@ -734,6 +745,11 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             }
 
     pool = mlb_api.players_in_slate(d)
+    # Pull lineups for batting order info (None if lineup not yet posted).
+    try:
+        lineups = mlb_api.lineups_by_date(d)
+    except Exception:
+        lineups = {}
     projections: list[Projection] = []
 
     # Pitchers — only project the probable starters; relievers aren't draftable as SP
@@ -754,6 +770,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         if team_filter is not None and meta.get("teamId") not in team_filter:
             continue
         m = matchups.get(meta.get("teamId") or 0, {})
+        bo = (lineups.get(pid) or {}).get("batting_order")
         projections.append(project_hitter(
             pid, meta["name"],
             team_id=meta.get("teamId"),
@@ -761,6 +778,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             season=season,
             opposing_sp_id=m.get("opp_sp"),
             park=m.get("park"),
+            batting_order=bo,
         ))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
