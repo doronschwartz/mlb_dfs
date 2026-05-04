@@ -90,6 +90,72 @@ def list_drafts_route():
     return {"drafts": draft_mod.list_drafts()}
 
 
+@app.get("/api/calibration")
+def calibration(date: str):
+    """For the given date, compare each projected player to their actual
+    fantasy points. Returns per-player rows + aggregates we can use to spot
+    where the model under/over-projects (by role, form tag, statcast tier)."""
+    from . import live
+    from .draft import Pick
+    d = Date.fromisoformat(date)
+    projs = projections.project_slate_cached(d)
+    box_index = live._index_boxscores(d)
+    rows = []
+    for p in projs:
+        lines = box_index.get(p.player_id) or []
+        if not lines:
+            continue
+        # Reuse live._score_player by faking a Pick.
+        fake = Pick(
+            drafter="-", slot=("SP" if p.role == "pitcher" else "UTIL"),
+            player_id=p.player_id, name=p.name, position=p.position or "-",
+            role=p.role, projected_points=p.projected_points,
+            pick_number=0, game_pk=None,
+        )
+        ps = live._score_player(fake, lines)
+        if ps.game_state in ("Pre-Game", "Warmup", "Scheduled", ""):
+            continue
+        rows.append({
+            "player_id": p.player_id, "name": p.name, "role": p.role,
+            "position": p.position, "team_id": p.team_id,
+            "projected": round(p.projected_points, 2),
+            "actual": round(ps.points, 2),
+            "diff": round(ps.points - p.projected_points, 2),
+            "form_tag": (p.components or {}).get("form_tag", ""),
+            "qoc_tier": (p.components or {}).get("qoc_tier", ""),
+            "game_state": ps.game_state,
+        })
+    # Aggregates — bias = mean(actual - projected); MAE = mean|actual - projected|
+    def _agg(lst):
+        if not lst:
+            return {"n": 0, "bias": 0, "mae": 0, "mean_proj": 0, "mean_actual": 0}
+        n = len(lst)
+        diffs = [r["diff"] for r in lst]
+        return {
+            "n": n,
+            "bias": round(sum(diffs) / n, 2),
+            "mae": round(sum(abs(x) for x in diffs) / n, 2),
+            "mean_proj": round(sum(r["projected"] for r in lst) / n, 2),
+            "mean_actual": round(sum(r["actual"] for r in lst) / n, 2),
+        }
+    by_role = {
+        "hitter": _agg([r for r in rows if r["role"] == "hitter"]),
+        "pitcher": _agg([r for r in rows if r["role"] == "pitcher"]),
+    }
+    by_tag = {tag: _agg([r for r in rows if r["form_tag"] == tag])
+              for tag in ["HOT", "COLD", "STEADY", "ELITE", ""]}
+    by_tier = {tier: _agg([r for r in rows if r["qoc_tier"] == tier])
+               for tier in ["ELITE", "SOLID", "AVERAGE", "POOR", "—", ""]}
+    return {
+        "date": d.isoformat(),
+        "rows": rows,
+        "overall": _agg(rows),
+        "by_role": by_role,
+        "by_form_tag": by_tag,
+        "by_qoc_tier": by_tier,
+    }
+
+
 @app.get("/api/drafts/{draft_id}")
 def get_draft(draft_id: str):
     try:

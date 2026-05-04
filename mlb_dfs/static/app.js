@@ -231,6 +231,16 @@ $("#date").addEventListener("change", async () => {
       return;
     }
   }
+  if (state.tab === "score") {
+    try { await loadDraftList(); } catch {}
+    const sel = $("#score-draft-id");
+    if (sel && Array.from(sel.options).some((o) => o.value === newDate)) {
+      sel.value = newDate;
+      state.currentDraftId = newDate;
+      $("#score-load").click();
+      return;
+    }
+  }
   refresh();
 });
 
@@ -1571,6 +1581,7 @@ async function refresh() {
   }
   if (state.tab === "schedule") initScheduleTab();
   if (state.tab === "stats") loadStats();
+  if (state.tab === "calib") await loadCalibration();
   if (state.tab === "score") {
     const today = new Date().toISOString().slice(0, 10);
     const sel = $("#score-draft-id");
@@ -1582,6 +1593,115 @@ async function refresh() {
       if (sel.value) $("#score-load").click();
     }
   }
+}
+
+// ---------- Calibration tab ----------
+
+let _calibSort = { col: "absdiff", dir: -1 };
+
+async function loadCalibration() {
+  const d = $("#date").value;
+  const out = $("#calib-out");
+  out.innerHTML = `<div class="muted">Crunching ${d}… (fetches box scores per game, ~10s)</div>`;
+  let data;
+  try { data = await api(`/api/calibration?date=${d}`); }
+  catch (e) { out.innerHTML = `<div class="muted">${e.message}</div>`; return; }
+  renderCalibration(data);
+}
+
+function _aggCard(label, a) {
+  if (!a || !a.n) return `<div class="agg"><h4>${label}</h4><div class="muted">no data</div></div>`;
+  const biasCls = a.bias > 0.5 ? "neg" : a.bias < -0.5 ? "pos" : "";
+  const sign = a.bias >= 0 ? "+" : "";
+  return `<div class="agg">
+    <h4>${label} <span class="muted" style="font-weight:400;font-size:11px;">n=${a.n}</span></h4>
+    <div class="agg-row"><span>Bias</span><span class="${biasCls}">${sign}${a.bias}</span></div>
+    <div class="agg-row"><span>MAE</span><span>${a.mae}</span></div>
+    <div class="agg-row muted"><span>avg proj</span><span>${a.mean_proj}</span></div>
+    <div class="agg-row muted"><span>avg actual</span><span>${a.mean_actual}</span></div>
+  </div>`;
+}
+
+function renderCalibration(data) {
+  const out = $("#calib-out");
+  const o = data.overall;
+  if (!o.n) {
+    out.innerHTML = `<div class="muted">No completed games on ${data.date} yet.</div>`;
+    return;
+  }
+  const role = data.by_role;
+  const tag = data.by_form_tag;
+  const tier = data.by_qoc_tier;
+  const aggs = `
+    <div class="agg-grid">
+      ${_aggCard("Overall", o)}
+      ${_aggCard("Hitters", role.hitter)}
+      ${_aggCard("Pitchers", role.pitcher)}
+      ${_aggCard("🔥 HOT-tagged", tag.HOT)}
+      ${_aggCard("🧊 COLD-tagged", tag.COLD)}
+      ${_aggCard("📊 STEADY", tag.STEADY)}
+      ${_aggCard("⭐ ELITE form", tag.ELITE)}
+      ${_aggCard("Untagged", tag[""])}
+      ${_aggCard("ELITE Statcast", tier.ELITE)}
+      ${_aggCard("SOLID Statcast", tier.SOLID)}
+      ${_aggCard("AVERAGE Statcast", tier.AVERAGE)}
+      ${_aggCard("POOR Statcast", tier.POOR)}
+    </div>`;
+
+  const sorted = [...data.rows];
+  const { col, dir } = _calibSort;
+  sorted.sort((a, b) => {
+    let av, bv;
+    if (col === "absdiff") { av = Math.abs(a.diff); bv = Math.abs(b.diff); }
+    else if (col === "name") { return dir * a.name.localeCompare(b.name); }
+    else { av = a[col]; bv = b[col]; }
+    return dir * (av - bv);
+  });
+
+  const headers = [
+    ["name", "Player"],
+    ["projected", "Proj"],
+    ["actual", "Actual"],
+    ["diff", "Diff"],
+    ["absdiff", "|Diff|"],
+  ];
+  const ths = headers.map(([k, lbl]) => {
+    const arrow = _calibSort.col === k ? (_calibSort.dir < 0 ? " ▼" : " ▲") : "";
+    return `<th class="calib-th" data-col="${k}">${lbl}${arrow}</th>`;
+  }).join("");
+
+  const rowsHtml = sorted.map(r => {
+    const cls = r.diff < 0 ? "neg" : "pos";
+    const sign = r.diff >= 0 ? "+" : "";
+    const formB = formBadge(r.form_tag);
+    const tierB = r.qoc_tier && r.qoc_tier !== "—"
+      ? `<span class="bench-tag" style="background:rgba(96,165,250,0.18);">${r.qoc_tier}</span>` : "";
+    return `<tr class="${r.role}">
+      <td>${r.name} ${formB} ${tierB}</td>
+      <td>${r.projected.toFixed(2)}</td>
+      <td>${r.actual.toFixed(2)}</td>
+      <td class="${cls}"><b>${sign}${r.diff.toFixed(2)}</b></td>
+      <td>${Math.abs(r.diff).toFixed(2)}</td>
+    </tr>`;
+  }).join("");
+
+  out.innerHTML = `
+    ${aggs}
+    <h3 style="margin-top:18px;">Per-player (${sorted.length})</h3>
+    <table id="calib-table">
+      <thead><tr>${ths}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+
+  out.querySelectorAll(".calib-th").forEach((th) => {
+    th.style.cursor = "pointer";
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (_calibSort.col === col) _calibSort.dir *= -1;
+      else { _calibSort.col = col; _calibSort.dir = -1; }
+      renderCalibration(data);
+    });
+  });
 }
 
 // ---------- Stats tab ----------

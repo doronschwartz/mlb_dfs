@@ -379,6 +379,16 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 
 footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 
+.agg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.agg { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12px; }
+.agg h4 { margin: 0 0 6px; font-size: 13px; }
+.agg .agg-row { display: flex; justify-content: space-between; padding: 1px 0; font-variant-numeric: tabular-nums; }
+.agg .agg-row .pos { color: var(--accent-2); font-weight: 600; }
+.agg .agg-row .neg { color: var(--bad); font-weight: 600; }
+#calib-table { font-size: 12px; margin-top: 8px; }
+#calib-table td.pos { color: var(--accent-2); }
+#calib-table td.neg { color: var(--bad); }
+
 .sched-day {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
