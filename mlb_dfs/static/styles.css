@@ -334,8 +334,12 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   #pool-search { width: 100%; }
   .setup-row { flex-wrap: wrap; }
 
-  /* Tooltip — anchor to viewport-safe positions */
-  .breakdown-tooltip { font-size: 10.5px; padding: 6px 8px; min-width: 240px; }
+  /* Tooltip — bottom-sheet style on mobile so it doesn't cover the scroll list */
+  .breakdown-tooltip {
+    position: fixed; top: auto; left: 8px; right: 8px; bottom: 8px;
+    width: auto; max-width: none; min-width: 0; max-height: 55vh; overflow-y: auto;
+    font-size: 11px; padding: 10px 12px; z-index: 1000;
+  }
 
   /* Game cards (slate): tighter */
   .game { padding: 8px 10px; }
