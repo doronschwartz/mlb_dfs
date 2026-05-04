@@ -39,13 +39,15 @@ LG_XWOBA_AGAINST = 0.310
 
 def _statcast_implied_pg_hitter(brl: float, hh: float) -> float | None:
     """True-talent pts/G estimate from Statcast quality-of-contact metrics.
-    Blended with the rolling base in project_hitter, weight 0.35."""
+    Blended with the rolling base in project_hitter.
+
+    Coefficients tuned against 3 days of calibration data. Original formula
+    (1.5 + 0.50*brl + 0.045*hh, cap 11) over-projected ELITE-tier hitters by
+    ~1.3 pts. Compressed the upper end: lower cap and slope on barrel%."""
     if not brl and not hh:
         return None
-    # Coefficients tuned so league-average (6.5% barrel, 38% HH) → 6.5 pts/G,
-    # elite (12% barrel, 50% HH) → 9.5 pts/G, poor (3% barrel, 30% HH) → 4.5 pts/G.
-    val = 1.5 + (brl or LG_BARREL_PCT_HITTER) * 0.50 + (hh or LG_HARDHIT_PCT_HITTER) * 0.045
-    return max(3.5, min(val, 11.0))
+    val = 2.0 + (brl or LG_BARREL_PCT_HITTER) * 0.42 + (hh or LG_HARDHIT_PCT_HITTER) * 0.040
+    return max(3.5, min(val, 9.5))
 
 
 def _statcast_implied_ps_pitcher(xera, xwoba, brl_a) -> float | None:
@@ -174,11 +176,11 @@ def project_hitter(
 
     # Streak-trust override: 4 days of calibration showed HOT players were
     # consistently under-projected by ~+4 pts and COLD over-projected by ~-3 pts.
-    # The form_tag is itself a strong signal — players hot enough to trigger it
-    # tend to continue. So when tagged, lean ~70% on the L3 sample directly.
+    # After first 70% override, residual remained ~+2/-1.3 — the L3 sample
+    # itself underestimates HOT players' continuation. Bumped to 80%.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
-        streak_base = 0.70 * pg_3 + 0.30 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
+        streak_base = 0.80 * pg_3 + 0.20 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.8*L3 + 0.2*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
