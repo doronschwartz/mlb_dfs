@@ -448,20 +448,38 @@ function projTooltip(p) {
   if (p.role === "pitcher" && (c.ps_l7 != null || c.ps_l14 != null || c.ps_season != null)) {
     rows.push(`<div class="bk-row"><span class="bk-label">Form (pts/start)</span><span style="display:flex;gap:8px;">L7: ${cellFor(c.ps_l7, c.ps_l14)} · L14: ${cellFor(c.ps_l14, c.ps_l14)} · Szn: ${cellFor(c.ps_season, c.ps_l14)}</span></div>`);
   }
+  // Helper: render an adjustment factor row, color-coded vs 1.0.
+  const factorRow2 = (label, factor, detail = "") => {
+    if (factor == null || Math.abs(factor - 1.0) < 0.005) return "";
+    const cls = factor > 1.0 ? "pos" : "neg";
+    const det = detail ? ` <span class="muted">${detail}</span>` : "";
+    return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${factor.toFixed(2)}${det}</span></div>`;
+  };
   if (p.role === "hitter") {
     if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
-    if (c.sp_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Opp SP factor</span><span class="bk-total ${c.sp_factor>1?"pos":"neg"}">×${c.sp_factor.toFixed(2)}</span></div>`);
-    if (c.qoc_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
+    if (c.sp_factor != null) rows.push(factorRow2("Opp SP", c.sp_factor));
+    if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
+    rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
+    rows.push(factorRow2(`Vegas implied`, c.vegas_factor, c.implied_team_total ? `${c.implied_team_total.toFixed(1)} R` : ""));
+    rows.push(factorRow2("Order PA", c.order_factor, c.batting_order ? `#${c.batting_order}` : ""));
+    rows.push(factorRow2("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : ""));
+    rows.push(factorRow2("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : ""));
+    rows.push(factorRow2("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
     if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
     if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg 38)</span></span></div>`);
   } else {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
-    if (c.opp_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Opp run-env</span><span class="bk-total ${c.opp_factor<1?"pos":"neg"}">×${c.opp_factor.toFixed(2)}</span></div>`);
-    if (c.qoc_factor != null) rows.push(`<div class="bk-row"><span class="bk-label">Statcast QoC</span><span class="bk-total ${c.qoc_factor>1?"pos":"neg"}">×${c.qoc_factor.toFixed(2)}</span></div>`);
+    if (c.opp_factor != null) rows.push(factorRow2("Opp run-env", c.opp_factor));
+    if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
+    rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
+    rows.push(factorRow2("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : ""));
+    rows.push(factorRow2("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
     if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
     if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
     if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
   }
+  // Drop empty strings (factors at 1.0).
+  for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === "") rows.splice(i, 1);
   const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
   const formB = formBadge(c.form_tag);
