@@ -305,10 +305,12 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 
   /* All available players: drop noisy columns, lift fonts down */
   #pool-out table { font-size: 11px; }
-  #pool-out th, #pool-out td { padding: 4px 4px; }
+  #pool-out th, #pool-out td { padding: 3px 4px; vertical-align: middle; }
+  #pool-out th:nth-child(3), #pool-out td:nth-child(3) { display: none; }   /* Pos (in name color) */
   #pool-out th:nth-child(4), #pool-out td:nth-child(4) { display: none; }   /* Role */
   #pool-out th:nth-child(5), #pool-out td:nth-child(5) { display: none; }   /* Statcast */
   #pool-out th:nth-child(7), #pool-out td:nth-child(7) { display: none; }   /* Notes */
+  #pool-out td:first-child { width: 38px; font-weight: 600; }
 
   /* Projections tab: drop Notes (visible in tooltip) */
   #proj-out th:nth-child(5), #proj-out td:nth-child(5) { display: none; }
@@ -318,8 +320,11 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   #recs-out table { font-size: 12px; }
   #recs-out th, #recs-out td { padding: 5px 4px; }
 
-  /* Pick-into pills bigger tap targets */
-  .slot-pill { padding: 6px 10px; font-size: 12px; min-height: 30px; }
+  /* Pick-into pills: compact but tappable; fit 3 across one row */
+  .slot-pill { padding: 4px 7px; font-size: 11px; min-height: 26px; margin: 1px 2px; }
+  td .slot-pill { display: inline-block; }
+  /* Recommended picks: hide Pos column too (already in player line) */
+  #recs-out th:nth-child(3), #recs-out td:nth-child(3) { display: none; }
 
   /* Roster cards: 1 column for clarity */
   .rosters { grid-template-columns: 1fr; }
