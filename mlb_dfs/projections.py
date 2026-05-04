@@ -196,7 +196,7 @@ def project_hitter(
     # streak gets dragged toward his Statcast baseline.
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        STATCAST_WEIGHT = 0.25
+        STATCAST_WEIGHT = 0.20
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
@@ -318,7 +318,7 @@ def project_pitcher(
     # rolling base to dampen single-start spikes and protect against streaks.
     statcast_ps = _statcast_implied_ps_pitcher(xera, xwoba_a, brl_a)
     if statcast_ps is not None:
-        STATCAST_WEIGHT = 0.25
+        STATCAST_WEIGHT = 0.20
         blended_base = (1 - STATCAST_WEIGHT) * base + STATCAST_WEIGHT * statcast_ps
         notes.append(f"Statcast prior {statcast_ps:.2f} pts/start blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base = blended_base
@@ -396,25 +396,27 @@ def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14, pts_g_season=(None, 0)):
         buckets.append((pg, games, scaled))
 
     buckets: list[tuple[float, int, float]] = []
-    # Calibration on 5/01-5/03 showed HOT bias +3 to +6 and COLD bias -3 to -4,
-    # i.e. recent streaks continue more than the model assumed. Bumped recency
-    # weights so the rolling base tracks streaks more aggressively.
-    _add(buckets, pg3, g3, 3.5)
+    # Calibration round 2: HOT bias was still ~+5 after first tuning. The
+    # season bucket (50-80 games) was drowning the recent signal. Pushed L3
+    # recency to 5.0 and capped the season-prior bucket at ~14 game-equivalents
+    # so it acts as an anchor, not a tide.
+    _add(buckets, pg3, g3, 5.0)
     if pg7 is not None and g7 > 0:
         if pg3 is not None and g3 > 0 and g7 > g3:
-            _add(buckets, (pg7 * g7 - pg3 * g3) / (g7 - g3), g7 - g3, 1.8)
+            _add(buckets, (pg7 * g7 - pg3 * g3) / (g7 - g3), g7 - g3, 2.2)
         elif pg3 is None:
-            _add(buckets, pg7, g7, 1.8)
+            _add(buckets, pg7, g7, 2.2)
     if pg14 is not None and g14 > 0:
         if pg7 is not None and g7 > 0 and g14 > g7:
-            _add(buckets, (pg14 * g14 - pg7 * g7) / (g14 - g7), g14 - g7, 1.0)
+            _add(buckets, (pg14 * g14 - pg7 * g7) / (g14 - g7), g14 - g7, 1.2)
         elif pg7 is None:
-            _add(buckets, pg14, g14, 1.0)
+            _add(buckets, pg14, g14, 1.2)
     if pgs is not None and gs > 0:
         if pg14 is not None and g14 > 0 and gs > g14:
-            _add(buckets, (pgs * gs - pg14 * g14) / (gs - g14), gs - g14, 0.4)
+            prior_g = min(gs - g14, 14)   # cap so season doesn't drown recency
+            _add(buckets, (pgs * gs - pg14 * g14) / (gs - g14), prior_g, 0.45)
         elif pg14 is None:
-            _add(buckets, pgs, gs, 0.4)
+            _add(buckets, pgs, min(gs, 14), 0.45)
 
     # Dynamic league-average ghost prior. Only fills the gap when real sample
     # weight is small — well-sampled regulars are unaffected.
