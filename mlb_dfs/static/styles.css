@@ -286,15 +286,32 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   white-space: nowrap;
 }
 .replace-btn:hover { filter: brightness(1.1); }
+.replace-btn .rb-short { display: none; font-size: 16px; }
+@media (max-width: 700px) {
+  .replace-btn .rb-full { display: none; }
+  .replace-btn .rb-short { display: inline; }
+}
 @media (max-width: 700px) {
   /* Live scoring */
-  .score-grid { grid-template-columns: 1fr; }
-  .score-grid table { font-size: 12px; table-layout: fixed; }
-  .score-grid td, .score-grid th { padding: 4px 4px; word-break: break-word; }
-  .score-grid td:nth-child(2) { font-size: 11px; }
+  .score-grid { grid-template-columns: 1fr; gap: 14px; }
+  .score-grid .standings { padding: 8px; }
+  .score-grid h4 { font-size: 15px; margin-bottom: 6px !important; }
+  .score-grid table { font-size: 13.5px; width: 100%; }
+  .score-grid th { padding: 5px 4px; font-size: 11px; }
+  .score-grid td { padding: 7px 4px; vertical-align: middle; }
+  /* Hide State col — game state is rarely useful on mobile */
   .score-grid th:nth-child(5), .score-grid td:nth-child(5) { display: none; }
+  /* Tight Slot/Proj/Actual; let Player breathe */
+  .score-grid th:nth-child(1), .score-grid td:nth-child(1) { width: 38px; font-weight: 600; color: var(--muted); }
+  .score-grid th:nth-child(3), .score-grid td:nth-child(3),
+  .score-grid th:nth-child(4), .score-grid td:nth-child(4) {
+    width: 46px; text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .score-grid td:nth-child(2) { font-size: 13.5px; line-height: 1.25; }
+  .score-grid td:nth-child(2) .lineup-tag { font-size: 9px; padding: 1px 4px; vertical-align: middle; }
+  .score-grid td:last-child { width: 50px; padding-right: 0; }
   .score-grid .replace-btn.score-replace-btn {
-    padding: 6px 10px; font-size: 11px; min-height: 32px; width: 100%;
+    padding: 6px 0; font-size: 11px; min-height: 32px; width: 100%; line-height: 1;
   }
 
   /* Header: stack tabs, smaller date row */

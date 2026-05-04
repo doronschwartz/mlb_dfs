@@ -1283,7 +1283,8 @@ $("#score-load").addEventListener("click", async () => {
               ? `<td><button class="replace-btn score-replace-btn"
                     data-pick-num="${p.pick_number}"
                     data-slot="${p.slot}"
-                    data-name="${escapeAttr(p.name)}">Replace</button></td>`
+                    data-name="${escapeAttr(p.name)}"
+                    title="Replace ${escapeAttr(p.name)}"><span class="rb-full">Replace</span><span class="rb-short">↻</span></button></td>`
               : `<td></td>`;
             const tooltip = renderBreakdownTooltip(p);
             return `
