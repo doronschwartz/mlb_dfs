@@ -1,6 +1,23 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
+// Tap-to-toggle for projection tooltips on touch devices (mobile-friendly).
+// On hover-capable devices CSS handles it; this just enables tap on touch.
+document.addEventListener("click", (e) => {
+  const cell = e.target.closest(".player-cell");
+  // Don't toggle if the user clicked an interactive child (button, pill, link).
+  if (cell && !e.target.closest("button, a, .slot-pill, .move-btn, .replace-btn")) {
+    const wasShown = cell.classList.contains("show-tooltip");
+    document.querySelectorAll(".player-cell.show-tooltip").forEach((el) => el.classList.remove("show-tooltip"));
+    if (!wasShown) cell.classList.add("show-tooltip");
+    return;
+  }
+  // Click outside any tooltip closes it.
+  if (!e.target.closest(".breakdown-tooltip")) {
+    document.querySelectorAll(".player-cell.show-tooltip").forEach((el) => el.classList.remove("show-tooltip"));
+  }
+});
+
 const today = new Date();
 $("#date").value = today.toISOString().slice(0, 10);
 

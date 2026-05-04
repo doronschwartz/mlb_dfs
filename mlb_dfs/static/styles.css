@@ -287,14 +287,55 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 }
 .replace-btn:hover { filter: brightness(1.1); }
 @media (max-width: 700px) {
+  /* Live scoring */
   .score-grid { grid-template-columns: 1fr; }
   .score-grid table { font-size: 12px; table-layout: fixed; }
   .score-grid td, .score-grid th { padding: 4px 4px; word-break: break-word; }
-  .score-grid td:nth-child(2) { font-size: 11px; }       /* Player column tighter */
-  .score-grid th:nth-child(5), .score-grid td:nth-child(5) { display: none; } /* Hide "State" col */
+  .score-grid td:nth-child(2) { font-size: 11px; }
+  .score-grid th:nth-child(5), .score-grid td:nth-child(5) { display: none; }
   .score-grid .replace-btn.score-replace-btn {
     padding: 6px 10px; font-size: 11px; min-height: 32px; width: 100%;
   }
+
+  /* Header: stack tabs, smaller date row */
+  header h1 { font-size: 16px; }
+  nav { flex-wrap: wrap; gap: 4px; }
+  nav button { padding: 6px 8px; font-size: 12px; }
+  .date-row { flex-wrap: wrap; gap: 6px; font-size: 12px; }
+
+  /* All available players: drop noisy columns, lift fonts down */
+  #pool-out table { font-size: 11px; }
+  #pool-out th, #pool-out td { padding: 4px 4px; }
+  #pool-out th:nth-child(4), #pool-out td:nth-child(4) { display: none; }   /* Role */
+  #pool-out th:nth-child(5), #pool-out td:nth-child(5) { display: none; }   /* Statcast */
+  #pool-out th:nth-child(7), #pool-out td:nth-child(7) { display: none; }   /* Notes */
+
+  /* Projections tab: drop Notes (visible in tooltip) */
+  #proj-out th:nth-child(5), #proj-out td:nth-child(5) { display: none; }
+  #proj-out table { font-size: 12px; }
+
+  /* Recommended picks: tighter */
+  #recs-out table { font-size: 12px; }
+  #recs-out th, #recs-out td { padding: 5px 4px; }
+
+  /* Pick-into pills bigger tap targets */
+  .slot-pill { padding: 6px 10px; font-size: 12px; min-height: 30px; }
+
+  /* Roster cards: 1 column for clarity */
+  .rosters { grid-template-columns: 1fr; }
+  .slot-cell { padding: 6px 8px; }
+
+  /* Pool filter row: stack */
+  #pool-search { width: 100%; }
+  .setup-row { flex-wrap: wrap; }
+
+  /* Tooltip — anchor to viewport-safe positions */
+  .breakdown-tooltip { font-size: 10.5px; padding: 6px 8px; min-width: 240px; }
+
+  /* Game cards (slate): tighter */
+  .game { padding: 8px 10px; }
+  .game .matchup { font-size: 14px; }
+  .game .sps { font-size: 11px; }
 }
 .move-btn {
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
@@ -364,13 +405,13 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 #kprops-table tr.kprops-good { background: rgba(52,211,153,0.08); }
 #kprops-table input { padding: 2px 6px; font-size: 12px; }
 
-.score-row .player-cell { position: relative; }
+.score-row .player-cell { position: relative; cursor: pointer; }
 .breakdown-tooltip {
   display: none; position: absolute; z-index: 50;
   top: calc(100% + 4px); left: 0;
   background: var(--bg); border: 1px solid var(--accent);
   border-radius: 6px; padding: 8px 10px;
-  min-width: 280px; max-width: 380px; width: max-content;
+  min-width: 280px; max-width: min(380px, 92vw); width: max-content;
   box-shadow: 0 6px 24px rgba(0,0,0,0.7);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px; line-height: 1.45;
@@ -384,7 +425,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .breakdown-tooltip .bk-row .bk-total.pos { color: var(--accent-2); }
 .breakdown-tooltip .bk-row .bk-total.neg { color: var(--bad); }
 .breakdown-tooltip .bk-pitfall { color: var(--bad); white-space: normal; }
-.score-row:hover .breakdown-tooltip { display: block; }
+/* Hover-only on devices with a real pointer; touch devices use tap-to-toggle. */
+@media (hover: hover) {
+  .player-cell:hover .breakdown-tooltip { display: block; }
+}
+.player-cell.show-tooltip .breakdown-tooltip { display: block; }
 .breakdown-tooltip .bk-title {
   font-family: -apple-system, system-ui, sans-serif;
   font-size: 12px; font-weight: 600; color: var(--text);
