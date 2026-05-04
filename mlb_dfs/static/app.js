@@ -1862,53 +1862,33 @@ function renderStats(stand, players) {
 
 let scheduleResult = null;
 
+function _toSunday(iso) {
+  const d = new Date(iso + "T12:00:00Z");
+  // getUTCDay: Sun=0..Sat=6. Roll back to Sunday.
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  return d.toISOString().slice(0, 10);
+}
+
 function initScheduleTab() {
   const today = $("#date").value;
-  if (!$("#sched-start").value) $("#sched-start").value = today;
-  if (!$("#sched-end").value) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + 6);
-    $("#sched-end").value = d.toISOString().slice(0, 10);
-  }
+  if (!$("#sched-start").value) $("#sched-start").value = _toSunday(today);
 }
 
-async function setDefaultScheduleRange() {
-  // Default start = day after the latest already-saved draft (so we don't
-  // propose dates that are already locked in). End = start + 6 days.
-  try {
-    const data = await api(`/api/drafts`);
-    const ids = data.drafts || [];
-    let latest = null;
-    for (const d of ids) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (latest === null || d > latest)) {
-        latest = d;
-      }
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const baseline = latest ? new Date(latest) : new Date(today);
-    const start = new Date(baseline);
-    start.setDate(start.getDate() + 1);
-    if (start < today) start.setTime(today.getTime());
-    // League plays Sun-Thu only — skip Fri (5) and Sat (6) for the start date.
-    while (start.getDay() === 5 || start.getDay() === 6) {
-      start.setDate(start.getDate() + 1);
-    }
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-    $("#sched-start").value = start.toISOString().slice(0, 10);
-    $("#sched-end").value = end.toISOString().slice(0, 10);
-  } catch {}
-}
+$("#sched-start")?.addEventListener("change", () => {
+  // Auto-snap any picked date back to the Sunday that starts that week.
+  const v = $("#sched-start").value;
+  if (v) $("#sched-start").value = _toSunday(v);
+});
 
 $("#sched-build").addEventListener("click", async () => {
-  const start = $("#sched-start").value;
-  const end = $("#sched-end").value;
+  let start = $("#sched-start").value;
+  if (!start) return alert("Pick a week-start (Sunday).");
+  start = _toSunday(start);
+  $("#sched-start").value = start;
   const size = $("#sched-size").value || "5";
-  if (!start || !end) return alert("Pick a start and end date.");
   $("#sched-out").innerHTML = `<div class="muted">Building (this fetches each day's slate from MLB)…</div>`;
   try {
-    const data = await api(`/api/schedule_builder?start=${start}&end=${end}&slate_size=${size}`);
+    const data = await api(`/api/schedule_builder?start=${start}&slate_size=${size}`);
     scheduleResult = data;
     renderSchedule(data);
     $("#sched-apply-row").hidden = false;

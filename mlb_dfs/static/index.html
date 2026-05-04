@@ -177,11 +177,11 @@
         order.
       </p>
       <div class="setup-row">
-        <label>Start <input type="date" id="sched-start" /></label>
-        <label>End <input type="date" id="sched-end" /></label>
+        <label>Week start (Sunday) <input type="date" id="sched-start" /></label>
         <label>Games per slate <input type="number" id="sched-size" min="1" max="15" value="5" style="width:60px;" /></label>
         <button id="sched-build" class="btn-pick">Build</button>
       </div>
+      <div class="muted" style="font-size:11px;">Schedules Sun→Thu (Fri/Sat skipped). Day games preferred when team counts are tied.</div>
       <div id="sched-out"></div>
       <div id="sched-apply-row" hidden style="margin-top:14px;">
         <h3>Apply this schedule</h3>

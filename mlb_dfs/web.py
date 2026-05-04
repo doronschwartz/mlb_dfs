@@ -386,22 +386,24 @@ def move_targets(draft_id: str, pick_number: int):
 @app.get("/api/schedule_builder")
 def schedule_builder(
     start: str,
-    end: str,
+    end: str | None = None,
     slate_size: int = 5,
     seed_from_existing: bool = True,
 ):
-    """Suggest a per-day slate selection across [start, end] that keeps each
-    team's appearance count as even as possible.
+    """Suggest a per-day slate selection across the week starting `start`
+    (which must be a Sunday). End auto-derives as start+6 (full week); the
+    builder skips Fri/Sat anyway so the practical range is Sun→Thu.
 
     Greedy: for each date, score each scheduled game by the sum of how often
     its two teams have already appeared, and pick the lowest-scoring N.
+    Day games are preferred as tiebreaker (more likely to be watched live).
 
     If `seed_from_existing` is true, prior saved drafts on dates in or before
     `start` seed the team-counter so the schedule continues evenly from
     however many slates have already been played.
     """
     s = Date.fromisoformat(start)
-    e = Date.fromisoformat(end)
+    e = Date.fromisoformat(end) if end else (s + timedelta(days=6))
     if e < s:
         raise HTTPException(400, "end must be on/after start")
 
@@ -458,10 +460,22 @@ def schedule_builder(
         except Exception:
             cur += timedelta(days=1)
             continue
+        def _is_day_game(g):
+            # MLB schedule returns gameDate as ISO Z (UTC). Day games on the
+            # east coast start ~17-21 UTC; night games ~23 UTC onward.
+            iso = g.get("gameDate") or ""
+            try:
+                hour = int(iso[11:13])
+                return hour < 22   # ~before 6pm ET
+            except Exception:
+                return False
         scored = sorted(
             games,
             key=lambda g: (
                 counts[g["away"]["abbr"] or ""] + counts[g["home"]["abbr"] or ""],
+                # Day games preferred (more likely to be watched live). False=0
+                # sorts before True=1, so we negate.
+                0 if _is_day_game(g) else 1,
                 # tiebreak: random-ish so reruns don't always pick the same game
                 hash((g.get("gamePk", 0), cur.isoformat())) & 0xFFFF,
             ),
