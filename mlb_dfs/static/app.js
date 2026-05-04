@@ -471,7 +471,7 @@ function renderProjectionsTable() {
       (p) => `
       <tr class="${p.role} score-row">
         <td>${p.projected_points.toFixed(2)}</td>
-        <td class="player-cell">${p.name} ${formBadge((p.components||{}).form_tag)}${projTooltip(p)}</td>
+        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${projTooltip(p)}</td>
         <td>${p.position ?? "-"}</td>
         <td>${p.role}</td>
         <td class="notes">${(p.notes || []).join(" · ")}</td>
@@ -730,7 +730,7 @@ async function renderDraft() {
         <div class="slot-label">${label}</div>
         <div class="slot-body">
           <div class="slot-line1">
-            <div class="slot-name player-cell score-row">${pick.name} ${formBadge((pick.components||{}).form_tag)}${projTooltip(pick)}</div>
+            <div class="slot-name player-cell"><span class="name-trigger">${pick.name} ${formBadge((pick.components||{}).form_tag)}</span>${projTooltip(pick)}</div>
             <span class="slot-proj">${pick.projected.toFixed(1)}</span>
           </div>
           <div class="slot-line2">${meta.join("")}</div>
@@ -1054,7 +1054,7 @@ async function renderRecs() {
           return `
           <tr class="${r.role} score-row">
             <td>${r.projected_points.toFixed(2)}</td>
-            <td class="player-cell">${r.name} ${formBadge((r.components||{}).form_tag)}${projTooltip(r)}</td>
+            <td class="player-cell"><span class="name-trigger">${r.name} ${formBadge((r.components||{}).form_tag)}</span>${projTooltip(r)}</td>
             <td>${r.position ?? "-"}</td>
             <td>${pills}</td>
           </tr>`;
@@ -1152,7 +1152,7 @@ function drawPool() {
             return `
         <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
-          <td class="player-cell">${p.name} ${formBadge((p.components||{}).form_tag)}${projTooltip(p)}</td>
+          <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
@@ -1261,7 +1261,7 @@ $("#score-load").addEventListener("click", async () => {
             return `
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
-            <td class="player-cell">${p.name} ${lineupTag} ${tag} ${promoted}${tooltip}</td>
+            <td class="player-cell"><span class="name-trigger">${p.name} ${lineupTag} ${tag} ${promoted}</span>${tooltip}</td>
             <td>${p.projected.toFixed(1)}</td>
             <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
             <td class="muted">${p.game_state ?? ""}</td>

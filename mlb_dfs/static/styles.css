@@ -430,9 +430,12 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .breakdown-tooltip .bk-row .bk-total.pos { color: var(--accent-2); }
 .breakdown-tooltip .bk-row .bk-total.neg { color: var(--bad); }
 .breakdown-tooltip .bk-pitfall { color: var(--bad); white-space: normal; }
-/* Hover-only on devices with a real pointer; touch devices use tap-to-toggle. */
+/* Hover-only on devices with a real pointer; touch devices use tap-to-toggle.
+   Hover is anchored to the .name-trigger span (just the name+badge), not the
+   whole cell — so hovering Pos / pills / Replace doesn't pop the tooltip. */
+.player-cell .name-trigger { cursor: pointer; }
 @media (hover: hover) {
-  .player-cell:hover .breakdown-tooltip { display: block; }
+  .player-cell .name-trigger:hover ~ .breakdown-tooltip { display: block; }
 }
 .player-cell.show-tooltip .breakdown-tooltip { display: block; }
 .breakdown-tooltip .bk-title {
