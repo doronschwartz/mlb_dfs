@@ -42,8 +42,15 @@
     <section id="tab-calib" class="tab">
       <h2>Projection accuracy</h2>
       <p class="muted" style="font-size:13px;">
-        Projected vs actual fantasy points for the date above. Bias = mean(actual − projected); negative = we over-projected. MAE = mean absolute error. Sortable table at the bottom shows where we missed worst.
+        Projected vs actual fantasy points. Bias = mean(actual − projected); negative = we over-projected. MAE = mean absolute error. Sortable table at the bottom shows where we missed worst.
       </p>
+      <div class="setup-row">
+        <label>Date <input id="calib-date" type="date" /></label>
+        <button id="calib-yesterday" type="button">Yesterday</button>
+        <button id="calib-prev" type="button" title="Previous day">◀</button>
+        <button id="calib-next" type="button" title="Next day">▶</button>
+        <button id="calib-load" type="button" class="btn-pick">Load</button>
+      </div>
       <div id="calib-out"></div>
     </section>
 

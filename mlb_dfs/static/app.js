@@ -1599,8 +1599,23 @@ async function refresh() {
 
 let _calibSort = { col: "absdiff", dir: -1 };
 
+function _yesterdayISO() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function _shiftDateISO(iso, days) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 async function loadCalibration() {
-  const d = $("#date").value;
+  // Use the tab-local date if it's set; otherwise default to yesterday.
+  const dateInput = $("#calib-date");
+  if (dateInput && !dateInput.value) dateInput.value = _yesterdayISO();
+  const d = dateInput?.value || _yesterdayISO();
   const out = $("#calib-out");
   out.innerHTML = `<div class="muted">Crunching ${d}… (fetches box scores per game, ~10s)</div>`;
   let data;
@@ -1608,6 +1623,24 @@ async function loadCalibration() {
   catch (e) { out.innerHTML = `<div class="muted">${e.message}</div>`; return; }
   renderCalibration(data);
 }
+
+// Wire the calibration controls once.
+$("#calib-load")?.addEventListener("click", loadCalibration);
+$("#calib-date")?.addEventListener("change", loadCalibration);
+$("#calib-yesterday")?.addEventListener("click", () => {
+  $("#calib-date").value = _yesterdayISO();
+  loadCalibration();
+});
+$("#calib-prev")?.addEventListener("click", () => {
+  const cur = $("#calib-date").value || _yesterdayISO();
+  $("#calib-date").value = _shiftDateISO(cur, -1);
+  loadCalibration();
+});
+$("#calib-next")?.addEventListener("click", () => {
+  const cur = $("#calib-date").value || _yesterdayISO();
+  $("#calib-date").value = _shiftDateISO(cur, 1);
+  loadCalibration();
+});
 
 function _aggCard(label, a) {
   if (!a || !a.n) return `<div class="agg"><h4>${label}</h4><div class="muted">no data</div></div>`;
