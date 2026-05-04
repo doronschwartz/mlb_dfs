@@ -1885,7 +1885,7 @@ $("#sched-build").addEventListener("click", async () => {
   if (!start) return alert("Pick a week-start (Sunday).");
   start = _toSunday(start);
   $("#sched-start").value = start;
-  const size = $("#sched-size").value || "5";
+  const size = $("#sched-size").value || "6";
   $("#sched-out").innerHTML = `<div class="muted">Building (this fetches each day's slate from MLB)…</div>`;
   try {
     const data = await api(`/api/schedule_builder?start=${start}&slate_size=${size}`);

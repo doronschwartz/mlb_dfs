@@ -387,7 +387,7 @@ def move_targets(draft_id: str, pick_number: int):
 def schedule_builder(
     start: str,
     end: str | None = None,
-    slate_size: int = 5,
+    slate_size: int = 6,
     seed_from_existing: bool = True,
 ):
     """Suggest a per-day slate selection across the week starting `start`
