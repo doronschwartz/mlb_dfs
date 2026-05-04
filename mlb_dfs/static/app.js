@@ -1869,15 +1869,73 @@ function _toSunday(iso) {
   return d.toISOString().slice(0, 10);
 }
 
-function initScheduleTab() {
-  const today = $("#date").value;
-  if (!$("#sched-start").value) $("#sched-start").value = _toSunday(today);
+function _isoDate(d) { return d.toISOString().slice(0, 10); }
+
+function _shortMonthDay(iso) {
+  const d = new Date(iso + "T12:00:00Z");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-$("#sched-start")?.addEventListener("change", () => {
-  // Auto-snap any picked date back to the Sunday that starts that week.
-  const v = $("#sched-start").value;
-  if (v) $("#sched-start").value = _toSunday(v);
+let _schedAnchorSunday = null;   // The Sunday at the LEFT of the visible chip strip.
+const SCHED_CHIP_COUNT = 5;
+
+function _renderSundayChips() {
+  if (!_schedAnchorSunday) return;
+  const host = $("#sched-sundays");
+  if (!host) return;
+  const selected = $("#sched-start").value;
+  const todaySunday = _toSunday(_isoDate(new Date()));
+  const anchor = new Date(_schedAnchorSunday + "T12:00:00Z");
+  const chips = [];
+  for (let i = 0; i < SCHED_CHIP_COUNT; i++) {
+    const d = new Date(anchor);
+    d.setUTCDate(anchor.getUTCDate() + i * 7);
+    const iso = _isoDate(d);
+    const label = iso === todaySunday ? "This wk"
+      : iso === _isoDate(new Date(new Date(todaySunday + "T12:00:00Z").getTime() + 7*86400000)) ? "Next wk"
+      : _shortMonthDay(iso);
+    const sub = iso === todaySunday || iso.startsWith(_shortMonthDay(iso)) ? "" : _shortMonthDay(iso);
+    const sel = iso === selected ? "selected" : "";
+    chips.push(`<div class="sunday-chip ${sel}" data-iso="${iso}">
+      <span class="label">${label}</span>
+      ${label === "This wk" || label === "Next wk" ? `<span class="sub">${_shortMonthDay(iso)}</span>` : ""}
+    </div>`);
+  }
+  host.innerHTML = chips.join("");
+  host.querySelectorAll(".sunday-chip").forEach((el) => {
+    el.addEventListener("click", () => {
+      $("#sched-start").value = el.dataset.iso;
+      _renderSundayChips();
+    });
+  });
+}
+
+function initScheduleTab() {
+  const today = $("#date").value || _isoDate(new Date());
+  const sun = _toSunday(today);
+  if (!$("#sched-start").value) $("#sched-start").value = sun;
+  // Anchor strip slightly to the right of selected so user sees current + future weeks.
+  if (!_schedAnchorSunday) {
+    const anchor = new Date(sun + "T12:00:00Z");
+    anchor.setUTCDate(anchor.getUTCDate() - 7); // one week earlier so user sees prev/this/next/+/+/+
+    _schedAnchorSunday = _isoDate(anchor);
+  }
+  _renderSundayChips();
+}
+
+$("#sched-prev")?.addEventListener("click", () => {
+  if (!_schedAnchorSunday) return;
+  const a = new Date(_schedAnchorSunday + "T12:00:00Z");
+  a.setUTCDate(a.getUTCDate() - 7 * SCHED_CHIP_COUNT);
+  _schedAnchorSunday = _isoDate(a);
+  _renderSundayChips();
+});
+$("#sched-next")?.addEventListener("click", () => {
+  if (!_schedAnchorSunday) return;
+  const a = new Date(_schedAnchorSunday + "T12:00:00Z");
+  a.setUTCDate(a.getUTCDate() + 7 * SCHED_CHIP_COUNT);
+  _schedAnchorSunday = _isoDate(a);
+  _renderSundayChips();
 });
 
 $("#sched-build").addEventListener("click", async () => {

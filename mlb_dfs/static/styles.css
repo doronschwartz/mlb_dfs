@@ -383,6 +383,26 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 
 footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 
+.sunday-picker { align-items: center; gap: 8px; }
+.sunday-picker .chevron {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); width: 32px; height: 32px; border-radius: 6px;
+  cursor: pointer; font-size: 14px;
+}
+.sunday-picker .chevron:hover { color: var(--text); border-color: var(--accent); }
+.sunday-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.sunday-chip {
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 12px; border-radius: 8px;
+  cursor: pointer; font-size: 12px; line-height: 1.2;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  min-width: 92px;
+}
+.sunday-chip:hover { border-color: var(--accent); }
+.sunday-chip.selected { border-color: var(--accent); background: rgba(96,165,250,0.12); box-shadow: 0 0 0 1px var(--accent) inset; }
+.sunday-chip .label { font-weight: 600; font-size: 12px; }
+.sunday-chip .sub { color: var(--muted); font-size: 10.5px; }
+
 .agg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
 .agg { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12px; }
 .agg h4 { margin: 0 0 6px; font-size: 13px; }
