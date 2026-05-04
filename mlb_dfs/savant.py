@@ -100,3 +100,23 @@ def lookup_batter_qoc(pid: int, season: int) -> dict | None:
 
 def lookup_pitcher_qoc(pid: int, season: int) -> dict | None:
     return pitcher_statcast(season).get(int(pid))
+
+
+def batter_expected_range(season: int, start_date: str, end_date: str) -> dict[int, dict]:
+    """Rolling expected stats over a date window. Returns {pid: {est_woba, ...}}.
+    Cached on disk for 24h via the same _csv pipeline."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/expected_statistics"
+        f"?type=batter&year={season}&min=5&csv=true"
+        f"&start_date={start_date}&end_date={end_date}"
+    )
+    return _idx(rows)
+
+
+def pitcher_expected_range(season: int, start_date: str, end_date: str) -> dict[int, dict]:
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/expected_statistics"
+        f"?type=pitcher&year={season}&min=5&csv=true"
+        f"&start_date={start_date}&end_date={end_date}"
+    )
+    return _idx(rows)

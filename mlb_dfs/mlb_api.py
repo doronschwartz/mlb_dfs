@@ -195,6 +195,36 @@ POSITION_OVERRIDES = {
 }
 
 
+_HANDEDNESS_CACHE: dict[int, tuple[float, dict]] = {}
+
+
+def handedness_by_player(season: int) -> dict[int, dict]:
+    """{player_id: {bats: 'L'|'R'|'S', throws: 'L'|'R'}} for all active MLB players.
+    One API call, cached 24h in-memory + 24h on disk via _get's internal cache."""
+    import time as _t
+    cached = _HANDEDNESS_CACHE.get(season)
+    if cached and (_t.time() - cached[0] < 86400):
+        return cached[1]
+    out: dict[int, dict] = {}
+    try:
+        data = _get(
+            "/sports/1/players",
+            params={"season": season},
+        )
+        for p in data.get("people", []) or []:
+            pid = p.get("id")
+            if not pid:
+                continue
+            bats = (p.get("batSide") or {}).get("code")
+            throws = (p.get("pitchHand") or {}).get("code")
+            if bats or throws:
+                out[pid] = {"bats": bats, "throws": throws}
+    except Exception:
+        return out
+    _HANDEDNESS_CACHE[season] = (_t.time(), out)
+    return out
+
+
 def players_in_slate(d: Date) -> dict[int, dict]:
     """Map of player_id -> {name, primaryPosition, teamId} for everyone on a roster
     of a team playing today. This is the draft pool."""
