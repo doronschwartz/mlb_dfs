@@ -36,6 +36,28 @@ PARKS = {
 # Domes / retractable that almost always close → weather doesn't matter.
 DOMED = {"ARI", "AZ", "HOU", "MIA", "MIL", "TB", "TEX", "TOR", "SEA", "MIN"}
 
+# Static park factors — (run_env, HR_factor). Sourced from FanGraphs/Statcast
+# 3-year multi-year averages (2022-2024). Run env > 1.0 = hitter-friendly.
+# These are venue-driven physical effects (altitude, foul territory, fence
+# distance/height), independent of weather.
+PARK_FACTORS = {
+    "COL": (1.16, 1.22),   "CIN": (1.06, 1.14),   "BOS": (1.06, 1.04),
+    "TEX": (1.05, 1.10),   "BAL": (1.04, 1.10),   "PHI": (1.04, 1.06),
+    "NYY": (1.03, 1.13),   "MIN": (1.02, 1.04),   "TOR": (1.02, 1.02),
+    "WSH": (1.02, 1.00),   "ATL": (1.01, 1.02),   "HOU": (1.01, 1.05),
+    "AZ":  (1.00, 1.01),   "ATH": (1.00, 0.96),   "MIL": (1.00, 1.04),
+    "STL": (1.00, 0.97),   "TB":  (0.99, 0.98),   "CHC": (0.99, 1.02),
+    "LAA": (0.98, 0.99),   "CWS": (0.98, 1.05),   "KC":  (0.98, 0.92),
+    "NYM": (0.97, 0.94),   "CLE": (0.97, 0.96),   "PIT": (0.96, 0.93),
+    "MIA": (0.95, 0.84),   "DET": (0.95, 0.93),   "SF":  (0.94, 0.85),
+    "SEA": (0.94, 0.91),   "SD":  (0.93, 0.94),   "LAD": (0.97, 1.00),
+}
+
+
+def park_factor(home_abbr: str) -> tuple[float, float]:
+    """Returns (run_env, hr_factor) for the home park. Defaults to 1.0/1.0."""
+    return PARK_FACTORS.get((home_abbr or "").upper(), (1.0, 1.0))
+
 _CACHE: dict[str, tuple[float, dict]] = {}
 _TTL = 1800  # 30 min
 

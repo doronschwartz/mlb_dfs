@@ -24,8 +24,17 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
 
-from . import mlb_api, savant
+from . import mlb_api, savant, weather as weather_mod
 from .scoring import HITTER_POINTS, PITCHER_POINTS
+
+# Team ID → abbr (small static map; MLB IDs are stable)
+_TEAM_ABBR = {
+    108: "LAA", 109: "AZ", 110: "BAL", 111: "BOS", 112: "CHC", 113: "CIN",
+    114: "CLE", 115: "COL", 116: "DET", 117: "HOU", 118: "KC", 119: "LAD",
+    120: "WSH", 121: "NYM", 133: "ATH", 134: "PIT", 135: "SD", 136: "SEA",
+    137: "SF", 138: "STL", 139: "TB", 140: "TEX", 141: "TOR", 142: "MIN",
+    143: "PHI", 144: "ATL", 145: "CWS", 146: "MIA", 147: "NYY", 158: "MIL",
+}
 
 LEAGUE_AVG_HITTER_POINTS_PER_GAME = 6.5
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
@@ -138,6 +147,7 @@ def project_hitter(
     position: str | None,
     season: int,
     opposing_sp_id: int | None,
+    park: dict | None = None,
 ) -> Projection:
     last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3)
     last7 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=7)
@@ -224,7 +234,20 @@ def project_hitter(
     if qoc_notes:
         notes.append(f"qoc residual x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
 
-    proj = base_pg * sp_factor * qoc_factor
+    # Park factor — combine run env (overall offensive-friendliness) with HR
+    # factor (which directly affects HR-heavy fantasy scoring). Run env weighted
+    # higher since it captures more of the projected box-score value.
+    park_factor = 1.0
+    if park:
+        run_env = park.get("run_env", 1.0)
+        hr_f = park.get("hr_factor", 1.0)
+        park_factor = (run_env * 0.65) + (hr_f * 0.35)
+        # Clamp to keep it from doing more than ~15% in either direction.
+        park_factor = max(0.85, min(park_factor, 1.18))
+        venue = park.get("venue", "")
+        notes.append(f"park {venue} x{park_factor:.2f} (run {run_env:.2f}, HR {hr_f:.2f})")
+
+    proj = base_pg * sp_factor * qoc_factor * park_factor
     pitfalls: list[str] = []
     if games_14 < 7:
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
@@ -271,6 +294,7 @@ def project_pitcher(
     team_id: int | None,
     season: int,
     opponent_team_id: int | None,
+    park: dict | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7)
     last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14)
@@ -343,7 +367,21 @@ def project_pitcher(
     if qoc_notes:
         notes.append(f"qoc residual x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
 
-    proj = base * opp_factor * qoc_factor
+    # Park factor — INVERSE for pitchers (hitter-friendly park hurts pitchers).
+    # Smaller magnitude than for hitters since pitchers' fantasy value is more
+    # K-driven (less park-dependent) than hit/run-driven.
+    park_factor = 1.0
+    if park:
+        run_env = park.get("run_env", 1.0)
+        hr_f = park.get("hr_factor", 1.0)
+        park_blend = (run_env * 0.65) + (hr_f * 0.35)
+        # Invert and damp: 1.10 hitter-friendly → ~0.95 for pitcher; 0.90 friendly → ~1.05.
+        park_factor = 1.0 + (1.0 - park_blend) * 0.5
+        park_factor = max(0.90, min(park_factor, 1.10))
+        venue = park.get("venue", "")
+        notes.append(f"park {venue} x{park_factor:.2f} (env {park_blend:.2f})")
+
+    proj = base * opp_factor * qoc_factor * park_factor
     pitfalls: list[str] = []
     # SPs typically start every ~5 days, so 2-3 GS in 14d is the norm. Only
     # flag truly tiny samples (1 or 0 starts) — that's where projection noise
@@ -659,9 +697,9 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     season = d.year
     games = mlb_api.schedule(d)
 
-    # Build matchup map: team_id -> opposing team_id and opposing SP id
+    # Build matchup map: team_id -> {opp, opp_sp, park (run_env, hr_factor)}
     matchups: dict[int, dict] = {}
-    probable_sps: dict[int, dict] = {}  # sp_id -> {team_id, opp_team_id}
+    probable_sps: dict[int, dict] = {}  # sp_id -> {team_id, opp_team_id, park}
     for g in games:
         home = ((g.get("teams") or {}).get("home") or {})
         away = ((g.get("teams") or {}).get("away") or {})
@@ -669,17 +707,29 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         away_team = (away.get("team") or {}).get("id")
         home_sp = (home.get("probablePitcher") or {}).get("id")
         away_sp = (away.get("probablePitcher") or {}).get("id")
+        # Park factor for the venue (home team's park) — combine static park
+        # constants with the day's weather-driven HR adjustment.
+        home_abbr = _TEAM_ABBR.get(home_team or 0, "")
+        run_env, hr_static = weather_mod.park_factor(home_abbr)
+        try:
+            wx = weather_mod.park_forecast(home_abbr, g.get("gameDate") or "")
+            wx_hr = (wx or {}).get("hr_factor", 1.0)
+        except Exception:
+            wx_hr = 1.0
+        # Combine static park HR factor with weather; weight static heavier.
+        combined_hr = (hr_static * 0.7) + (wx_hr * 0.3)
+        park = {"run_env": run_env, "hr_factor": combined_hr, "venue": home_abbr}
         if home_team and away_team:
-            matchups[home_team] = {"opp": away_team, "opp_sp": away_sp}
-            matchups[away_team] = {"opp": home_team, "opp_sp": home_sp}
+            matchups[home_team] = {"opp": away_team, "opp_sp": away_sp, "park": park}
+            matchups[away_team] = {"opp": home_team, "opp_sp": home_sp, "park": park}
         if home_sp:
             probable_sps[home_sp] = {
-                "team_id": home_team, "opp_team_id": away_team,
+                "team_id": home_team, "opp_team_id": away_team, "park": park,
                 "name": (home.get("probablePitcher") or {}).get("fullName"),
             }
         if away_sp:
             probable_sps[away_sp] = {
-                "team_id": away_team, "opp_team_id": home_team,
+                "team_id": away_team, "opp_team_id": home_team, "park": park,
                 "name": (away.get("probablePitcher") or {}).get("fullName"),
             }
 
@@ -694,6 +744,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             sp_id, info["name"] or pool.get(sp_id, {}).get("name", "?"),
             team_id=info["team_id"], season=season,
             opponent_team_id=info["opp_team_id"],
+            park=info.get("park"),
         ))
 
     # Hitters — everyone non-pitcher in the slate roster pool
@@ -709,6 +760,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             position=meta.get("position"),
             season=season,
             opposing_sp_id=m.get("opp_sp"),
+            park=m.get("park"),
         ))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
