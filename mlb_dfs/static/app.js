@@ -1287,12 +1287,13 @@ $("#score-load").addEventListener("click", async () => {
                     title="Replace ${escapeAttr(p.name)}"><span class="rb-full">Replace</span><span class="rb-short">↻</span></button></td>`
               : `<td></td>`;
             const tooltip = renderBreakdownTooltip(p);
+            const actualVal = p.actual === null ? "-" : p.actual.toFixed(1);
             return `
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
-            <td class="player-cell"><span class="name-trigger">${p.name} ${lineupTag} ${tag} ${promoted}</span>${tooltip}</td>
+            <td>${p.name} ${lineupTag} ${tag} ${promoted}</td>
             <td>${p.projected.toFixed(1)}</td>
-            <td>${p.actual === null ? "-" : p.actual.toFixed(1)}</td>
+            <td class="player-cell"><span class="name-trigger">${actualVal}</span>${tooltip}</td>
             <td class="muted">${p.game_state ?? ""}</td>
             ${replaceCell}
           </tr>`;
