@@ -172,6 +172,15 @@ def project_hitter(
     if form_note:
         notes.append(form_note)
 
+    # Streak-trust override: 4 days of calibration showed HOT players were
+    # consistently under-projected by ~+4 pts and COLD over-projected by ~-3 pts.
+    # The form_tag is itself a strong signal — players hot enough to trigger it
+    # tend to continue. So when tagged, lean ~70% on the L3 sample directly.
+    if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
+        streak_base = 0.70 * pg_3 + 0.30 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
+        base_pg = streak_base
+
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
     sp_factor = 1.0
     if opposing_sp_id:
