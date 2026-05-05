@@ -149,6 +149,32 @@ $("#refresh").addEventListener("click", async () => {
   await refresh();
 });
 
+// Decide the action label given current Fantrax slot vs recommendation.
+// Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.
+const _BENCH_SLOTS = new Set(["BN", "Res", "Reserve", "IR", "InjRes", "Inj Res", ""]);
+function _actionLabel(r) {
+  const cur = r.current_slot ?? null;
+  const isStart = r.recommendation === "START";
+  const slotPart = r.slot_assignment ? ` <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>` : "";
+  if (r.recommendation === "OFF") return { label: "OFF", cls: "muted" };
+  // No Fantrax data → fall back to the bare recommendation.
+  if (cur == null) {
+    if (isStart) return { label: `START${slotPart}`, cls: "edge-pos" };
+    if (r.recommendation === "BN") return { label: "BN", cls: "edge-neg" };
+    return { label: r.recommendation, cls: "edge-neg" };
+  }
+  const curBench = _BENCH_SLOTS.has(cur);
+  if (isStart) {
+    if (curBench) return { label: `PROMOTE ↑${slotPart}`, cls: "edge-pos" };
+    if (cur === r.slot_assignment) return { label: `KEEP${slotPart}`, cls: "edge-pos" };
+    // Currently active but in a different slot
+    return { label: `MOVE → ${r.slot_assignment || "?"}`, cls: "edge-pos" };
+  }
+  // Recommendation is BN / SIT
+  if (curBench) return { label: `STAY BN`, cls: "muted" };
+  return { label: `BENCH ↓ <span class="muted" style="font-weight:400;">(was ${cur})</span>`, cls: "edge-neg" };
+}
+
 // Per-cat z-score breakdown (text, used in Cat val cell title= tooltip).
 const _LG_HITTER = { R: [0.56, 0.18], HR: [0.14, 0.07], RBI: [0.55, 0.20], SB: [0.06, 0.10], OPS: [0.730, 0.080] };
 const _LG_PITCHER = { QS: [0.45, 0.20], K: [5.5, 1.5], ERA: [4.20, 0.80], WHIP: [1.30, 0.13], SVH: [0.0, 0.30] };
@@ -234,12 +260,10 @@ $("#lineup-go")?.addEventListener("click", async () => {
       return (b.cat_value || 0) - (a.cat_value || 0);
     });
     const trs = rows.map(r => {
-      const isStart = r.recommendation === "START";
-      const isOff = r.recommendation === "OFF";
-      const isBN = r.recommendation === "BN";
-      const recCls = isStart ? "edge-pos" : (isOff ? "muted" : "edge-neg");
+      const action = _actionLabel(r);
       const rpTag = r.is_rp ? ` <span class="bench-tag" style="background:rgba(148,163,184,0.25);font-size:9px;">RP?</span>` : "";
-      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>${rpTag}` : `${r.recommendation}${rpTag}`;
+      const recCls = action.cls;
+      const recLabel = `${action.label}${rpTag}`;
       const cp = r.cat_proj || {};
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
