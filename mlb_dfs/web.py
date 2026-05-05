@@ -238,9 +238,9 @@ def lineup_advice(req: LineupRequest):
     pitchers separately. Top-N of each get 'START', rest 'SIT'.
     """
     d = Date.fromisoformat(req.date) if req.date else Date.today()
-    # force_refresh: ensure rolling_cats and the latest factors are present
-    # (the projections cache may be stale across model updates).
-    projs = projections.project_slate_cached(d, force_refresh=True)
+    # Use cached projections when available — force_refresh adds 30s and the
+    # global Refresh button is the right place for the user to bust the cache.
+    projs = projections.project_slate_cached(d)
     by_lower = {p.name.lower(): p for p in projs}
 
     # Relievers aren't in projs (we only project probable SPs). Build a

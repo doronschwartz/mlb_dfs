@@ -890,23 +890,30 @@ def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_fa
     return z, proj
 
 
-def project_reliever_cats(pid: int, season: int) -> dict | None:
-    """Project a reliever's per-day category contribution.
+_RP_CACHE: dict[tuple, tuple[float, dict | None]] = {}
+_RP_TTL = 6 * 3600
 
-    Pulls their season pitching rates and scales by an estimated daily usage
-    probability (~35% — relievers pitch 1 in ~3 days). Returns:
-      {QS, K, ERA, WHIP, SVH} — projected daily contribution.
-    Returns None if the player has no usable pitching sample.
-    """
+
+def project_reliever_cats(pid: int, season: int) -> dict | None:
+    """Project a reliever's per-day category contribution. 6h cache so a
+    52-RP roster doesn't blow up the lineup endpoint."""
+    key = (pid, season)
+    now = time.time()
+    cached = _RP_CACHE.get(key)
+    if cached and (now - cached[0]) < _RP_TTL:
+        return cached[1]
     try:
         seasn = mlb_api.player_stats(pid, group="pitching", season=season)
     except Exception:
+        _RP_CACHE[key] = (now, None)
         return None
     g = _safe_float(seasn.get("gamesPlayed"))
     if g < 3:
+        _RP_CACHE[key] = (now, None)
         return None
     ip = _safe_float(seasn.get("inningsPitched"))
     if ip <= 0:
+        _RP_CACHE[key] = (now, None)
         return None
     k = _safe_float(seasn.get("strikeOuts"))
     sv = _safe_float(seasn.get("saves"))
@@ -927,15 +934,17 @@ def project_reliever_cats(pid: int, season: int) -> dict | None:
         usage = 0.40        # setup / late innings
     else:
         usage = 0.30        # middle relief
-    return {
-        "QS": 0.0,                          # relievers don't get QS
-        "K": k_per_app * usage,             # expected K today
-        "ERA": era,                         # rate, applies if they pitch
-        "WHIP": whip,                       # rate, applies if they pitch
-        "SVH": svh_per_app * usage,         # expected SV+H today
-        "_usage": usage,                    # exposed for transparency
+    out = {
+        "QS": 0.0,
+        "K": k_per_app * usage,
+        "ERA": era,
+        "WHIP": whip,
+        "SVH": svh_per_app * usage,
+        "_usage": usage,
         "_ip_per_app": ip_per_app,
     }
+    _RP_CACHE[key] = (now, out)
+    return out
 
 
 def category_value_reliever(rates: dict, leverage: dict | None = None) -> tuple[float, dict]:
