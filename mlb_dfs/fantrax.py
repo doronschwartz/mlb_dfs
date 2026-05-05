@@ -325,15 +325,25 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
                 "out": bool(p.out),
             })
         # If the league has empty slots (e.g. an unfilled OF), top up
-        # slot_counts using the league's max-active config so the optimizer
-        # knows the true capacity.
+        # slot_counts using the league's max-active config — but Fantrax's
+        # position_counts.max is "games per period" (e.g. 28 for 4×OF over 7
+        # days), not a slot count. Sanity-cap each position so we don't end up
+        # with 28×OF capacity.
+        SANE_SLOT_CAP = {
+            "C": 2, "1B": 2, "2B": 2, "3B": 2, "SS": 2, "MI": 2, "CI": 2,
+            "OF": 6, "UT": 4, "SP": 8, "RP": 6, "P": 6,
+        }
         try:
             counts_cfg = api.position_counts(team_id)
             for sn, pc in counts_cfg.items():
                 if pc.max:
-                    slot_counts[sn] = max(slot_counts.get(sn, 0), pc.max)
+                    cap = SANE_SLOT_CAP.get(sn, 4)
+                    slot_counts[sn] = max(slot_counts.get(sn, 0), min(pc.max, cap))
         except Exception:
             pass
+        # Final pass: cap whatever made it through.
+        for sn in list(slot_counts.keys()):
+            slot_counts[sn] = min(slot_counts[sn], SANE_SLOT_CAP.get(sn, 8))
     except Exception as roster_err:
         # fantraxapi's Roster init is fragile — for some teams it raises
         # IndexError when one of the two methods (GAMES_PER_POS / STATS) returns
