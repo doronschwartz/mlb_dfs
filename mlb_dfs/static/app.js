@@ -149,6 +149,26 @@ $("#refresh").addEventListener("click", async () => {
   await refresh();
 });
 
+// Per-cat z-score breakdown (text, used in Cat val cell title= tooltip).
+const _LG_HITTER = { R: [0.56, 0.18], HR: [0.14, 0.07], RBI: [0.55, 0.20], SB: [0.06, 0.10], OPS: [0.730, 0.080] };
+const _LG_PITCHER = { QS: [0.45, 0.20], K: [5.5, 1.5], ERA: [4.20, 0.80], WHIP: [1.30, 0.13], SVH: [0.0, 0.30] };
+function _catValBreakdown(r, leverage) {
+  const cp = r.cat_proj || {};
+  const isHitter = r.role === "hitter";
+  const lg = isHitter ? _LG_HITTER : _LG_PITCHER;
+  const lines = [];
+  for (const [k, [mean, stdev]] of Object.entries(lg)) {
+    if (cp[k] == null) continue;
+    let z = (cp[k] - mean) / stdev;
+    if (k === "ERA" || k === "WHIP") z = -z;   // lower is better
+    const lev = leverage[k] ?? 1.0;
+    const contrib = z * lev;
+    const sign = contrib >= 0 ? "+" : "";
+    lines.push(`${k}: ${sign}${contrib.toFixed(2)} (z=${z.toFixed(2)} × lev ${lev.toFixed(1)})`);
+  }
+  return `Per-cat contributions to Cat val (z-score × leverage):\n` + lines.join("\n");
+}
+
 // Helper: render the opponent line for a lineup row.
 function _oppCell(r) {
   if (!r.opp_abbr) return "";
@@ -223,14 +243,15 @@ $("#lineup-go")?.addEventListener("click", async () => {
       const cp = r.cat_proj || {};
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
-        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td>`;
+        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td><td>${(cp.SVH ?? 0).toFixed(2)}</td>`;
       const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
       const cvSign = r.cat_value >= 0 ? "+" : "";
+      const cvTitle = _catValBreakdown(r, data?.leverage || {});
       return `<tr>
         <td class="${recCls}"><b>${recLabel}</b></td>
         <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}${_oppCell(r)}</td>
         <td>${r.position ?? "—"}</td>
-        <td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
+        <td class="${cvCls}" title="${cvTitle}" style="cursor:help;"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
         ${catCols}
         <td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td>
       </tr>`;
@@ -324,12 +345,13 @@ function _renderLineupOutput(data) {
       const cp = r.cat_proj || {};
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
-        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td>`;
+        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td><td>${(cp.SVH ?? 0).toFixed(2)}</td>`;
       const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
       const cvSign = r.cat_value >= 0 ? "+" : "";
+      const cvTitle = _catValBreakdown(r, data?.leverage || {});
       return `<tr><td class="${recCls}"><b>${recLabel}</b></td><td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td><td>${r.position ?? "—"}</td><td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>${catCols}<td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td></tr>`;
     }).join("");
-    const headerCats = isHitter ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>` : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th>`;
+    const headerCats = isHitter ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>` : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th><th>SVH</th>`;
     const tableId = isHitter ? "lineup-hitters" : "lineup-pitchers";
     return `<h3>${title}
       <select class="lineup-sort" data-target="${tableId}" style="margin-left:8px;font-size:12px;">
@@ -337,9 +359,18 @@ function _renderLineupOutput(data) {
         <option value="fp" ${sortKey === "fp" ? "selected" : ""}>Sort: FP</option>
         <option value="slot" ${sortKey === "slot" ? "selected" : ""}>Sort: Slot</option>
       </select></h3>
-      <table id="${tableId}"><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead><tbody>${trs}</tbody></table>`;
+      <table id="${tableId}"><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th title="Sum of z-scores across the 5 H2H categories — how much this player swings YOUR matchup vs an avg replacement, weighted by leverage on close cats.">Cat val ⓘ</th>${headerCats}<th>FP</th></tr></thead><tbody>${trs}</tbody></table>`;
   };
   let html = "";
+  html += `<details style="margin:4px 0 8px;font-size:12px;">
+    <summary class="muted" style="cursor:pointer;">ⓘ How "Cat val" is computed</summary>
+    <div style="font-size:11.5px;margin:4px 0 0 14px;line-height:1.5;">
+      <b>Cat val</b> = sum of z-scores across the 5 H2H categories (R/HR/RBI/SB/OPS for hitters; QS/K/ERA/WHIP/SVH for pitchers).<br>
+      Each cat's z = <code>(player projection − league avg) / league stdev</code>. ERA/WHIP are inverted (lower = better).<br>
+      Each z is then multiplied by <b>leverage</b>: 1.5× if your matchup is close in that cat, 1.0× competitive, 0.5× if essentially decided.<br>
+      Hover over any Cat val cell to see the per-cat breakdown.
+    </div>
+  </details>`;
   if (data.slot_capacity && Object.keys(data.slot_capacity).length) {
     const sc = data.slot_capacity;
     html += `<div class="muted" style="font-size:11px;margin:4px 0 6px;">Slots: ${Object.entries(sc).map(([k,v]) => `${v}×${k}`).join(" · ")}</div>`;

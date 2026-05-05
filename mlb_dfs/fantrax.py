@@ -292,12 +292,31 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     roster = None
     try:
         roster = api.team_roster(team_id)
+        # fantraxapi's Roster aggregates rows from multiple table groups; only
+        # the first roster.active_max + reserve_max + injured_max rows are the
+        # real roster grid — anything past that is duplication from another
+        # period view.
+        total_slots = (
+            (roster.active_max or 0)
+            + (roster.reserve_max or 0)
+            + (roster.injured_max or 0)
+        )
+        seen = 0
         for row in roster.rows:
             if not row.position:
                 continue
+            if total_slots > 0 and seen >= total_slots:
+                break
+            seen += 1
             sn = row.position.short_name
             slot_counts[sn] = slot_counts.get(sn, 0) + 1
+        seen2 = 0
         for row in roster.rows:
+            if not row.position:
+                continue
+            if total_slots > 0 and seen2 >= total_slots:
+                break
+            seen2 += 1
             if row.player is None:
                 continue
             p = row.player

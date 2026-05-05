@@ -254,6 +254,9 @@ def lineup_advice(req: LineupRequest):
     today_team_ids: set[int] = set()
     try:
         for g in mlb_api.schedule(d):
+            status = (g.get("status") or {}).get("detailedState", "")
+            if status in ("Postponed", "Cancelled", "Suspended", "Completed Early"):
+                continue
             for side in ("home", "away"):
                 t = ((g.get("teams") or {}).get(side) or {}).get("team") or {}
                 if t.get("id"):

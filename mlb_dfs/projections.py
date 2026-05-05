@@ -840,13 +840,27 @@ def _per_game_hitter_cats(stats: dict) -> dict:
 
 
 def _per_start_pitcher_cats(stats: dict) -> dict:
-    """Returns per-start K, QS-prob, ERA, WHIP from a pitching stats dict."""
+    """Returns per-start K, QS-prob, ERA, WHIP from a pitching stats dict.
+
+    QS-prob: when raw `qualityStarts` is in the response (season splits) we
+    use it directly. byDateRange responses often omit it, so we estimate from
+    IP/start + ERA: P(QS) ≈ 0.5 + 0.10*(IP/start - 5.5) - 0.10*(ERA - 4.0),
+    clamped to [0.05, 0.75]."""
     gs = max(_safe_float(stats.get("gamesStarted")), 1.0)
-    qs = _safe_float(stats.get("qualityStarts"))
+    qs_raw = _safe_float(stats.get("qualityStarts"))
+    ip = _safe_float(stats.get("inningsPitched"))
+    era = _safe_float(stats.get("era"), default=4.20)
+    if qs_raw > 0:
+        qs_rate = qs_raw / gs
+    else:
+        ip_per_start = ip / gs if gs else 5.0
+        qs_rate = max(0.05, min(0.75,
+            0.50 + 0.10 * (ip_per_start - 5.5) - 0.10 * (era - 4.0)
+        ))
     return {
-        "QS":   qs / gs,
+        "QS":   qs_rate,
         "K":    _safe_float(stats.get("strikeOuts")) / gs,
-        "ERA":  _safe_float(stats.get("era"), default=4.20),
+        "ERA":  era,
         "WHIP": _safe_float(stats.get("whip"), default=1.30),
         "SVH":  0.0,
     }
@@ -1109,6 +1123,11 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     matchups: dict[int, dict] = {}
     probable_sps: dict[int, dict] = {}  # sp_id -> {team_id, opp_team_id, park}
     for g in games:
+        # Skip postponed/cancelled/suspended games — players in them aren't
+        # actually playing today.
+        status_state = (g.get("status") or {}).get("detailedState", "") or ""
+        if status_state in ("Postponed", "Cancelled", "Suspended", "Completed Early"):
+            continue
         home = ((g.get("teams") or {}).get("home") or {})
         away = ((g.get("teams") or {}).get("away") or {})
         home_team = (home.get("team") or {}).get("id")
