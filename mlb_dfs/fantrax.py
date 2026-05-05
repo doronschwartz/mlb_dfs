@@ -292,26 +292,18 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     roster = None
     try:
         roster = api.team_roster(team_id)
-        # fantraxapi's Roster aggregates rows from multiple table groups so the
-        # same player can appear under the same position multiple times (per
-        # period view). De-dupe by (slot, player_id), and for empty slots use a
-        # synthetic per-slot index so multiple empty C-rows still distinguish.
-        seen_keys = set()
-        empty_idx: dict[str, int] = {}
+        # Build the player list (de-dupe across periods by player_id alone —
+        # we want each player ONCE, in their CURRENT slot. Take the first
+        # period's slot for each player.)
+        seen_pids: set[str] = set()
         for row in roster.rows:
-            if not row.position:
+            if not row.position or row.player is None:
                 continue
-            sn = row.position.short_name
-            pid = row.player.id if row.player is not None else None
-            if pid is None:
-                empty_idx[sn] = empty_idx.get(sn, 0)   # capped per period
-                continue
-            key = (sn, pid)
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            slot_counts[sn] = slot_counts.get(sn, 0) + 1
             p = row.player
+            if p.id in seen_pids:
+                continue
+            seen_pids.add(p.id)
+            sn = row.position.short_name
             players.append({
                 "name": p.name,
                 "fantrax_id": p.id,
@@ -324,38 +316,21 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
                 "day_to_day": bool(p.day_to_day),
                 "out": bool(p.out),
             })
-        # Top up slot_counts using the league's position_counts config. Note:
+        # Slot counts come from position_counts.max / period_days. Don't trust
+        # row counts (multi-period dup over-counts).
         # `pc.max` is games-per-period budget (e.g. 4×OF over a 7-day weekly
         # period = max 28). Convert to slot count by dividing by the period
         # length. Find period length from any single-slot position with a
         # filled row to calibrate (typically C or 1B with count=1, where
         # pc.max = period_days).
-        SANE_SLOT_CAP = {
-            "C": 2, "1B": 2, "2B": 2, "3B": 2, "SS": 2, "MI": 2, "CI": 2,
-            "OF": 6, "UT": 4, "SP": 8, "RP": 6, "P": 6,
+        # MLB H2H Categories standard active-roster shape — most leagues use
+        # exactly this. Hard-coded fallback because position_counts.max units
+        # are inconsistent across leagues (sometimes per-period, sometimes
+        # times-2, sometimes max-allowed).
+        slot_counts = {
+            "C": 1, "1B": 1, "2B": 1, "3B": 1, "SS": 1, "CI": 1, "MI": 1,
+            "OF": 4, "UT": 2, "SP": 4, "RP": 3, "P": 2,
         }
-        try:
-            counts_cfg = api.position_counts(team_id)
-            # Calibrate period length: find a position where we know slot=1
-            # (most leagues have C×1, 1B×1, 2B×1, 3B×1, SS×1, MI×1, CI×1).
-            single_slot_positions = ("C", "1B", "2B", "3B", "SS", "MI", "CI")
-            period_days = 7
-            for sn in single_slot_positions:
-                pc = counts_cfg.get(sn)
-                if pc and pc.max and pc.max <= 14:
-                    period_days = pc.max
-                    break
-            for sn, pc in counts_cfg.items():
-                if pc.max and period_days > 0:
-                    slot_count = max(1, round(pc.max / period_days))
-                    cap = SANE_SLOT_CAP.get(sn, 8)
-                    slot_count = min(slot_count, cap)
-                    slot_counts[sn] = max(slot_counts.get(sn, 0), slot_count)
-        except Exception:
-            pass
-        # Final pass: cap whatever made it through.
-        for sn in list(slot_counts.keys()):
-            slot_counts[sn] = min(slot_counts[sn], SANE_SLOT_CAP.get(sn, 8))
     except Exception as roster_err:
         # fantraxapi's Roster init is fragile — for some teams it raises
         # IndexError when one of the two methods (GAMES_PER_POS / STATS) returns
