@@ -243,6 +243,11 @@ def lineup_advice(req: LineupRequest):
     projs = projections.project_slate_cached(d)
     by_lower = {p.name.lower(): p for p in projs}
 
+    def _norm(s):
+        import unicodedata
+        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+        return "".join(c.lower() for c in s if c.isalnum() or c.isspace())
+
     # Relievers aren't in projs (we only project probable SPs). Build a
     # secondary index of MLB pitchers whose team plays today, so unmatched
     # pitcher names can still surface as "RP — uncertain" rows.
@@ -305,11 +310,6 @@ def lineup_advice(req: LineupRequest):
 
     # Build a tighter matcher: keyed by ASCII-normalized last name, with
     # full-name disambiguation when multiple players share a last name.
-    def _norm(s):
-        # strip accents + punctuation, lowercase
-        import unicodedata
-        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
-        return "".join(c.lower() for c in s if c.isalnum() or c.isspace())
     by_lastname: dict[str, list] = {}
     for p in projs:
         parts = _norm(p.name).split()
