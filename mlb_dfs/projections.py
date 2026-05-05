@@ -237,7 +237,10 @@ def project_hitter(
     # After first 70% override, residual remained ~+2/-1.3 — the L3 sample
     # itself underestimates HOT players' continuation. Bumped to 80%.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
-        streak_base = 0.80 * pg_3 + 0.20 * base_pg
+        # Negative L3 averages are noise (a -2.8 pts/G sample from K-heavy 3
+        # games doesn't predict true-talent negative). Floor at 0.
+        pg_3_safe = max(pg_3, 0.0)
+        streak_base = 0.80 * pg_3_safe + 0.20 * base_pg
         notes.append(f"streak override ({form_tag}): 0.8*L3 + 0.2*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
@@ -350,6 +353,10 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
+    # Floor — even a deeply slumping hitter isn't expected to score below ~1
+    # pt (he might get one walk or ROE). Negative/near-zero projections were
+    # the result of compounding cuts, not realistic forecasts.
+    proj = max(proj, 1.0)
 
     # Confidence interval: hitter single-game stdev empirically ~5.5 pts
     # (calibration MAE ~4.3 → stdev ≈ MAE × 1.25). Floor/ceiling = ±1 stdev.
