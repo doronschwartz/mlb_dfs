@@ -149,29 +149,43 @@ $("#refresh").addEventListener("click", async () => {
   await refresh();
 });
 
+// Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
+let _lastFantraxPlayers = null;
+
 $("#lineup-go")?.addEventListener("click", async () => {
   const names = ($("#lineup-names").value || "").split("\n").map(s => s.trim()).filter(Boolean);
   if (!names.length) return alert("Paste at least one player name.");
   localStorage.setItem("mlb_dfs_lineup_names", $("#lineup-names").value);
   $("#lineup-out").innerHTML = `<div class="muted">Projecting ${names.length} players…</div>`;
+  const body = { date: $("#date").value, names };
+  // If we have league_id + team_id + cached Fantrax players, send them so the
+  // backend can do slot-aware optimization with real position eligibility.
+  const lg = ($("#ftx-league")?.value || "").trim();
+  const tm = ($("#ftx-team")?.value || "").trim();
+  if (lg) body.league_id = lg;
+  if (tm) body.team_id = tm;
+  if (_lastFantraxPlayers) body.fantrax_players = _lastFantraxPlayers;
   const data = await api(`/api/lineup`, {
     method: "POST",
-    body: JSON.stringify({ date: $("#date").value, names }),
+    body: JSON.stringify(body),
   });
   const renderTable = (title, rows, emptyMsg) => {
     if (!rows.length) return `<h3>${title}</h3><div class="muted">${emptyMsg}</div>`;
     const isHitter = rows[0]?.role === "hitter";
     const trs = rows.map(r => {
-      const recCls = r.recommendation === "START" ? "edge-pos" : (r.recommendation === "SIT" ? "edge-neg" : "muted");
+      const isStart = r.recommendation === "START";
+      const isOff = r.recommendation === "OFF";
+      const isBN = r.recommendation === "BN";
+      const recCls = isStart ? "edge-pos" : (isOff ? "muted" : "edge-neg");
+      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>` : r.recommendation;
       const cp = r.cat_proj || {};
-      // Format per-cat projection as small inline grid
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
         : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td>`;
       const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
       const cvSign = r.cat_value >= 0 ? "+" : "";
       return `<tr>
-        <td class="${recCls}"><b>${r.recommendation}</b></td>
+        <td class="${recCls}"><b>${recLabel}</b></td>
         <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td>
         <td>${r.position ?? "—"}</td>
         <td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
@@ -360,6 +374,9 @@ $("#ftx-pull")?.addEventListener("click", async () => {
     const names = (data.players || []).map(p => p.name).filter(Boolean);
     $("#lineup-names").value = names.join("\n");
     localStorage.setItem("mlb_dfs_lineup_names", $("#lineup-names").value);
+    // Cache the full player list — /api/lineup needs position eligibility for
+    // slot-aware optimization.
+    _lastFantraxPlayers = data.players || [];
     $("#ftx-status").textContent = `✓ Pulled ${names.length} from ${data.team_name || "team"}. Click Project lineup.`;
     $("#ftx-status").style.color = "var(--accent-2)";
   } catch (e) {

@@ -179,6 +179,16 @@ def _trim(obj, depth: int = 0, max_depth: int = 4, max_str: int = 300, max_list:
     return obj
 
 
+def get_position_counts(league_id: str, team_id: str) -> dict:
+    """Returns the active-roster slot config for the given team. Each entry is
+    a position short-name (C, 1B, OF, UT, SP, RP, P, BN, IR…) → {min, max, gp}.
+    These are the daily slots we have to fill."""
+    api = _api(league_id)
+    pc = api.position_counts(team_id)
+    return {short: {"name": p.name, "min": p.min, "max": p.max, "gp": p.gp}
+            for short, p in pc.items()}
+
+
 def list_teams(league_id: str) -> list[dict]:
     """Returns [{team_id, name, short}] for every team in the league."""
     api = _api(league_id)

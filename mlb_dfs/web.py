@@ -222,6 +222,12 @@ def make_pick(draft_id: str, req: PickRequest):
 class LineupRequest(BaseModel):
     date: str | None = None
     names: list[str]
+    league_id: str | None = None
+    team_id: str | None = None
+    # Optional Fantrax-pulled metadata: list of {name, position (eligibility),
+    # slot (current), is_bench, is_ir} from get_roster. When provided we use
+    # the position eligibility to do slot-aware filling.
+    fantrax_players: list[dict] | None = None
 
 
 @app.post("/api/lineup")
@@ -322,15 +328,87 @@ def lineup_advice(req: LineupRequest):
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter"]
     pitchers = [r for r in results if r["role"] == "pitcher"]
-    # Sort by H2H Cat value (z-score sum across the 5 cats), not raw fantasy
-    # points — your league is H2H Categories, so cat-value is the right rank.
+    # Sort by H2H Cat value (z-score sum across the 5 cats).
     hitters.sort(key=lambda r: r["cat_value"], reverse=True)
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
-    # Heuristic: top 8 hitters START, top 2 pitchers START. Tweak per league.
-    for i, r in enumerate(hitters):
-        r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
-    for i, r in enumerate(pitchers):
-        r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
+
+    # Position-aware slot filling, when Fantrax metadata is available.
+    slot_config = None
+    eligibility_map: dict[str, set[str]] = {}   # input_name -> set of slot eligibilities
+    if req.league_id and req.team_id:
+        try:
+            slot_config = fantrax.get_position_counts(req.league_id, req.team_id)
+        except Exception:
+            slot_config = None
+    if req.fantrax_players:
+        for fp in req.fantrax_players:
+            elig = (fp.get("position") or "").upper()
+            slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
+            eligibility_map[(fp.get("name") or "").lower()] = slots
+
+    if slot_config:
+        # Hitter slots to fill (everything that isn't a pitcher slot, BN, IR, Res).
+        HITTER_SLOTS = ("C", "1B", "2B", "3B", "SS", "CI", "MI", "OF", "UT")
+        PITCHER_SLOTS = ("SP", "RP", "P")
+        # Build slot capacity from `max` (or `min` if max is None — Fantrax uses
+        # `gp` for budget/cap on game-eligible plays per period; we use `max`
+        # as instantaneous active count, which mirrors lineup-card UX).
+        def _capacity(slot):
+            cfg = slot_config.get(slot)
+            if not cfg:
+                return 0
+            # Some leagues only have a `max` (UT, Res), others have a fixed slot count.
+            return cfg.get("max") or 0
+        hit_slots = {s: _capacity(s) for s in HITTER_SLOTS if _capacity(s) > 0}
+        pit_slots = {s: _capacity(s) for s in PITCHER_SLOTS if _capacity(s) > 0}
+        # Greedy assign in cat-value-desc order, prefer most-restrictive slot.
+        SLOT_PRIORITY_HIT = ["C", "SS", "2B", "3B", "1B", "MI", "CI", "OF", "UT"]
+        SLOT_PRIORITY_PIT = ["SP", "RP", "P"]
+
+        def _assign(rows, slots, priority):
+            remaining = dict(slots)
+            for r in rows:
+                r["slot_assignment"] = None
+                if not r["playing_today"]:
+                    r["recommendation"] = "OFF"
+                    continue
+                elig = eligibility_map.get(r["input"].lower(), set())
+                # Try slot priorities in order, take first that the player is
+                # eligible for AND has remaining capacity.
+                placed = False
+                for s in priority:
+                    if remaining.get(s, 0) <= 0:
+                        continue
+                    if s == "UT":
+                        # UT accepts any non-pitcher.
+                        placed = True
+                    elif s == "P":
+                        placed = True
+                    elif s in elig:
+                        placed = True
+                    elif s == "MI" and (elig & {"2B", "SS"}):
+                        placed = True
+                    elif s == "CI" and (elig & {"1B", "3B"}):
+                        placed = True
+                    elif s == "OF" and (elig & {"OF", "LF", "CF", "RF"}):
+                        placed = True
+                    if placed:
+                        remaining[s] -= 1
+                        r["slot_assignment"] = s
+                        r["recommendation"] = "START"
+                        break
+                if not placed:
+                    r["recommendation"] = "BN"
+            return remaining
+
+        _assign(hitters, hit_slots, SLOT_PRIORITY_HIT)
+        _assign(pitchers, pit_slots, SLOT_PRIORITY_PIT)
+    else:
+        # Fallback: top-N heuristic.
+        for i, r in enumerate(hitters):
+            r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
+        for i, r in enumerate(pitchers):
+            r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
     return {"date": d.isoformat(), "hitters": hitters, "pitchers": pitchers,
             "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]]}
 
