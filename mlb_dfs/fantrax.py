@@ -179,6 +179,79 @@ def _trim(obj, depth: int = 0, max_depth: int = 4, max_str: int = 300, max_list:
     return obj
 
 
+def get_current_matchup(league_id: str, team_id: str) -> dict:
+    """Returns the user's current week's matchup with per-category values for
+    both teams. Uses the H2H Cat standings response which carries period-level
+    breakdowns. Returns {} if not found.
+
+    Output shape:
+      {
+        "period": "Scoring Period: 6",
+        "subCaption": "(Mon May 4 - Sun May 10)",
+        "category_short_names": ["R","HR","RBI","SB","OPS","QS","K","ERA","WHIP","SVH"],
+        "my_team": "...", "opp_team": "...",
+        "values": {"R": (my, opp), "HR": (my, opp), ...},
+      }
+    """
+    from fantraxapi.api import Method, _request
+    sess = _session()
+    raw = _request(league_id, [Method("getStandings")], session=sess)
+    if not isinstance(raw, dict):
+        return {}
+    tables = raw.get("tableList", []) or []
+    # Find the period table with H2hRotisserie2 type — the per-period matchup grid.
+    for table in tables:
+        if table.get("tableType") != "H2hRotisserie2":
+            continue
+        # Iterate rows; each row has fixedCells[0].teamId and matchupId.
+        # The pair of rows with the same matchupId that contains team_id is the user's matchup.
+        rows = table.get("rows", [])
+        # Skip past periods (disabled=True). Take the first period with our team.
+        if all(r.get("disabled") for r in rows if any(c.get("teamId") == team_id for c in (r.get("fixedCells") or []))):
+            continue
+        # Find user's row + opponent's row.
+        my_row = None
+        opp_row = None
+        for r in rows:
+            tid = (r.get("fixedCells") or [{}])[0].get("teamId")
+            if tid == team_id and not r.get("disabled"):
+                my_row = r
+                # Opponent shares matchupId.
+                mid = r.get("matchupId")
+                for r2 in rows:
+                    tid2 = (r2.get("fixedCells") or [{}])[0].get("teamId")
+                    if r2.get("matchupId") == mid and tid2 != team_id:
+                        opp_row = r2
+                        break
+                break
+        if not my_row or not opp_row:
+            continue
+        # Header gives column names. First 4 cols are W/L/T/Pts; the rest are cats.
+        header_cells = (table.get("header") or {}).get("cells", [])
+        cat_short = [c.get("shortName") for c in header_cells]
+        my_cells = my_row.get("cells", [])
+        opp_cells = opp_row.get("cells", [])
+        values = {}
+        for i, sn in enumerate(cat_short):
+            if sn in ("W", "L", "T", "Pts"):
+                continue
+            try:
+                my_v = float((my_cells[i] or {}).get("toolTip") or (my_cells[i] or {}).get("content") or 0)
+                opp_v = float((opp_cells[i] or {}).get("toolTip") or (opp_cells[i] or {}).get("content") or 0)
+            except (ValueError, TypeError):
+                my_v = opp_v = 0.0
+            values[sn] = (my_v, opp_v)
+        return {
+            "period": table.get("caption"),
+            "subCaption": table.get("subCaption"),
+            "category_short_names": [s for s in cat_short if s not in ("W","L","T","Pts")],
+            "my_team": (my_row.get("fixedCells") or [{}])[0].get("content"),
+            "opp_team": (opp_row.get("fixedCells") or [{}])[0].get("content"),
+            "values": values,
+        }
+    return {}
+
+
 def get_position_counts(league_id: str, team_id: str) -> dict:
     """Returns the active-roster slot config for the given team. Each entry is
     a position short-name (C, 1B, OF, UT, SP, RP, P, BN, IR…) → {min, max, gp}.

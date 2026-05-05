@@ -200,7 +200,31 @@ $("#lineup-go")?.addEventListener("click", async () => {
       <table><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead>
       <tbody>${trs}</tbody></table>`;
   };
-  let html = renderTable("Hitters", data.hitters, "No hitters matched.");
+  let html = "";
+  // Current weekly matchup state + leverage display.
+  if (data.matchup && data.matchup.values) {
+    const m = data.matchup;
+    const cats = m.category_short_names || [];
+    const lev = data.leverage || {};
+    const cells = cats.map(c => {
+      const [my, opp] = m.values[c] || [0, 0];
+      const l = lev[c] ?? 1.0;
+      const lvCls = l > 1.2 ? "edge-pos" : l < 0.8 ? "muted" : "";
+      const cmp = my > opp ? "edge-pos" : my < opp ? "edge-neg" : "muted";
+      const lower_better = (c === "ERA" || c === "WHIP");
+      const winning = lower_better ? my < opp : my > opp;
+      const cmp2 = my === opp ? "muted" : (winning ? "edge-pos" : "edge-neg");
+      const fmt = (v) => Number.isInteger(v) ? v : v.toFixed(c === "OPS" ? 3 : 2);
+      return `<td><b>${c}</b><br><span class="${cmp2}">${fmt(my)} vs ${fmt(opp)}</span><br><span class="${lvCls}" style="font-size:10px;">×${l.toFixed(1)} lev</span></td>`;
+    }).join("");
+    html += `<div style="margin:6px 0 14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;">
+      <h3 style="margin:0 0 4px;">${m.period} <span class="muted" style="font-weight:400;font-size:12px;">${m.subCaption || ""}</span></h3>
+      <div class="muted" style="font-size:12px;margin-bottom:6px;">${m.my_team || "you"} vs <b>${m.opp_team || "opp"}</b></div>
+      <table style="font-size:12px;width:100%;text-align:center;"><tbody><tr>${cells}</tr></tbody></table>
+      <div class="muted" style="font-size:11px;margin-top:6px;">Leverage: 1.5× = close cat, every contribution matters; 0.5× = essentially decided.</div>
+    </div>`;
+  }
+  html += renderTable("Hitters", data.hitters, "No hitters matched.");
   html += renderTable("Pitchers", data.pitchers, "No pitchers matched.");
   if (data.unmatched.length) {
     const list = data.unmatched.map(r => r.input).join(", ");

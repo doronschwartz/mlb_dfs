@@ -264,6 +264,17 @@ def lineup_advice(req: LineupRequest):
             real_last = parts[-2]
         by_lastname.setdefault(real_last, []).append(p)
 
+    # Pull current weekly matchup state for leverage weighting.
+    matchup = {}
+    leverage_map = {}
+    if req.league_id and req.team_id:
+        try:
+            matchup = fantrax.get_current_matchup(req.league_id, req.team_id) or {}
+            for cat, (my_v, opp_v) in (matchup.get("values") or {}).items():
+                leverage_map[cat] = projections.category_leverage(my_v, opp_v, cat)
+        except Exception:
+            matchup = {}
+
     results = []
     for raw in req.names:
         name = raw.strip()
@@ -306,12 +317,14 @@ def lineup_advice(req: LineupRequest):
                     park_factor=c.get("park_factor", 1.0),
                     platoon_factor=c.get("platoon_factor", 1.0),
                     order_factor=c.get("order_factor", 1.0),
+                    leverage=leverage_map,
                 )
             else:
                 cat_value, cat_proj = projections.category_value_pitcher(
                     proj,
                     vegas_factor=c.get("vegas_factor", 1.0),
                     park_factor=c.get("park_factor", 1.0),
+                    leverage=leverage_map,
                 )
         results.append({
             "input": name,
@@ -409,8 +422,14 @@ def lineup_advice(req: LineupRequest):
             r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
         for i, r in enumerate(pitchers):
             r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
-    return {"date": d.isoformat(), "hitters": hitters, "pitchers": pitchers,
-            "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]]}
+    return {
+        "date": d.isoformat(),
+        "hitters": hitters,
+        "pitchers": pitchers,
+        "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]],
+        "matchup": matchup,
+        "leverage": leverage_map,
+    }
 
 
 class FantraxCookieRequest(BaseModel):

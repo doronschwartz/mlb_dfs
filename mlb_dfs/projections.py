@@ -842,7 +842,27 @@ def _per_start_pitcher_cats(stats: dict) -> dict:
     }
 
 
-def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_factor: float, order_factor: float) -> tuple[float, dict]:
+# Typical weekly category swings — used to gauge leverage. A close matchup in a
+# given cat means each marginal contribution matters more.
+TYPICAL_WEEKLY_SWING = {
+    "R": 22, "HR": 5, "RBI": 18, "SB": 4, "OPS": 0.150,
+    "QS": 2, "K": 28, "ERA": 1.8, "WHIP": 0.30, "SVH": 5,
+}
+
+
+def category_leverage(my_val: float, opp_val: float, cat: str) -> float:
+    """Returns 0.5 / 1.0 / 1.5 based on how close this category is — close
+    matchups get a leverage boost (every contribution matters), locked cats
+    get damped (you're already winning/losing the cat regardless)."""
+    swing = TYPICAL_WEEKLY_SWING.get(cat, 1.0)
+    gap = abs(my_val - opp_val)
+    ratio = gap / max(swing, 0.001)
+    if ratio < 0.30: return 1.5     # very close, every point swings the cat
+    if ratio < 1.00: return 1.0     # competitive
+    return 0.5                       # essentially decided
+
+
+def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_factor: float, order_factor: float, leverage: dict | None = None) -> tuple[float, dict]:
     """Project the player's expected category contributions today, then sum
     z-scores. Returns (cat_value, per_category_dict)."""
     c = p.components or {}
@@ -863,12 +883,14 @@ def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_fa
     proj["SB"]  = rates.get("SB", 0)  * counting_mult
     proj["OPS"] = rates.get("OPS", 0) * rate_mult
     z = 0.0
+    lev = leverage or {}
     for k, v in proj.items():
-        z += (v - LG_HITTER_RATES[k]) / LG_HITTER_STDEV[k]
+        raw_z = (v - LG_HITTER_RATES[k]) / LG_HITTER_STDEV[k]
+        z += raw_z * lev.get(k, 1.0)
     return z, proj
 
 
-def category_value_pitcher(p, vegas_factor: float, park_factor: float) -> tuple[float, dict]:
+def category_value_pitcher(p, vegas_factor: float, park_factor: float, leverage: dict | None = None) -> tuple[float, dict]:
     c = p.components or {}
     rates = c.get("rolling_cats") or {}
     if not rates:
@@ -884,12 +906,13 @@ def category_value_pitcher(p, vegas_factor: float, park_factor: float) -> tuple[
     proj["ERA"]  = rates.get("ERA", 4.20) / max(vegas_factor, 0.01) / max(park_factor, 0.01)
     proj["WHIP"] = rates.get("WHIP", 1.30) / max(vegas_factor, 0.01)
     proj["SVH"]  = 0.0   # SPs don't get holds; reliever projection is a separate concern
+    lev = leverage or {}
     z = 0.0
-    z += (proj["QS"]   - LG_PITCHER_RATES["QS"])   / LG_PITCHER_STDEV["QS"]
-    z += (proj["K"]    - LG_PITCHER_RATES["K"])    / LG_PITCHER_STDEV["K"]
+    z += ((proj["QS"]   - LG_PITCHER_RATES["QS"])   / LG_PITCHER_STDEV["QS"])  * lev.get("QS", 1.0)
+    z += ((proj["K"]    - LG_PITCHER_RATES["K"])    / LG_PITCHER_STDEV["K"])   * lev.get("K", 1.0)
     # Inverse — lower ERA/WHIP is BETTER, so flip the z sign.
-    z += (LG_PITCHER_RATES["ERA"]  - proj["ERA"])  / LG_PITCHER_STDEV["ERA"]
-    z += (LG_PITCHER_RATES["WHIP"] - proj["WHIP"]) / LG_PITCHER_STDEV["WHIP"]
+    z += ((LG_PITCHER_RATES["ERA"]  - proj["ERA"])  / LG_PITCHER_STDEV["ERA"])  * lev.get("ERA", 1.0)
+    z += ((LG_PITCHER_RATES["WHIP"] - proj["WHIP"]) / LG_PITCHER_STDEV["WHIP"]) * lev.get("WHIP", 1.0)
     return z, proj
 
 
