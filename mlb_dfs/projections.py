@@ -196,6 +196,9 @@ def project_hitter(
     opp_throws: str | None = None,
     rolling_xwoba: float | None = None,
     season_xwoba: float | None = None,
+    opp_abbr: str | None = None,
+    opp_sp_name: str | None = None,
+    is_home: bool | None = None,
 ) -> Projection:
     last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3)
     last7 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=7)
@@ -424,6 +427,9 @@ def project_hitter(
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
             "rolling_cats": rolling_cats,
+            "opp_abbr": opp_abbr,
+            "opp_sp_name": opp_sp_name,
+            "is_home": is_home,
         },
         notes=notes,
     )
@@ -441,6 +447,8 @@ def project_pitcher(
     throws: str | None = None,
     rolling_xwoba: float | None = None,
     season_xwoba: float | None = None,
+    opp_abbr: str | None = None,
+    is_home: bool | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7)
     last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14)
@@ -610,6 +618,8 @@ def project_pitcher(
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
             "rolling_cats": rolling_cats,
+            "opp_abbr": opp_abbr,
+            "is_home": is_home,
         },
         notes=notes,
     )
@@ -1117,18 +1127,31 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         # Combine static park HR factor with weather; weight static heavier.
         combined_hr = (hr_static * 0.7) + (wx_hr * 0.3)
         park = {"run_env": run_env, "hr_factor": combined_hr, "venue": home_abbr}
+        away_abbr = _TEAM_ABBR.get(away_team or 0, "")
+        home_sp_name = (home.get("probablePitcher") or {}).get("fullName")
+        away_sp_name = (away.get("probablePitcher") or {}).get("fullName")
         if home_team and away_team:
-            matchups[home_team] = {"opp": away_team, "opp_sp": away_sp, "park": park}
-            matchups[away_team] = {"opp": home_team, "opp_sp": home_sp, "park": park}
+            matchups[home_team] = {
+                "opp": away_team, "opp_sp": away_sp, "park": park,
+                "opp_abbr": away_abbr, "opp_sp_name": away_sp_name,
+                "is_home": True,
+            }
+            matchups[away_team] = {
+                "opp": home_team, "opp_sp": home_sp, "park": park,
+                "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
+                "is_home": False,
+            }
         if home_sp:
             probable_sps[home_sp] = {
                 "team_id": home_team, "opp_team_id": away_team, "park": park,
-                "name": (home.get("probablePitcher") or {}).get("fullName"),
+                "name": home_sp_name,
+                "opp_abbr": away_abbr, "is_home": True,
             }
         if away_sp:
             probable_sps[away_sp] = {
                 "team_id": away_team, "opp_team_id": home_team, "park": park,
-                "name": (away.get("probablePitcher") or {}).get("fullName"),
+                "name": away_sp_name,
+                "opp_abbr": home_abbr, "is_home": False,
             }
 
     pool = mlb_api.players_in_slate(d)
@@ -1186,6 +1209,8 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             throws=sp_throws,
             rolling_xwoba=rolling_pitch_x,
             season_xwoba=season_pitch_x,
+            opp_abbr=info.get("opp_abbr"),
+            is_home=info.get("is_home"),
         ))
 
     # Hitters — everyone non-pitcher in the slate roster pool
@@ -1216,6 +1241,9 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_throws=opp_throws,
             rolling_xwoba=rolling_x,
             season_xwoba=season_x,
+            opp_abbr=m.get("opp_abbr"),
+            opp_sp_name=m.get("opp_sp_name"),
+            is_home=m.get("is_home"),
         ))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher

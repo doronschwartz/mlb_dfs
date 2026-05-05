@@ -149,6 +149,20 @@ $("#refresh").addEventListener("click", async () => {
   await refresh();
 });
 
+// Helper: render the opponent line for a lineup row.
+function _oppCell(r) {
+  if (!r.opp_abbr) return "";
+  const prefix = r.is_home === false ? "@" : "vs ";
+  if (r.role === "hitter") {
+    const sp = r.opp_sp_name ? ` <span class="muted" style="font-size:10px;">vs ${r.opp_sp_name}</span>` : "";
+    return `<br><span class="muted" style="font-size:11px;">${prefix}${r.opp_abbr}${sp}</span>`;
+  }
+  // Pitchers: show opponent team + their implied team total if available
+  const c = r.components || {};
+  const oppRuns = c.opp_implied_total ? ` <span class="muted" style="font-size:10px;">${c.opp_implied_total.toFixed(1)} R impl</span>` : "";
+  return `<br><span class="muted" style="font-size:11px;">${prefix}${r.opp_abbr}${oppRuns}</span>`;
+}
+
 // Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
 let _lastFantraxPlayers = null;
 let _lastFantraxSlotCounts = null;
@@ -202,7 +216,7 @@ $("#lineup-go")?.addEventListener("click", async () => {
       const cvSign = r.cat_value >= 0 ? "+" : "";
       return `<tr>
         <td class="${recCls}"><b>${recLabel}</b></td>
-        <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td>
+        <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}${_oppCell(r)}</td>
         <td>${r.position ?? "—"}</td>
         <td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
         ${catCols}

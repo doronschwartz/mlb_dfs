@@ -437,6 +437,28 @@ def lineup_advice(req: LineupRequest):
             outs_per_app = ip * 3
             er_per_app = (rp_rates["ERA"] / 9) * ip
             rp_fp = (outs_per_app * 0.75 + rp_rates["K"] / max(usage, 0.01) * 1.0 - er_per_app * 3.0) * usage
+        c_components = (proj.components if proj else {})
+        opp_abbr = c_components.get("opp_abbr")
+        opp_sp_name = c_components.get("opp_sp_name")
+        is_home = c_components.get("is_home")
+        # For RPs, look up their team's matchup data.
+        if is_rp and rp_meta and not opp_abbr:
+            rp_tid = rp_meta.get("team_id")
+            if rp_tid:
+                # We need the schedule to derive opponent. Use rp_pool's team membership
+                # to find what team they're on, then look up that team's matchup.
+                for g in mlb_api.schedule(d):
+                    teams_g = g.get("teams") or {}
+                    h = (teams_g.get("home") or {}).get("team", {})
+                    a = (teams_g.get("away") or {}).get("team", {})
+                    if h.get("id") == rp_tid:
+                        opp_abbr = projections._TEAM_ABBR.get(a.get("id", 0), "")
+                        is_home = True
+                        break
+                    if a.get("id") == rp_tid:
+                        opp_abbr = projections._TEAM_ABBR.get(h.get("id", 0), "")
+                        is_home = False
+                        break
         results.append({
             "input": name,
             "matched_name": proj.name if proj else (rp_meta["name"] if rp_meta else None),
@@ -446,10 +468,13 @@ def lineup_advice(req: LineupRequest):
             "cat_value": round(cat_value, 2),
             "cat_proj": {k: round(v, 3) for k, v in cat_proj.items()},
             "team_id": proj.team_id if proj else (rp_meta["team_id"] if rp_meta else None),
-            "components": (proj.components if proj else {}),
+            "components": c_components,
             "playing_today": (proj is not None) or is_rp,
             "is_rp": is_rp,
             "rp_usage": (rp_rates.get("_usage") if rp_rates else None),
+            "opp_abbr": opp_abbr,
+            "opp_sp_name": opp_sp_name,
+            "is_home": is_home,
         })
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter"]
