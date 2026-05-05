@@ -289,6 +289,7 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     team = teams[team_id]
     slot_counts: dict[str, int] = {}
     players: list[dict] = []
+    roster = None
     try:
         roster = api.team_roster(team_id)
         for row in roster.rows:
@@ -357,10 +358,10 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
         "team_id": team_id,
         "team_name": team.name,
         "team_short": team.short,
-        "active": roster.active,
-        "active_max": roster.active_max,
-        "reserve": roster.reserve,
-        "reserve_max": roster.reserve_max,
+        "active": getattr(roster, "active", None),
+        "active_max": getattr(roster, "active_max", None),
+        "reserve": getattr(roster, "reserve", None),
+        "reserve_max": getattr(roster, "reserve_max", None),
         "slot_counts": slot_counts,    # {position_short_name: count of rows}
         "players": players,
     }
