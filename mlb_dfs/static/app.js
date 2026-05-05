@@ -202,8 +202,13 @@ $("#ftx-league-info")?.addEventListener("click", async () => {
       const colorBadge = ok
         ? `<span style="color:var(--accent-2);">✓</span>`
         : `<span class="muted">✗</span>`;
+      // Extract the bare method name (e.g. "getStandings" from "getStandings({})")
+      const methodName = k.split("(")[0];
+      const deepBtn = ok
+        ? `<button class="ftx-deep-btn" data-method="${methodName}" style="margin-left:8px;font-size:10px;padding:2px 6px;">drill in</button>`
+        : "";
       return `<details ${ok ? "open" : ""} style="margin:4px 0;">
-        <summary style="cursor:pointer;font-size:12px;">${colorBadge} <code style="font-family:ui-monospace,Menlo,monospace;">${k}</code></summary>
+        <summary style="cursor:pointer;font-size:12px;">${colorBadge} <code style="font-family:ui-monospace,Menlo,monospace;">${k}</code>${deepBtn}</summary>
         <pre style="font-size:10.5px;background:var(--panel);border:1px solid var(--border);padding:6px;border-radius:4px;overflow:auto;max-height:280px;">${JSON.stringify(v, null, 2)}</pre>
       </details>`;
     }).join("");
@@ -213,9 +218,26 @@ $("#ftx-league-info")?.addEventListener("click", async () => {
         <b>headToHead:</b> ${data.headToHead ?? "?"} · <b>Sport:</b> ${data.sport || "?"} · <b>Season:</b> ${data.season || "?"}
       </div>
       <h4>API method probes</h4>
-      <div class="muted" style="font-size:11px;margin-bottom:6px;">Each box below is a Fantrax API endpoint we tried. ✓ = it returned something useful. Open the boxes that have data and look for a list of stat categories.</div>
+      <div class="muted" style="font-size:11px;margin-bottom:6px;">Each box below is a Fantrax API endpoint we tried. ✓ = it returned something useful. Click "drill in" on any ✓ box to see the FULL untrimmed response.</div>
       ${probesHtml}
+      <div id="ftx-deep-out" style="margin-top:14px;"></div>
     `;
+    // Wire drill-in buttons
+    document.querySelectorAll(".ftx-deep-btn").forEach((b) => {
+      b.addEventListener("click", async (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const method = b.dataset.method;
+        const deepOut = $("#ftx-deep-out");
+        deepOut.innerHTML = `<div class="muted">Fetching full response for <code>${method}</code>…</div>`;
+        try {
+          const full = await api(`/api/fantrax/league_info?league_id=${encodeURIComponent(lg)}&deep=${encodeURIComponent(method)}`);
+          deepOut.innerHTML = `<h4>Full response: <code>${method}</code></h4>
+            <pre style="font-size:10.5px;background:var(--panel);border:1px solid var(--accent);padding:8px;border-radius:6px;overflow:auto;max-height:600px;">${JSON.stringify(full.response, null, 2)}</pre>`;
+        } catch (err) {
+          deepOut.innerHTML = `<div style="color:var(--bad);">Drill in failed: ${err.message}</div>`;
+        }
+      });
+    });
     $("#ftx-status").textContent = "✓ League config loaded — check below.";
     $("#ftx-status").style.color = "var(--accent-2)";
   } catch (e) {

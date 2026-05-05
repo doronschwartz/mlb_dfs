@@ -323,9 +323,9 @@ def fantrax_auth_status():
 
 
 @app.get("/api/fantrax/league_info")
-def fantrax_league_info(league_id: str):
+def fantrax_league_info(league_id: str, deep: str | None = None):
     try:
-        return fantrax.get_league_info(league_id)
+        return fantrax.get_league_info(league_id, deep=deep)
     except fantrax.FantraxAuthError as e:
         raise HTTPException(401, str(e))
     except Exception as e:

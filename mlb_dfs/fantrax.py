@@ -94,13 +94,18 @@ def _session() -> requests.Session:
 # ---- public API -----------------------------------------------------------
 
 
-def get_league_info(league_id: str) -> dict:
-    """Probe several Fantrax API methods to find the league's scoring config.
-    fantasySettings only has presentation metadata; scoring rules live in a
-    different endpoint. We try the likely candidates and surface whatever
-    each returns so we can identify the right one."""
+def get_league_info(league_id: str, deep: str | None = None) -> dict:
+    """Probe Fantrax API methods to find scoring config. When `deep` is set
+    to a method name, returns the FULL untrimmed response for that method only
+    (so we can spot scoring categories that the trim hid)."""
     from fantraxapi.api import Method, _request
     sess = _session()
+    if deep:
+        try:
+            r = _request(league_id, [Method(deep)], session=sess)
+            return {"deep_method": deep, "response": r}
+        except Exception as e:
+            return {"deep_method": deep, "error": str(e)}
 
     # Always grab fantasySettings for league metadata.
     base = _request(league_id, [Method("getFantasyLeagueInfo")], session=sess)
