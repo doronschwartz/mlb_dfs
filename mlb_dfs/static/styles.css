@@ -490,7 +490,10 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 }
 .breakdown-tooltip .bk-row {
   display: flex; justify-content: space-between; align-items: baseline;
-  gap: 12px; padding: 1px 0; white-space: nowrap;
+  gap: 12px; padding: 1px 0;
+}
+@media (hover: hover) and (min-width: 700px) {
+  .breakdown-tooltip .bk-row { white-space: nowrap; }
 }
 .breakdown-tooltip .bk-row .bk-label { color: var(--muted); }
 .breakdown-tooltip .bk-row .bk-total { font-weight: 600; text-align: right; }

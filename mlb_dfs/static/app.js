@@ -489,7 +489,6 @@ function projTooltip(p) {
     <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
     ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (±1σ)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
-    ${(p.notes||[]).length ? `<div class="bk-rows muted" style="margin-top:4px;font-size:10px;">${p.notes.join(" · ")}</div>` : ""}
   </div>`;
 }
 
