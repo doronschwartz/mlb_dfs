@@ -213,6 +213,14 @@ def project_hitter(
     pg_7 = _per_game_hitter_points(last7) if games_7 >= 2 else None
     pg_14 = _per_game_hitter_points(last14) if games_14 >= 5 else None
     pg_season = _per_game_hitter_points(seasn) if games_season >= 10 else None
+    # Per-game category rates for H2H Cat valuation. Prefer L14 if sample
+    # is reasonable; else season; else league average.
+    if games_14 >= 5:
+        rolling_cats = _per_game_hitter_cats(last14)
+    elif games_season >= 10:
+        rolling_cats = _per_game_hitter_cats(seasn)
+    else:
+        rolling_cats = dict(LG_HITTER_RATES)
 
     weighted = _weighted_pg_hitter(
         pts_g_3=(pg_3, int(games_3)),
@@ -415,6 +423,7 @@ def project_hitter(
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
+            "rolling_cats": rolling_cats,
         },
         notes=notes,
     )
@@ -446,6 +455,13 @@ def project_pitcher(
     ps_l7 = _per_start_pitcher_points(last7) if starts_7 >= 1 else None
     ps_l14 = _per_start_pitcher_points(last14) if starts_14 >= 1 else None
     ps_season = _per_start_pitcher_points(seasn) if starts_season >= 3 else None
+    # Per-start category rates for H2H Cat valuation.
+    if starts_14 >= 1:
+        rolling_cats = _per_start_pitcher_cats(last14)
+    elif starts_season >= 3:
+        rolling_cats = _per_start_pitcher_cats(seasn)
+    else:
+        rolling_cats = dict(LG_PITCHER_RATES)
 
     weighted_ps = _weighted_ps_pitcher(
         ps_g_7=(ps_l7, int(starts_7)),
@@ -593,6 +609,7 @@ def project_pitcher(
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
+            "rolling_cats": rolling_cats,
         },
         notes=notes,
     )
@@ -762,6 +779,118 @@ def _per_game_hitter_points(stats: dict) -> float:
         + _safe_float(stats.get("strikeOuts")) * p["strikeOut"]
     )
     return pts / g
+
+
+# --- H2H Categories support ---------------------------------------------
+# League-average per-game (hitter) and per-start (SP) baselines for the cats:
+#   Hitters: R, HR, RBI, SB, OPS
+#   Pitchers (SP): QS, K, ERA*, WHIP*, SVH (* lower=better)
+LG_HITTER_RATES = {
+    "R":   0.56,    # runs per game played
+    "HR":  0.14,
+    "RBI": 0.55,
+    "SB":  0.06,
+    "OPS": 0.730,
+}
+# Approx stdev of player-season per-game rates (used for z-scoring).
+LG_HITTER_STDEV = {"R": 0.18, "HR": 0.07, "RBI": 0.20, "SB": 0.10, "OPS": 0.080}
+
+LG_PITCHER_RATES = {
+    "QS":  0.45,    # probability of QS per start
+    "K":   5.5,     # K per start
+    "ERA": 4.20,
+    "WHIP": 1.30,
+    "SVH": 0.0,     # starters don't get holds; this category is reliever-only
+}
+LG_PITCHER_STDEV = {"QS": 0.20, "K": 1.5, "ERA": 0.80, "WHIP": 0.13, "SVH": 0.30}
+
+
+def _per_game_hitter_cats(stats: dict) -> dict:
+    """Returns per-game R/HR/RBI/SB and OPS from a stats dict (league window)."""
+    g = max(_safe_float(stats.get("gamesPlayed")), 1.0)
+    h = _safe_float(stats.get("hits"))
+    d = _safe_float(stats.get("doubles"))
+    t = _safe_float(stats.get("triples"))
+    hr = _safe_float(stats.get("homeRuns"))
+    bb = _safe_float(stats.get("baseOnBalls"))
+    hbp = _safe_float(stats.get("hitByPitch"))
+    sf = _safe_float(stats.get("sacFlies"))
+    ab = _safe_float(stats.get("atBats"))
+    tb = _safe_float(stats.get("totalBases"))
+    pa = ab + bb + hbp + sf
+    obp = (h + bb + hbp) / pa if pa > 0 else 0.0
+    slg = tb / ab if ab > 0 else 0.0
+    return {
+        "R":   _safe_float(stats.get("runs")) / g,
+        "HR":  hr / g,
+        "RBI": _safe_float(stats.get("rbi")) / g,
+        "SB":  _safe_float(stats.get("stolenBases")) / g,
+        "OPS": obp + slg,
+    }
+
+
+def _per_start_pitcher_cats(stats: dict) -> dict:
+    """Returns per-start K, QS-prob, ERA, WHIP from a pitching stats dict."""
+    gs = max(_safe_float(stats.get("gamesStarted")), 1.0)
+    qs = _safe_float(stats.get("qualityStarts"))
+    return {
+        "QS":   qs / gs,
+        "K":    _safe_float(stats.get("strikeOuts")) / gs,
+        "ERA":  _safe_float(stats.get("era"), default=4.20),
+        "WHIP": _safe_float(stats.get("whip"), default=1.30),
+        "SVH":  0.0,
+    }
+
+
+def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_factor: float, order_factor: float) -> tuple[float, dict]:
+    """Project the player's expected category contributions today, then sum
+    z-scores. Returns (cat_value, per_category_dict)."""
+    c = p.components or {}
+    rates = c.get("rolling_cats") or {}
+    if not rates:
+        return 0.0, {}
+    # Apply matchup factors:
+    #  - Vegas/Park/Order/Platoon scale counting stats (R, HR, RBI, SB).
+    #  - Park HR factor specifically lifts HR more.
+    #  - OPS shifts by a smaller amount via the same multiplicative env, but
+    #    OPS is closer to a "rate of true talent" so we damp the effect.
+    counting_mult = vegas_factor * park_factor * platoon_factor * order_factor
+    rate_mult = 1.0 + (counting_mult - 1.0) * 0.40   # damped
+    proj = {}
+    proj["R"]   = rates.get("R", 0)   * counting_mult
+    proj["HR"]  = rates.get("HR", 0)  * counting_mult * (park_factor / max(park_factor, 0.01)) ** 0  # no double-park
+    proj["RBI"] = rates.get("RBI", 0) * counting_mult
+    proj["SB"]  = rates.get("SB", 0)  * counting_mult
+    proj["OPS"] = rates.get("OPS", 0) * rate_mult
+    z = 0.0
+    for k, v in proj.items():
+        z += (v - LG_HITTER_RATES[k]) / LG_HITTER_STDEV[k]
+    return z, proj
+
+
+def category_value_pitcher(p, vegas_factor: float, park_factor: float) -> tuple[float, dict]:
+    c = p.components or {}
+    rates = c.get("rolling_cats") or {}
+    if not rates:
+        return 0.0, {}
+    # Pitcher matchup: better Vegas (low opp implied total) helps K (more
+    # outs by way of more PA chances) and lowers ERA/WHIP. Park factor
+    # similar logic. Vegas factor here is from PITCHER's perspective — we
+    # already compute it inverted for SPs, so >1.0 = good for SP.
+    proj = {}
+    proj["QS"]   = rates.get("QS", 0)   * vegas_factor * park_factor
+    proj["K"]    = rates.get("K", 0)    * (1.0 + (vegas_factor - 1.0) * 0.50)
+    # ERA and WHIP — INVERSE: a vegas_factor of 1.10 means -10% on ERA.
+    proj["ERA"]  = rates.get("ERA", 4.20) / max(vegas_factor, 0.01) / max(park_factor, 0.01)
+    proj["WHIP"] = rates.get("WHIP", 1.30) / max(vegas_factor, 0.01)
+    proj["SVH"]  = 0.0   # SPs don't get holds; reliever projection is a separate concern
+    z = 0.0
+    z += (proj["QS"]   - LG_PITCHER_RATES["QS"])   / LG_PITCHER_STDEV["QS"]
+    z += (proj["K"]    - LG_PITCHER_RATES["K"])    / LG_PITCHER_STDEV["K"]
+    # Inverse — lower ERA/WHIP is BETTER, so flip the z sign.
+    z += (LG_PITCHER_RATES["ERA"]  - proj["ERA"])  / LG_PITCHER_STDEV["ERA"]
+    z += (LG_PITCHER_RATES["WHIP"] - proj["WHIP"]) / LG_PITCHER_STDEV["WHIP"]
+    return z, proj
 
 
 def _per_start_pitcher_points(stats: dict) -> float:

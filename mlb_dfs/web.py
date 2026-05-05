@@ -283,12 +283,33 @@ def lineup_advice(req: LineupRequest):
                         if cand_first[:1] == first[:1] and (cand_first == first or first in cand_first or cand_first in first):
                             proj = cand
                             break
+        # H2H Categories value: project per-cat contributions, sum z-scores.
+        cat_value = 0.0
+        cat_proj: dict = {}
+        if proj is not None:
+            c = proj.components or {}
+            if proj.role == "hitter":
+                cat_value, cat_proj = projections.category_value_hitter(
+                    proj,
+                    vegas_factor=c.get("vegas_factor", 1.0),
+                    park_factor=c.get("park_factor", 1.0),
+                    platoon_factor=c.get("platoon_factor", 1.0),
+                    order_factor=c.get("order_factor", 1.0),
+                )
+            else:
+                cat_value, cat_proj = projections.category_value_pitcher(
+                    proj,
+                    vegas_factor=c.get("vegas_factor", 1.0),
+                    park_factor=c.get("park_factor", 1.0),
+                )
         results.append({
             "input": name,
             "matched_name": proj.name if proj else None,
             "role": proj.role if proj else None,
             "position": proj.position if proj else None,
             "projection": proj.projected_points if proj else 0.0,
+            "cat_value": round(cat_value, 2),
+            "cat_proj": {k: round(v, 3) for k, v in cat_proj.items()},
             "team_id": proj.team_id if proj else None,
             "components": (proj.components if proj else {}),
             "playing_today": proj is not None,
@@ -296,8 +317,10 @@ def lineup_advice(req: LineupRequest):
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter"]
     pitchers = [r for r in results if r["role"] == "pitcher"]
-    hitters.sort(key=lambda r: r["projection"], reverse=True)
-    pitchers.sort(key=lambda r: r["projection"], reverse=True)
+    # Sort by H2H Cat value (z-score sum across the 5 cats), not raw fantasy
+    # points — your league is H2H Categories, so cat-value is the right rank.
+    hitters.sort(key=lambda r: r["cat_value"], reverse=True)
+    pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
     # Heuristic: top 8 hitters START, top 2 pitchers START. Tweak per league.
     for i, r in enumerate(hitters):
         r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")

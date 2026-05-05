@@ -160,15 +160,31 @@ $("#lineup-go")?.addEventListener("click", async () => {
   });
   const renderTable = (title, rows, emptyMsg) => {
     if (!rows.length) return `<h3>${title}</h3><div class="muted">${emptyMsg}</div>`;
+    const isHitter = rows[0]?.role === "hitter";
     const trs = rows.map(r => {
       const recCls = r.recommendation === "START" ? "edge-pos" : (r.recommendation === "SIT" ? "edge-neg" : "muted");
-      const c = r.components || {};
-      const stat = r.role === "hitter" && (c.barrel_pct != null || c.hardhit_pct != null)
-        ? `brl ${(c.barrel_pct ?? 0).toFixed(1)}% · hh ${(c.hardhit_pct ?? 0).toFixed(0)}%`
-        : (r.role === "pitcher" && c.xera != null ? `xERA ${c.xera.toFixed(2)}` : "—");
-      return `<tr><td class="${recCls}"><b>${r.recommendation}</b></td><td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td><td>${r.position ?? "—"}</td><td>${r.projection.toFixed(2)}</td><td class="muted" style="font-size:11px;">${stat}</td></tr>`;
+      const cp = r.cat_proj || {};
+      // Format per-cat projection as small inline grid
+      const catCols = isHitter
+        ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
+        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td>`;
+      const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
+      const cvSign = r.cat_value >= 0 ? "+" : "";
+      return `<tr>
+        <td class="${recCls}"><b>${r.recommendation}</b></td>
+        <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td>
+        <td>${r.position ?? "—"}</td>
+        <td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
+        ${catCols}
+        <td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td>
+      </tr>`;
     }).join("");
-    return `<h3>${title}</h3><table><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Proj</th><th>Statcast</th></tr></thead><tbody>${trs}</tbody></table>`;
+    const headerCats = isHitter
+      ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>`
+      : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th>`;
+    return `<h3>${title} <span class="muted" style="font-weight:400;font-size:12px;">— ranked by H2H Cat z-score</span></h3>
+      <table><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead>
+      <tbody>${trs}</tbody></table>`;
   };
   let html = renderTable("Hitters", data.hitters, "No hitters matched.");
   html += renderTable("Pitchers", data.pitchers, "No pitchers matched.");
