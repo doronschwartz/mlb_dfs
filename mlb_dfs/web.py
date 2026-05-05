@@ -243,6 +243,32 @@ def lineup_advice(req: LineupRequest):
     projs = projections.project_slate_cached(d, force_refresh=True)
     by_lower = {p.name.lower(): p for p in projs}
 
+    # Relievers aren't in projs (we only project probable SPs). Build a
+    # secondary index of MLB pitchers whose team plays today, so unmatched
+    # pitcher names can still surface as "RP — uncertain" rows.
+    today_team_ids: set[int] = set()
+    try:
+        for g in mlb_api.schedule(d):
+            for side in ("home", "away"):
+                t = ((g.get("teams") or {}).get(side) or {}).get("team") or {}
+                if t.get("id"):
+                    today_team_ids.add(t["id"])
+    except Exception:
+        pass
+    rp_pool: dict[str, dict] = {}
+    try:
+        slate_pool = mlb_api.players_in_slate(d)
+        for pid, meta in slate_pool.items():
+            if meta.get("positionType") == "Pitcher" and meta.get("teamId") in today_team_ids:
+                rp_pool[(meta.get("name") or "").lower()] = {
+                    "name": meta.get("name"),
+                    "player_id": pid,
+                    "team_id": meta.get("teamId"),
+                    "position": meta.get("position") or "P",
+                }
+    except Exception:
+        pass
+
     # Build a tighter matcher: keyed by ASCII-normalized last name, with
     # full-name disambiguation when multiple players share a last name.
     def _norm(s):
@@ -304,6 +330,26 @@ def lineup_advice(req: LineupRequest):
                     if cand_first == first or cand_first.startswith(first) or first.startswith(cand_first):
                         proj = cand
                         break
+        # If no SP-projection match, see if this is a reliever on a team playing today.
+        is_rp = False
+        if not proj:
+            n_parts = _norm(name).split()
+            if n_parts:
+                last = n_parts[-1]
+                first = n_parts[0]
+                # Search RP pool by last name + first initial.
+                for k, meta in rp_pool.items():
+                    if meta["player_id"] in (proj.player_id if proj else None for _ in [None]):
+                        continue
+                    parts = _norm(meta["name"] or "").split()
+                    if not parts: continue
+                    cand_last = parts[-1]
+                    cand_first = parts[0]
+                    if cand_last == last and cand_first[:1] == first[:1]:
+                        # Mark as RP (no real projection — placeholder).
+                        is_rp = True
+                        break
+
         # H2H Categories value: project per-cat contributions, sum z-scores.
         cat_value = 0.0
         cat_proj: dict = {}
@@ -328,14 +374,15 @@ def lineup_advice(req: LineupRequest):
         results.append({
             "input": name,
             "matched_name": proj.name if proj else None,
-            "role": proj.role if proj else None,
-            "position": proj.position if proj else None,
-            "projection": proj.projected_points if proj else 0.0,
+            "role": proj.role if proj else ("pitcher" if is_rp else None),
+            "position": proj.position if proj else ("RP" if is_rp else None),
+            "projection": proj.projected_points if proj else (3.0 if is_rp else 0.0),
             "cat_value": round(cat_value, 2),
             "cat_proj": {k: round(v, 3) for k, v in cat_proj.items()},
             "team_id": proj.team_id if proj else None,
             "components": (proj.components if proj else {}),
-            "playing_today": proj is not None,
+            "playing_today": (proj is not None) or is_rp,
+            "is_rp": is_rp,
         })
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter"]

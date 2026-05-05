@@ -152,6 +152,7 @@ $("#refresh").addEventListener("click", async () => {
 // Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
 let _lastFantraxPlayers = null;
 let _lastFantraxSlotCounts = null;
+let _lineupSort = { hitter: "cat_value", pitcher: "cat_value" };
 
 $("#lineup-go")?.addEventListener("click", async () => {
   const names = ($("#lineup-names").value || "").split("\n").map(s => s.trim()).filter(Boolean);
@@ -171,15 +172,28 @@ $("#lineup-go")?.addEventListener("click", async () => {
     method: "POST",
     body: JSON.stringify(body),
   });
-  const renderTable = (title, rows, emptyMsg) => {
+  const renderTable = (title, rows, emptyMsg, sortKey = "cat_value") => {
     if (!rows.length) return `<h3>${title}</h3><div class="muted">${emptyMsg}</div>`;
     const isHitter = rows[0]?.role === "hitter";
+    // Apply sort
+    const SLOT_ORDER = { C: 0, "1B": 1, "2B": 2, SS: 3, "3B": 4, MI: 5, CI: 6, OF: 7, UT: 8, SP: 0, RP: 1, P: 2, BN: 99 };
+    rows = [...rows].sort((a, b) => {
+      if (sortKey === "fp") return (b.projection || 0) - (a.projection || 0);
+      if (sortKey === "slot") {
+        const av = SLOT_ORDER[a.slot_assignment ?? "BN"] ?? 99;
+        const bv = SLOT_ORDER[b.slot_assignment ?? "BN"] ?? 99;
+        if (av !== bv) return av - bv;
+        return (b.cat_value || 0) - (a.cat_value || 0);
+      }
+      return (b.cat_value || 0) - (a.cat_value || 0);
+    });
     const trs = rows.map(r => {
       const isStart = r.recommendation === "START";
       const isOff = r.recommendation === "OFF";
       const isBN = r.recommendation === "BN";
       const recCls = isStart ? "edge-pos" : (isOff ? "muted" : "edge-neg");
-      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>` : r.recommendation;
+      const rpTag = r.is_rp ? ` <span class="bench-tag" style="background:rgba(148,163,184,0.25);font-size:9px;">RP?</span>` : "";
+      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>${rpTag}` : `${r.recommendation}${rpTag}`;
       const cp = r.cat_proj || {};
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
@@ -198,8 +212,14 @@ $("#lineup-go")?.addEventListener("click", async () => {
     const headerCats = isHitter
       ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>`
       : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th>`;
-    return `<h3>${title} <span class="muted" style="font-weight:400;font-size:12px;">— ranked by H2H Cat z-score</span></h3>
-      <table><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead>
+    const tableId = isHitter ? "lineup-hitters" : "lineup-pitchers";
+    return `<h3>${title}
+      <select class="lineup-sort" data-target="${tableId}" style="margin-left:8px;font-size:12px;">
+        <option value="cat_value" ${sortKey === "cat_value" ? "selected" : ""}>Sort: Cat val</option>
+        <option value="fp" ${sortKey === "fp" ? "selected" : ""}>Sort: FP</option>
+        <option value="slot" ${sortKey === "slot" ? "selected" : ""}>Sort: Slot</option>
+      </select></h3>
+      <table id="${tableId}"><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead>
       <tbody>${trs}</tbody></table>`;
   };
   let html = "";
@@ -231,14 +251,105 @@ $("#lineup-go")?.addEventListener("click", async () => {
       <div class="muted" style="font-size:11px;margin-top:6px;">Leverage: 1.5× = close cat, every contribution matters; 0.5× = essentially decided.</div>
     </div>`;
   }
-  html += renderTable("Hitters", data.hitters, "No hitters matched.");
-  html += renderTable("Pitchers", data.pitchers, "No pitchers matched.");
+  // Stash data for re-sort.
+  window._lastLineupData = data;
+  html += renderTable("Hitters", data.hitters, "No hitters matched.", _lineupSort.hitter);
+  html += renderTable("Pitchers", data.pitchers, "No pitchers matched.", _lineupSort.pitcher);
   if (data.unmatched.length) {
     const list = data.unmatched.map(r => r.input).join(", ");
     html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length}) — mostly minor leaguers</summary><div class="muted" style="font-size:12px;margin-top:4px;">${list}</div></details>`;
   }
   $("#lineup-out").innerHTML = html;
+  // Wire sort dropdowns to re-render in place.
+  document.querySelectorAll(".lineup-sort").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const tgt = sel.dataset.target;
+      if (tgt === "lineup-hitters") _lineupSort.hitter = sel.value;
+      else _lineupSort.pitcher = sel.value;
+      _renderLineupOutput(window._lastLineupData);
+    });
+  });
 });
+
+function _renderLineupOutput(data) {
+  // Re-trigger the same render path. Lift the closure logic up.
+  // Simplest: call the click handler's body by reusing the data.
+  const out = $("#lineup-out");
+  const renderTable = (title, rows, emptyMsg, sortKey = "cat_value") => {
+    if (!rows.length) return `<h3>${title}</h3><div class="muted">${emptyMsg}</div>`;
+    const isHitter = rows[0]?.role === "hitter";
+    const SLOT_ORDER = { C: 0, "1B": 1, "2B": 2, SS: 3, "3B": 4, MI: 5, CI: 6, OF: 7, UT: 8, SP: 0, RP: 1, P: 2, BN: 99 };
+    rows = [...rows].sort((a, b) => {
+      if (sortKey === "fp") return (b.projection || 0) - (a.projection || 0);
+      if (sortKey === "slot") {
+        const av = SLOT_ORDER[a.slot_assignment ?? "BN"] ?? 99;
+        const bv = SLOT_ORDER[b.slot_assignment ?? "BN"] ?? 99;
+        if (av !== bv) return av - bv;
+        return (b.cat_value || 0) - (a.cat_value || 0);
+      }
+      return (b.cat_value || 0) - (a.cat_value || 0);
+    });
+    const trs = rows.map(r => {
+      const isStart = r.recommendation === "START";
+      const isOff = r.recommendation === "OFF";
+      const recCls = isStart ? "edge-pos" : (isOff ? "muted" : "edge-neg");
+      const rpTag = r.is_rp ? ` <span class="bench-tag" style="background:rgba(148,163,184,0.25);font-size:9px;">RP?</span>` : "";
+      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>${rpTag}` : `${r.recommendation}${rpTag}`;
+      const cp = r.cat_proj || {};
+      const catCols = isHitter
+        ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
+        : `<td>${(cp.QS ?? 0).toFixed(2)}</td><td>${(cp.K ?? 0).toFixed(1)}</td><td>${(cp.ERA ?? 0).toFixed(2)}</td><td>${(cp.WHIP ?? 0).toFixed(2)}</td>`;
+      const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
+      const cvSign = r.cat_value >= 0 ? "+" : "";
+      return `<tr><td class="${recCls}"><b>${recLabel}</b></td><td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td><td>${r.position ?? "—"}</td><td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>${catCols}<td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td></tr>`;
+    }).join("");
+    const headerCats = isHitter ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>` : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th>`;
+    const tableId = isHitter ? "lineup-hitters" : "lineup-pitchers";
+    return `<h3>${title}
+      <select class="lineup-sort" data-target="${tableId}" style="margin-left:8px;font-size:12px;">
+        <option value="cat_value" ${sortKey === "cat_value" ? "selected" : ""}>Sort: Cat val</option>
+        <option value="fp" ${sortKey === "fp" ? "selected" : ""}>Sort: FP</option>
+        <option value="slot" ${sortKey === "slot" ? "selected" : ""}>Sort: Slot</option>
+      </select></h3>
+      <table id="${tableId}"><thead><tr><th>Rec</th><th>Player</th><th>Pos</th><th>Cat val</th>${headerCats}<th>FP</th></tr></thead><tbody>${trs}</tbody></table>`;
+  };
+  let html = "";
+  if (data.slot_capacity && Object.keys(data.slot_capacity).length) {
+    const sc = data.slot_capacity;
+    html += `<div class="muted" style="font-size:11px;margin:4px 0 6px;">Slots: ${Object.entries(sc).map(([k,v]) => `${v}×${k}`).join(" · ")}</div>`;
+  }
+  if (data.matchup && data.matchup.values) {
+    const m = data.matchup;
+    const cats = m.category_short_names || [];
+    const lev = data.leverage || {};
+    const cells = cats.map(c => {
+      const [my, opp] = m.values[c] || [0, 0];
+      const l = lev[c] ?? 1.0;
+      const lvCls = l > 1.2 ? "edge-pos" : l < 0.8 ? "muted" : "";
+      const lower_better = (c === "ERA" || c === "WHIP");
+      const winning = lower_better ? my < opp : my > opp;
+      const cmp2 = my === opp ? "muted" : (winning ? "edge-pos" : "edge-neg");
+      const fmt = (v) => Number.isInteger(v) ? v : v.toFixed(c === "OPS" ? 3 : 2);
+      return `<td><b>${c}</b><br><span class="${cmp2}">${fmt(my)} vs ${fmt(opp)}</span><br><span class="${lvCls}" style="font-size:10px;">×${l.toFixed(1)} lev</span></td>`;
+    }).join("");
+    html += `<div style="margin:6px 0 14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;"><h3 style="margin:0 0 4px;">${m.period} <span class="muted" style="font-weight:400;font-size:12px;">${m.subCaption || ""}</span></h3><div class="muted" style="font-size:12px;margin-bottom:6px;">${m.my_team || "you"} vs <b>${m.opp_team || "opp"}</b></div><table style="font-size:12px;width:100%;text-align:center;"><tbody><tr>${cells}</tr></tbody></table></div>`;
+  }
+  html += renderTable("Hitters", data.hitters, "No hitters matched.", _lineupSort.hitter);
+  html += renderTable("Pitchers", data.pitchers, "No pitchers matched.", _lineupSort.pitcher);
+  if (data.unmatched && data.unmatched.length) {
+    const list = data.unmatched.map(r => r.input).join(", ");
+    html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length})</summary><div class="muted" style="font-size:12px;margin-top:4px;">${list}</div></details>`;
+  }
+  out.innerHTML = html;
+  document.querySelectorAll(".lineup-sort").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const tgt = sel.dataset.target;
+      if (tgt === "lineup-hitters") _lineupSort.hitter = sel.value;
+      else _lineupSort.pitcher = sel.value;
+      _renderLineupOutput(window._lastLineupData);
+    });
+  });
+}
 
 // Restore last roster + Fantrax IDs
 window.addEventListener("DOMContentLoaded", () => {
