@@ -438,8 +438,16 @@ function _renderLineupOutput(data) {
     html += `<details style="margin-top:12px;" ${callup.length ? "open" : ""}><summary class="muted" style="cursor:pointer;font-size:13px;">⚾ Minor-league slot in Fantrax — ${data.minors.length}${callup.length ? ` (${callup.length} actually MLB-active today)` : ""}. Toggle "Allow call-ups" to include them.</summary>${body}</details>`;
   }
   if (data.unmatched && data.unmatched.length) {
-    const list = data.unmatched.map(r => r.input).join(", ");
-    html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length})</summary><div class="muted" style="font-size:12px;margin-top:4px;">${list}</div></details>`;
+    const scratched = data.unmatched.filter(r => r.lineup_status === "out");
+    const otherNot = data.unmatched.filter(r => r.lineup_status !== "out");
+    let body = "";
+    if (scratched.length) {
+      body += `<div style="margin-top:4px;"><b style="color:var(--bad,#c33);font-size:12px;">Scratched / not in posted lineup (${scratched.length}):</b><div class="muted" style="font-size:12px;">${scratched.map(r => r.input).join(", ")}</div></div>`;
+    }
+    if (otherNot.length) {
+      body += `<div style="margin-top:4px;"><span class="muted" style="font-size:12px;">Off / unmatched (${otherNot.length}):</span><div class="muted" style="font-size:12px;">${otherNot.map(r => r.input).join(", ")}</div></div>`;
+    }
+    html += `<details style="margin-top:12px;" ${scratched.length ? "open" : ""}><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length})</summary>${body}</details>`;
   }
   out.innerHTML = html;
   document.querySelectorAll(".lineup-sort").forEach((sel) => {

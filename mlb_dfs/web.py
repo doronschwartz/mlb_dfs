@@ -298,6 +298,8 @@ def lineup_advice(req: LineupRequest):
     # turns 25 sequential MLB API calls (~30s) into ~2s with 12 workers.
     from concurrent.futures import ThreadPoolExecutor
     forced_min_lower: set[str] = {n.strip().lower() for n in (req.force_minors or []) if n and n.strip()}
+    # Also build a punctuation-stripped/normalized set so 'T.J Rumfield' matches 'T.J. Rumfield'.
+    forced_min_norm: set[str] = {_norm(n) for n in (req.force_minors or []) if n and n.strip()}
     # Build eligibility map up front so we can filter SP-only out of the parallel pre-fetch.
     eligibility_map: dict[str, set[str]] = {}
     fp_by_name: dict[str, dict] = {}
@@ -367,7 +369,7 @@ def lineup_advice(req: LineupRequest):
         # Minor-leaguer short-circuit: skip ranking unless allow_call_ups=True.
         fp_early = fp_by_name.get(lower, {})
         cur_slot_early = (fp_early.get("slot") or "").lower()
-        is_forced_min = lower in forced_min_lower
+        is_forced_min = (lower in forced_min_lower) or (_norm(name) in forced_min_norm)
         # NB: "mi" is intentionally NOT in this list — MI = Middle Infield, an
         # active slot, not Minors. Variants seen across leagues: Min, Minors,
         # Minor, MiL, ML, "Minor League".
@@ -523,6 +525,7 @@ def lineup_advice(req: LineupRequest):
         current_slot = fp.get("slot")
         results.append({
             "input": name,
+            "player_id": proj.player_id if proj else (rp_meta.get("player_id") if rp_meta else None),
             "matched_name": proj.name if proj else (rp_meta["name"] if rp_meta else None),
             "role": proj.role if proj else ("pitcher" if is_rp else None),
             "position": proj.position if proj else ("RP" if is_rp else None),
@@ -539,9 +542,26 @@ def lineup_advice(req: LineupRequest):
             "is_home": is_home,
             "current_slot": current_slot,
         })
+    # Apply MLB lineup confirmation: a player who's in the slate pool but whose
+    # team has posted today's lineup card without them is scratched/benched IRL,
+    # so they're not actually playing today even though they have a projection.
+    # Same convention as the draft tool (which surfaces lineup_status). RP rows
+    # don't get downgraded — relievers don't appear in the batting order card.
+    try:
+        lineup_statuses = mlb_api.lineups_by_date(d)
+    except Exception:
+        lineup_statuses = {}
+    for r in results:
+        pid = r.get("player_id")
+        ls = lineup_statuses.get(pid) if pid else None
+        status = ls.get("status") if ls else "pending"
+        r["lineup_status"] = status
+        if status == "out" and not r.get("is_rp") and not r.get("is_minors"):
+            # Posted lineup says they're not in it — treat as not playing.
+            r["playing_today"] = False
     # Rank hitters / pitchers separately, mark top-N as START.
-    hitters = [r for r in results if r["role"] == "hitter"]
-    pitchers = [r for r in results if r["role"] == "pitcher"]
+    hitters = [r for r in results if r["role"] == "hitter" and r["playing_today"]]
+    pitchers = [r for r in results if r["role"] == "pitcher" and r["playing_today"]]
     # Sort by H2H Cat value (z-score sum across the 5 cats).
     hitters.sort(key=lambda r: r["cat_value"], reverse=True)
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
@@ -623,7 +643,10 @@ def lineup_advice(req: LineupRequest):
         "date": d.isoformat(),
         "hitters": hitters,
         "pitchers": pitchers,
-        "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"] and not r.get("is_minors")],
+        "unmatched": [
+            {"input": r["input"], "lineup_status": r.get("lineup_status")}
+            for r in results if not r["playing_today"] and not r.get("is_minors")
+        ],
         "minors": minors_list,
         "minors_callup": minors_callup,
         "minors_pure": minors_pure,
