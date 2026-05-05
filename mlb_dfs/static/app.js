@@ -157,10 +157,22 @@ function _oppCell(r) {
     const sp = r.opp_sp_name ? ` <span class="muted" style="font-size:10px;">vs ${r.opp_sp_name}</span>` : "";
     return `<br><span class="muted" style="font-size:11px;">${prefix}${r.opp_abbr}${sp}</span>`;
   }
-  // Pitchers: show opponent team + their implied team total if available
   const c = r.components || {};
   const oppRuns = c.opp_implied_total ? ` <span class="muted" style="font-size:10px;">${c.opp_implied_total.toFixed(1)} R impl</span>` : "";
   return `<br><span class="muted" style="font-size:11px;">${prefix}${r.opp_abbr}${oppRuns}</span>`;
+}
+
+// Same idea but takes a Projection-style object (components.opp_abbr / opp_sp_name / is_home).
+function _oppFromComponents(p) {
+  const c = p.components || {};
+  if (!c.opp_abbr) return "";
+  const prefix = c.is_home === false ? "@" : "vs ";
+  if (p.role === "hitter") {
+    const sp = c.opp_sp_name ? ` <span class="muted" style="font-size:10px;">vs ${c.opp_sp_name}</span>` : "";
+    return ` <span class="muted" style="font-size:11px;">${prefix}${c.opp_abbr}${sp}</span>`;
+  }
+  const oppRuns = c.opp_implied_total ? ` <span class="muted" style="font-size:10px;">${c.opp_implied_total.toFixed(1)} R</span>` : "";
+  return ` <span class="muted" style="font-size:11px;">${prefix}${c.opp_abbr}${oppRuns}</span>`;
 }
 
 // Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
@@ -844,7 +856,7 @@ function renderProjectionsTable() {
       (p) => `
       <tr class="${p.role} score-row">
         <td>${p.projected_points.toFixed(2)}</td>
-        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${projTooltip(p)}</td>
+        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
         <td>${p.position ?? "-"}</td>
         <td>${p.role}</td>
         <td class="notes">${(p.notes || []).join(" · ")}</td>
@@ -1103,7 +1115,7 @@ async function renderDraft() {
         <div class="slot-label">${label}</div>
         <div class="slot-body">
           <div class="slot-line1">
-            <div class="slot-name player-cell"><span class="name-trigger">${pick.name} ${formBadge((pick.components||{}).form_tag)}</span>${projTooltip(pick)}</div>
+            <div class="slot-name player-cell"><span class="name-trigger">${pick.name} ${formBadge((pick.components||{}).form_tag)}</span>${_oppFromComponents(pick)}${projTooltip(pick)}</div>
             <span class="slot-proj">${pick.projected.toFixed(1)}</span>
           </div>
           <div class="slot-line2">${meta.join("")}</div>
@@ -1427,7 +1439,7 @@ async function renderRecs() {
           return `
           <tr class="${r.role} score-row">
             <td>${r.projected_points.toFixed(2)}</td>
-            <td class="player-cell"><span class="name-trigger">${r.name} ${formBadge((r.components||{}).form_tag)}</span>${projTooltip(r)}</td>
+            <td class="player-cell"><span class="name-trigger">${r.name} ${formBadge((r.components||{}).form_tag)}</span>${_oppFromComponents(r)}${projTooltip(r)}</td>
             <td>${r.position ?? "-"}</td>
             <td>${pills}</td>
           </tr>`;
@@ -1525,7 +1537,7 @@ function drawPool() {
             return `
         <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
-          <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${projTooltip(p)}</td>
+          <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
