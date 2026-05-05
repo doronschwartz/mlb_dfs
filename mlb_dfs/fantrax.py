@@ -95,33 +95,67 @@ def _session() -> requests.Session:
 
 
 def get_league_info(league_id: str) -> dict:
-    """Fetch the league's scoring rules + setup. The response includes the
-    list of scoring categories / point values, which tells us whether this is
-    a points league, roto, or H2H categories — and exactly which stats matter.
-
-    We strip out the firehose of presentation-layer junk and surface only the
-    fields a projection model cares about.
-    """
+    """Probe several Fantrax API methods to find the league's scoring config.
+    fantasySettings only has presentation metadata; scoring rules live in a
+    different endpoint. We try the likely candidates and surface whatever
+    each returns so we can identify the right one."""
     from fantraxapi.api import Method, _request
     sess = _session()
-    raw = _request(league_id, [Method("getFantasyLeagueInfo")], session=sess)
-    # raw is a dict with keys including "fantasySettings", "positionMap", etc.
-    fs = (raw or {}).get("fantasySettings", {}) if isinstance(raw, dict) else {}
-    out = {
+
+    # Always grab fantasySettings for league metadata.
+    base = _request(league_id, [Method("getFantasyLeagueInfo")], session=sess)
+    fs = (base or {}).get("fantasySettings", {}) if isinstance(base, dict) else {}
+
+    # Probe each method individually so a 4xx on one doesn't fail them all.
+    candidates = [
+        # (method_name, kwargs)
+        ("getLeagueRules", {}),
+        ("getLeagueSetup", {}),
+        ("getScoringSystemInfo", {}),
+        ("getScoringSystemRules", {}),
+        ("getRefObject", {"type": "ScoringSystem"}),
+        ("getRefObject", {"type": "ScoringFormula"}),
+        ("getStatCategories", {}),
+        ("getRefObject", {"type": "StatCategory"}),
+        ("getStandings", {}),
+        ("getStandingsInfo", {}),
+        ("getScoringPeriodInfo", {}),
+        ("getLeagueInfo", {}),
+    ]
+    probes = {}
+    for name, kw in candidates:
+        try:
+            r = _request(league_id, [Method(name, **kw)], session=sess)
+            # Cap each probe at top-level keys for readability.
+            if isinstance(r, dict):
+                probes[f"{name}({kw})"] = {"_keys": sorted(r.keys())[:30], "_sample": _trim(r)}
+            else:
+                probes[f"{name}({kw})"] = {"_type": type(r).__name__, "_sample": str(r)[:300]}
+        except Exception as e:
+            probes[f"{name}({kw})"] = {"_error": str(e)[:200]}
+
+    return {
         "leagueName": fs.get("leagueName"),
         "subtitle": fs.get("subtitle"),
-        "leagueType": fs.get("leagueType"),         # e.g. "Points", "Roto", "H2H Points", "H2H Categories"
-        "scoringSystem": fs.get("scoringSystem"),
-        "rosterLockType": fs.get("rosterLockType"),
-        "rosterLockTime": fs.get("rosterLockTime"),
+        "headToHead": fs.get("headToHead"),
         "season": fs.get("season"),
-        # The big one — the scoring formula (categories with weights or point values).
-        "scoringFormulas": fs.get("scoringFormulas") or fs.get("scoringFormula") or fs.get("statCategories"),
-        "fantasyTeamCount": fs.get("fantasyTeamCount"),
+        "sport": fs.get("sport"),
+        "_fantasy_settings_keys": sorted(fs.keys()) if isinstance(fs, dict) else [],
+        "probes": probes,
     }
-    # Also include a top-level keys snapshot so we can spot any field we missed.
-    out["_raw_keys"] = sorted(fs.keys()) if isinstance(fs, dict) else []
-    return out
+
+
+def _trim(obj, depth: int = 0, max_depth: int = 3, max_str: int = 200, max_list: int = 8):
+    """Recursively trim large API responses to a glanceable shape."""
+    if depth > max_depth:
+        return f"<{type(obj).__name__}>"
+    if isinstance(obj, dict):
+        return {k: _trim(v, depth + 1, max_depth, max_str, max_list) for k, v in list(obj.items())[:25]}
+    if isinstance(obj, list):
+        return [_trim(v, depth + 1, max_depth, max_str, max_list) for v in obj[:max_list]]
+    if isinstance(obj, str):
+        return obj[:max_str] + ("…" if len(obj) > max_str else "")
+    return obj
 
 
 def list_teams(league_id: str) -> list[dict]:
