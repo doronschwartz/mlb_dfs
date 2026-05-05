@@ -149,7 +149,13 @@
       </div>
       <div class="setup-row">
         <textarea id="lineup-names" rows="14" style="flex:1; min-width:300px; font-family:ui-monospace,Menlo,monospace;" placeholder="Shohei Ohtani&#10;Aaron Judge&#10;Mookie Betts&#10;Paul Skenes&#10;..."></textarea>
-        <button id="lineup-go" class="btn-pick" style="align-self:flex-start;">Project lineup</button>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
+          <button id="lineup-go" class="btn-pick">Project lineup</button>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="lineup-allow-callups" />
+            Allow call-ups from minors
+          </label>
+        </div>
       </div>
       <div id="lineup-out"></div>
     </section>

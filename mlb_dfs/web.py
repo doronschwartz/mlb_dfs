@@ -225,8 +225,10 @@ class LineupRequest(BaseModel):
     league_id: str | None = None
     team_id: str | None = None
     fantrax_players: list[dict] | None = None
-    # {position_short_name: count} — derived from the actual roster grid.
     fantrax_slot_counts: dict[str, int] | None = None
+    # When True, include minor-leaguers (Fantrax slot "Min"/"Minors") in the
+    # ranking — those would need a call-up before they could actually start.
+    allow_call_ups: bool = False
 
 
 @app.post("/api/lineup")
@@ -357,6 +359,20 @@ def lineup_advice(req: LineupRequest):
         if not name:
             continue
         lower = name.lower()
+        # Minor-leaguer short-circuit: skip ranking unless allow_call_ups=True.
+        fp_early = fp_by_name.get(lower, {})
+        cur_slot_early = (fp_early.get("slot") or "").lower()
+        if cur_slot_early in ("min", "minors", "mi", "minorleague", "minor") and not req.allow_call_ups:
+            results.append({
+                "input": name,
+                "matched_name": fp_early.get("name") or name,
+                "role": None, "position": "Minors",
+                "projection": 0.0, "cat_value": 0.0, "cat_proj": {},
+                "team_id": None, "components": {},
+                "playing_today": False, "is_rp": False,
+                "current_slot": fp_early.get("slot"), "is_minors": True,
+            })
+            continue
         proj = by_lower.get(lower)
         if not proj:
             # Strict last-name + first-initial match. No more sloppy substring.
@@ -468,7 +484,7 @@ def lineup_advice(req: LineupRequest):
         # Look up the player's CURRENT Fantrax slot (where they're slotted right
         # now). When a Fantrax pull was sent, fp_by_name was built above —
         # use it for action recommendations (KEEP / BENCH / PROMOTE).
-        fp = fp_by_name.get(name.lower(), {}) if 'fp_by_name' in dir() else {}
+        fp = fp_by_name.get(name.lower(), {})
         current_slot = fp.get("slot")
         results.append({
             "input": name,
@@ -565,11 +581,13 @@ def lineup_advice(req: LineupRequest):
             r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
         for i, r in enumerate(pitchers):
             r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
+    minors_list = [r["input"] for r in results if r.get("is_minors")]
     return {
         "date": d.isoformat(),
         "hitters": hitters,
         "pitchers": pitchers,
-        "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]],
+        "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"] and not r.get("is_minors")],
+        "minors": minors_list,
         "matchup": matchup,
         "leverage": leverage_map,
         "slot_capacity": slot_capacity,

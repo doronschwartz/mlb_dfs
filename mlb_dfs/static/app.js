@@ -240,6 +240,7 @@ $("#lineup-go")?.addEventListener("click", async () => {
   if (tm) body.team_id = tm;
   if (_lastFantraxPlayers) body.fantrax_players = _lastFantraxPlayers;
   if (_lastFantraxSlotCounts) body.fantrax_slot_counts = _lastFantraxSlotCounts;
+  body.allow_call_ups = !!$("#lineup-allow-callups")?.checked;
   const data = await api(`/api/lineup`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -361,11 +362,10 @@ function _renderLineupOutput(data) {
       return (b.cat_value || 0) - (a.cat_value || 0);
     });
     const trs = rows.map(r => {
-      const isStart = r.recommendation === "START";
-      const isOff = r.recommendation === "OFF";
-      const recCls = isStart ? "edge-pos" : (isOff ? "muted" : "edge-neg");
+      const action = _actionLabel(r);
       const rpTag = r.is_rp ? ` <span class="bench-tag" style="background:rgba(148,163,184,0.25);font-size:9px;">RP?</span>` : "";
-      const recLabel = isStart && r.slot_assignment ? `START <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>${rpTag}` : `${r.recommendation}${rpTag}`;
+      const recCls = action.cls;
+      const recLabel = `${action.label}${rpTag}`;
       const cp = r.cat_proj || {};
       const catCols = isHitter
         ? `<td>${(cp.R ?? 0).toFixed(2)}</td><td>${(cp.HR ?? 0).toFixed(2)}</td><td>${(cp.RBI ?? 0).toFixed(2)}</td><td>${(cp.SB ?? 0).toFixed(2)}</td><td>${((cp.OPS ?? 0)).toFixed(3)}</td>`
@@ -417,6 +417,9 @@ function _renderLineupOutput(data) {
   }
   html += renderTable("Hitters", data.hitters, "No hitters matched.", _lineupSort.hitter);
   html += renderTable("Pitchers", data.pitchers, "No pitchers matched.", _lineupSort.pitcher);
+  if (data.minors && data.minors.length) {
+    html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">⚾ Minor-league (need call-up to start) — ${data.minors.length}. Toggle "Allow call-ups" above to include them.</summary><div class="muted" style="font-size:12px;margin-top:4px;">${data.minors.join(", ")}</div></details>`;
+  }
   if (data.unmatched && data.unmatched.length) {
     const list = data.unmatched.map(r => r.input).join(", ");
     html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length})</summary><div class="muted" style="font-size:12px;margin-top:4px;">${list}</div></details>`;
