@@ -94,6 +94,36 @@ def _session() -> requests.Session:
 # ---- public API -----------------------------------------------------------
 
 
+def get_league_info(league_id: str) -> dict:
+    """Fetch the league's scoring rules + setup. The response includes the
+    list of scoring categories / point values, which tells us whether this is
+    a points league, roto, or H2H categories — and exactly which stats matter.
+
+    We strip out the firehose of presentation-layer junk and surface only the
+    fields a projection model cares about.
+    """
+    from fantraxapi.api import Method, _request
+    sess = _session()
+    raw = _request(league_id, [Method("getFantasyLeagueInfo")], session=sess)
+    # raw is a dict with keys including "fantasySettings", "positionMap", etc.
+    fs = (raw or {}).get("fantasySettings", {}) if isinstance(raw, dict) else {}
+    out = {
+        "leagueName": fs.get("leagueName"),
+        "subtitle": fs.get("subtitle"),
+        "leagueType": fs.get("leagueType"),         # e.g. "Points", "Roto", "H2H Points", "H2H Categories"
+        "scoringSystem": fs.get("scoringSystem"),
+        "rosterLockType": fs.get("rosterLockType"),
+        "rosterLockTime": fs.get("rosterLockTime"),
+        "season": fs.get("season"),
+        # The big one — the scoring formula (categories with weights or point values).
+        "scoringFormulas": fs.get("scoringFormulas") or fs.get("scoringFormula") or fs.get("statCategories"),
+        "fantasyTeamCount": fs.get("fantasyTeamCount"),
+    }
+    # Also include a top-level keys snapshot so we can spot any field we missed.
+    out["_raw_keys"] = sorted(fs.keys()) if isinstance(fs, dict) else []
+    return out
+
+
 def list_teams(league_id: str) -> list[dict]:
     """Returns [{team_id, name, short}] for every team in the league."""
     api = _api(league_id)

@@ -322,6 +322,16 @@ def fantrax_auth_status():
     return {"authenticated": fantrax.is_authenticated()}
 
 
+@app.get("/api/fantrax/league_info")
+def fantrax_league_info(league_id: str):
+    try:
+        return fantrax.get_league_info(league_id)
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Fantrax: {e}")
+
+
 @app.get("/api/fantrax/teams")
 def fantrax_teams(league_id: str):
     try:

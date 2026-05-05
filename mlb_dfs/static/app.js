@@ -189,6 +189,39 @@ window.addEventListener("DOMContentLoaded", () => {
   if (tm && $("#ftx-team")) $("#ftx-team").value = tm;
 });
 
+$("#ftx-league-info")?.addEventListener("click", async () => {
+  const lg = $("#ftx-league").value.trim();
+  if (!lg) return alert("Enter your league_id first.");
+  $("#ftx-status").textContent = "Fetching league config…";
+  $("#ftx-status").style.color = "";
+  try {
+    const data = await api(`/api/fantrax/league_info?league_id=${encodeURIComponent(lg)}`);
+    // Render below the lineup output
+    const out = $("#lineup-out");
+    out.innerHTML = `
+      <h3>League: ${data.leagueName || "?"} <span class="muted">(${data.subtitle || "?"})</span></h3>
+      <div style="margin:6px 0;font-size:13px;">
+        <b>Type:</b> ${data.leagueType || "?"} · <b>Scoring system:</b> ${data.scoringSystem || "?"}
+        · <b>Teams:</b> ${data.fantasyTeamCount ?? "?"}
+      </div>
+      <h4>Scoring formula</h4>
+      <pre style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px;overflow:auto;max-height:480px;font-size:11px;">${JSON.stringify(data.scoringFormulas, null, 2)}</pre>
+      <details><summary class="muted" style="cursor:pointer;">Raw fantasy-settings keys</summary>
+        <pre style="font-size:11px;">${JSON.stringify(data._raw_keys, null, 2)}</pre>
+      </details>
+    `;
+    $("#ftx-status").textContent = "✓ League config loaded — check below.";
+    $("#ftx-status").style.color = "var(--accent-2)";
+  } catch (e) {
+    if (/^401\b/.test(e.message)) {
+      $("#ftx-status").innerHTML = `<span style="color:var(--bad);">Auth required — set up cookie first.</span>`;
+    } else {
+      $("#ftx-status").textContent = `Error: ${e.message}`;
+      $("#ftx-status").style.color = "var(--bad)";
+    }
+  }
+});
+
 $("#ftx-auth")?.addEventListener("click", () => {
   const panel = $("#ftx-auth-panel");
   if (panel) panel.hidden = !panel.hidden;
