@@ -305,21 +305,16 @@ def project_hitter(
         order_factor = ORDER_FACTORS[batting_order]
         notes.append(f"batting #{batting_order} x{order_factor:.2f} (PA adj)")
 
-    # Vegas implied team total — best market signal for run scoring environment.
-    # League avg implied total ~ 4.5 R/G. Scale projection by sqrt of ratio so
-    # it's directional but not dominant. Capped ±15%.
+    # Matchup adjustment: prefer Vegas implied team total when available — it's
+    # the market's full pricing of opposing pitcher quality, lineup, park,
+    # weather, umpire, etc. Falls back to SP-only factor when no odds posted.
     vegas_factor = 1.0
     if implied_team_total and implied_team_total > 0:
         vegas_factor = (implied_team_total / 4.5) ** 0.55
-        vegas_factor = max(0.85, min(vegas_factor, 1.18))
-        notes.append(f"Vegas implied {implied_team_total:.1f} R x{vegas_factor:.2f}")
-        # Vegas already prices in opposing SP quality. To avoid double-counting,
-        # dampen sp_factor toward 1.0 by 50% when Vegas data is present.
-        if sp_factor != 1.0:
-            old_sp = sp_factor
-            sp_factor = 1.0 + (sp_factor - 1.0) * 0.5
-            sp_factor = max(0.75, min(sp_factor, 1.25))
-            notes.append(f"  → SP dampened {old_sp:.2f}→{sp_factor:.2f} (Vegas double-count guard)")
+        vegas_factor = max(0.82, min(vegas_factor, 1.22))
+        notes.append(f"Vegas implied {implied_team_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
+        sp_factor = 1.0   # Vegas supersedes — don't double-count
+    # If no Vegas, sp_factor stays as computed above and is the matchup signal.
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
     # Magnitude small because it's already entangled with sp_factor.
@@ -504,17 +499,14 @@ def project_pitcher(
         notes.append(f"park {venue} x{park_factor:.2f} (env {park_blend:.2f})")
 
     # Vegas implied total for the OPPONENT — low expected scoring = better for SP.
+    # Same logic as hitters: if Vegas exists, it's the comprehensive market
+    # signal. Drop opp_factor (opponent runs/game) which is just a noisier proxy.
     vegas_factor = 1.0
     if opp_implied_total and opp_implied_total > 0:
         vegas_factor = (4.5 / opp_implied_total) ** 0.55
-        vegas_factor = max(0.85, min(vegas_factor, 1.18))
-        notes.append(f"opp Vegas {opp_implied_total:.1f} R x{vegas_factor:.2f}")
-        # opp_factor (opponent runs/game) overlaps with Vegas implied; dampen.
-        if opp_factor != 1.0:
-            old_opp = opp_factor
-            opp_factor = 1.0 + (opp_factor - 1.0) * 0.5
-            opp_factor = max(0.85, min(opp_factor, 1.20))
-            notes.append(f"  → opp dampened {old_opp:.2f}→{opp_factor:.2f} (Vegas double-count guard)")
+        vegas_factor = max(0.82, min(vegas_factor, 1.22))
+        notes.append(f"opp Vegas {opp_implied_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
+        opp_factor = 1.0   # Vegas supersedes
 
     # Rolling xwOBA-against — pitcher's recent suppressed-contact form vs season.
     # Inverted: lower rolling xwOBA = better pitcher = higher projection.
