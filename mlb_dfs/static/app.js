@@ -203,6 +203,11 @@ $("#lineup-go")?.addEventListener("click", async () => {
       <tbody>${trs}</tbody></table>`;
   };
   let html = "";
+  if (data.slot_capacity && Object.keys(data.slot_capacity).length) {
+    const sc = data.slot_capacity;
+    const summary = Object.entries(sc).map(([k, v]) => `${v}×${k}`).join(" · ");
+    html += `<div class="muted" style="font-size:11px;margin:4px 0 6px;">Slots used for assignment: ${summary}</div>`;
+  }
   // Current weekly matchup state + leverage display.
   if (data.matchup && data.matchup.values) {
     const m = data.matchup;

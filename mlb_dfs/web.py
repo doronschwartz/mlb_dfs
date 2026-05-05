@@ -415,6 +415,7 @@ def lineup_advice(req: LineupRequest):
         "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]],
         "matchup": matchup,
         "leverage": leverage_map,
+        "slot_capacity": slot_capacity,
     }
 
 

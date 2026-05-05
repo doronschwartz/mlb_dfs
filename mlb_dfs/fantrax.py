@@ -199,22 +199,18 @@ def get_current_matchup(league_id: str, team_id: str) -> dict:
     if not isinstance(raw, dict):
         return {}
     tables = raw.get("tableList", []) or []
-    # Find the period table with H2hRotisserie2 type — the per-period matchup grid.
+    # Period tables are H2hRotisserie2 type. They appear in the response with
+    # the CURRENT period FIRST (highest period number) followed by past periods.
+    # Take the first one that contains our team — that's the live matchup.
     for table in tables:
         if table.get("tableType") != "H2hRotisserie2":
             continue
-        # Iterate rows; each row has fixedCells[0].teamId and matchupId.
-        # The pair of rows with the same matchupId that contains team_id is the user's matchup.
         rows = table.get("rows", [])
-        # Skip past periods (disabled=True). Take the first period with our team.
-        if all(r.get("disabled") for r in rows if any(c.get("teamId") == team_id for c in (r.get("fixedCells") or []))):
-            continue
-        # Find user's row + opponent's row.
         my_row = None
         opp_row = None
         for r in rows:
             tid = (r.get("fixedCells") or [{}])[0].get("teamId")
-            if tid == team_id and not r.get("disabled"):
+            if tid == team_id:
                 my_row = r
                 # Opponent shares matchupId.
                 mid = r.get("matchupId")
