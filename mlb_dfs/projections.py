@@ -890,6 +890,70 @@ def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_fa
     return z, proj
 
 
+def project_reliever_cats(pid: int, season: int) -> dict | None:
+    """Project a reliever's per-day category contribution.
+
+    Pulls their season pitching rates and scales by an estimated daily usage
+    probability (~35% — relievers pitch 1 in ~3 days). Returns:
+      {QS, K, ERA, WHIP, SVH} — projected daily contribution.
+    Returns None if the player has no usable pitching sample.
+    """
+    try:
+        seasn = mlb_api.player_stats(pid, group="pitching", season=season)
+    except Exception:
+        return None
+    g = _safe_float(seasn.get("gamesPlayed"))
+    if g < 3:
+        return None
+    ip = _safe_float(seasn.get("inningsPitched"))
+    if ip <= 0:
+        return None
+    k = _safe_float(seasn.get("strikeOuts"))
+    sv = _safe_float(seasn.get("saves"))
+    hld = _safe_float(seasn.get("holds"))
+    era = _safe_float(seasn.get("era"), default=4.20)
+    whip = _safe_float(seasn.get("whip"), default=1.30)
+    # Per-appearance averages.
+    ip_per_app = ip / g
+    k_per_app = k / g
+    svh_per_app = (sv + hld) / g
+    # Daily usage probability — high-leverage closers pitch more often.
+    # Closer signal: SV%; if a guy has many saves, he's likely the closer.
+    sv_rate = sv / g if g else 0.0
+    hld_rate = hld / g if g else 0.0
+    if sv_rate >= 0.30:
+        usage = 0.45        # closer
+    elif (sv_rate + hld_rate) >= 0.30:
+        usage = 0.40        # setup / late innings
+    else:
+        usage = 0.30        # middle relief
+    return {
+        "QS": 0.0,                          # relievers don't get QS
+        "K": k_per_app * usage,             # expected K today
+        "ERA": era,                         # rate, applies if they pitch
+        "WHIP": whip,                       # rate, applies if they pitch
+        "SVH": svh_per_app * usage,         # expected SV+H today
+        "_usage": usage,                    # exposed for transparency
+        "_ip_per_app": ip_per_app,
+    }
+
+
+def category_value_reliever(rates: dict, leverage: dict | None = None) -> tuple[float, dict]:
+    """Z-score a reliever's projected day. ERA/WHIP only contribute when usage
+    expects them to actually pitch — damp by usage so a guy who pitches 1/3
+    days doesn't drag your full-week ERA the same way a starter does."""
+    lev = leverage or {}
+    usage = rates.get("_usage", 0.35)
+    proj = {"QS": 0.0, "K": rates["K"], "ERA": rates["ERA"], "WHIP": rates["WHIP"], "SVH": rates["SVH"]}
+    z = 0.0
+    z += ((proj["K"]   - LG_PITCHER_RATES["K"] * usage)   / LG_PITCHER_STDEV["K"]) * lev.get("K", 1.0)
+    # ERA/WHIP ratios — damp by usage since they only "happen" sometimes.
+    z += ((LG_PITCHER_RATES["ERA"]  - proj["ERA"])  / LG_PITCHER_STDEV["ERA"])  * lev.get("ERA", 1.0) * usage
+    z += ((LG_PITCHER_RATES["WHIP"] - proj["WHIP"]) / LG_PITCHER_STDEV["WHIP"]) * lev.get("WHIP", 1.0) * usage
+    z += ((proj["SVH"]  - LG_PITCHER_RATES["SVH"])   / LG_PITCHER_STDEV["SVH"]) * lev.get("SVH", 1.0)
+    return z, proj
+
+
 def category_value_pitcher(p, vegas_factor: float, park_factor: float, leverage: dict | None = None) -> tuple[float, dict]:
     c = p.components or {}
     rates = c.get("rolling_cats") or {}
