@@ -168,11 +168,11 @@ function _oppFromComponents(p) {
   if (!c.opp_abbr) return "";
   const prefix = c.is_home === false ? "@" : "vs ";
   if (p.role === "hitter") {
-    const sp = c.opp_sp_name ? ` <span class="muted" style="font-size:10px;">vs ${c.opp_sp_name}</span>` : "";
-    return ` <span class="muted" style="font-size:11px;">${prefix}${c.opp_abbr}${sp}</span>`;
+    const sp = c.opp_sp_name ? `, ${c.opp_sp_name}` : "";
+    return `<div class="opp-line muted">${prefix}${c.opp_abbr}${sp}</div>`;
   }
-  const oppRuns = c.opp_implied_total ? ` <span class="muted" style="font-size:10px;">${c.opp_implied_total.toFixed(1)} R</span>` : "";
-  return ` <span class="muted" style="font-size:11px;">${prefix}${c.opp_abbr}${oppRuns}</span>`;
+  const oppRuns = c.opp_implied_total ? `, ${c.opp_implied_total.toFixed(1)} R` : "";
+  return `<div class="opp-line muted">${prefix}${c.opp_abbr}${oppRuns}</div>`;
 }
 
 // Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
