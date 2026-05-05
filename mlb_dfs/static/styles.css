@@ -319,6 +319,8 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   nav { flex-wrap: wrap; gap: 4px; }
   nav button { padding: 6px 8px; font-size: 12px; }
   .date-row { flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  /* Tighter main padding so tables get more horizontal room */
+  main { padding: 12px 8px; }
 
   /* All available players: drop noisy columns, lift fonts down */
   #pool-out table { font-size: 11px; }
@@ -329,9 +331,16 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   #pool-out th:nth-child(7), #pool-out td:nth-child(7) { display: none; }   /* Notes */
   #pool-out td:first-child { width: 38px; font-weight: 600; }
 
-  /* Projections tab: drop Notes (visible in tooltip) */
-  #proj-out th:nth-child(5), #proj-out td:nth-child(5) { display: none; }
-  #proj-out table { font-size: 12px; }
+  /* Projections tab: keep just Proj + Player on mobile (everything else is in
+     the tap-to-open tooltip). Bigger fonts, tighter padding. */
+  #proj-out { overflow-x: visible; }
+  #proj-out table { font-size: 14px; width: 100%; table-layout: fixed; }
+  #proj-out th, #proj-out td { padding: 8px 4px; }
+  #proj-out th:nth-child(3), #proj-out td:nth-child(3) { display: none; }   /* Pos */
+  #proj-out th:nth-child(4), #proj-out td:nth-child(4) { display: none; }   /* Role */
+  #proj-out th:nth-child(5), #proj-out td:nth-child(5) { display: none; }   /* Notes */
+  #proj-out th:first-child, #proj-out td:first-child { width: 56px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #proj-out td:nth-child(2) { word-break: normal; line-height: 1.3; }
 
   /* Recommended picks: tighter */
   #recs-out table { font-size: 12px; }
