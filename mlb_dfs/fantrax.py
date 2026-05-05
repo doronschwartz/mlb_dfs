@@ -287,33 +287,72 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
         return {"error": f"team_id {team_id} not in this league", "teams": list_teams(league_id)}
 
     team = teams[team_id]
-    roster = api.team_roster(team_id)
-    # Build slot capacity by counting rows per position (each row = one slot,
-    # whether occupied or empty). This is the truth for active lineup shape.
     slot_counts: dict[str, int] = {}
-    for row in roster.rows:
-        if not row.position:
-            continue
-        sn = row.position.short_name
-        slot_counts[sn] = slot_counts.get(sn, 0) + 1
-    players = []
-    for row in roster.rows:
-        if row.player is None:
-            continue   # empty slot
-        p = row.player
-        slot = row.position.short_name if row.position else ""
-        players.append({
-            "name": p.name,
-            "fantrax_id": p.id,
-            "position": p.pos_short_name,            # natural pos eligibility (e.g., "OF,UTIL")
-            "team": p.team_short_name,
-            "slot": slot,                            # current lineup slot ("C", "1B", "BN", "IR", etc.)
-            "is_bench": slot in ("BN", "Res", "Reserve"),
-            "is_ir": slot in ("IR", "InjRes", "Inj Res"),
-            "injured": bool(p.injured),
-            "day_to_day": bool(p.day_to_day),
-            "out": bool(p.out),
-        })
+    players: list[dict] = []
+    try:
+        roster = api.team_roster(team_id)
+        for row in roster.rows:
+            if not row.position:
+                continue
+            sn = row.position.short_name
+            slot_counts[sn] = slot_counts.get(sn, 0) + 1
+        for row in roster.rows:
+            if row.player is None:
+                continue
+            p = row.player
+            slot = row.position.short_name if row.position else ""
+            players.append({
+                "name": p.name,
+                "fantrax_id": p.id,
+                "position": p.pos_short_name,
+                "team": p.team_short_name,
+                "slot": slot,
+                "is_bench": slot in ("BN", "Res", "Reserve"),
+                "is_ir": slot in ("IR", "InjRes", "Inj Res"),
+                "injured": bool(p.injured),
+                "day_to_day": bool(p.day_to_day),
+                "out": bool(p.out),
+            })
+    except Exception as roster_err:
+        # fantraxapi's Roster init is fragile — for some teams it raises
+        # IndexError when one of the two methods (GAMES_PER_POS / STATS) returns
+        # an empty response. Fall back to fetching the raw response and
+        # parsing whatever stat-table comes back.
+        from fantraxapi.api import Method, _request
+        sess = _session()
+        try:
+            raw = _request(api.league_id, [
+                Method("getTeamRosterInfo", view="STATS", teamId=team_id),
+            ], session=sess)
+        except Exception:
+            raise roster_err
+        # raw is a single dict (one method) — extract player rows from it.
+        if not isinstance(raw, dict):
+            raise roster_err
+        for table in (raw.get("tables") or []):
+            for row in (table.get("rows") or []):
+                if "posId" not in row:
+                    continue
+                pos_id = row.get("posId")
+                pos = (api.positions or {}).get(pos_id)
+                slot = pos.short_name if pos else ""
+                slot_counts[slot] = slot_counts.get(slot, 0) + 1
+                scorer = row.get("scorer")
+                if not scorer:
+                    continue
+                pos_short = scorer.get("posShortNames", "")
+                players.append({
+                    "name": scorer.get("name"),
+                    "fantrax_id": scorer.get("scorerId"),
+                    "position": pos_short,
+                    "team": scorer.get("teamShortName") or scorer.get("teamName"),
+                    "slot": slot,
+                    "is_bench": slot in ("BN", "Res", "Reserve"),
+                    "is_ir": slot in ("IR", "InjRes", "Inj Res"),
+                    "injured": False,
+                    "day_to_day": False,
+                    "out": False,
+                })
     return {
         "team_id": team_id,
         "team_name": team.name,
