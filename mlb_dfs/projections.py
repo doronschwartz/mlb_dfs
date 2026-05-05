@@ -353,10 +353,10 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
-    # Floor — even a deeply slumping hitter isn't expected to score below ~1
-    # pt (he might get one walk or ROE). Negative/near-zero projections were
-    # the result of compounding cuts, not realistic forecasts.
-    proj = max(proj, 1.0)
+    # No floor — strikeouts and GIDPs are negative-scoring events, so a
+    # deeply slumping K-prone hitter facing an elite SP genuinely can be a
+    # negative-EV play. The streak override above already protects against
+    # noise-driven negatives by flooring the L3 input at 0.
 
     # Confidence interval: hitter single-game stdev empirically ~5.5 pts
     # (calibration MAE ~4.3 → stdev ≈ MAE × 1.25). Floor/ceiling = ±1 stdev.
