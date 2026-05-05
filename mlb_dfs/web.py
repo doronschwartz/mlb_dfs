@@ -236,6 +236,26 @@ def lineup_advice(req: LineupRequest):
     projs = projections.project_slate_cached(d)
     by_lower = {p.name.lower(): p for p in projs}
 
+    # Build a tighter matcher: keyed by ASCII-normalized last name, with
+    # full-name disambiguation when multiple players share a last name.
+    def _norm(s):
+        # strip accents + punctuation, lowercase
+        import unicodedata
+        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+        return "".join(c.lower() for c in s if c.isalnum() or c.isspace())
+    by_lastname: dict[str, list] = {}
+    for p in projs:
+        parts = _norm(p.name).split()
+        if not parts:
+            continue
+        # Handle "Jr." / "II" / "III" suffixes — the real last name is the
+        # token before any suffix-like word.
+        SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
+        real_last = parts[-1]
+        if real_last in SUFFIXES and len(parts) >= 2:
+            real_last = parts[-2]
+        by_lastname.setdefault(real_last, []).append(p)
+
     results = []
     for raw in req.names:
         name = raw.strip()
@@ -244,10 +264,25 @@ def lineup_advice(req: LineupRequest):
         lower = name.lower()
         proj = by_lower.get(lower)
         if not proj:
-            for n, p in by_lower.items():
-                if lower in n or any(part in n for part in lower.split() if len(part) > 2):
-                    proj = p
-                    break
+            # Strict last-name + first-initial match. No more sloppy substring.
+            n_parts = _norm(name).split()
+            if n_parts:
+                last = n_parts[-1]
+                SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
+                if last in SUFFIXES and len(n_parts) >= 2:
+                    last = n_parts[-2]
+                first = n_parts[0] if n_parts else ""
+                candidates = by_lastname.get(last, [])
+                # Single match on last name → take it. Multiple → also require
+                # first-name initial.
+                if len(candidates) == 1:
+                    proj = candidates[0]
+                elif len(candidates) > 1 and first:
+                    for cand in candidates:
+                        cand_first = _norm(cand.name).split()[0] if cand.name else ""
+                        if cand_first[:1] == first[:1] and (cand_first == first or first in cand_first or cand_first in first):
+                            proj = cand
+                            break
         results.append({
             "input": name,
             "matched_name": proj.name if proj else None,
@@ -269,7 +304,7 @@ def lineup_advice(req: LineupRequest):
     for i, r in enumerate(pitchers):
         r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
     return {"date": d.isoformat(), "hitters": hitters, "pitchers": pitchers,
-            "unmatched": [r for r in results if not r["playing_today"]]}
+            "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"]]}
 
 
 class FantraxCookieRequest(BaseModel):

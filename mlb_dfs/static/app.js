@@ -173,7 +173,8 @@ $("#lineup-go")?.addEventListener("click", async () => {
   let html = renderTable("Hitters", data.hitters, "No hitters matched.");
   html += renderTable("Pitchers", data.pitchers, "No pitchers matched.");
   if (data.unmatched.length) {
-    html += `<h3>Not playing today / unmatched</h3><div class="muted">${data.unmatched.map(r => r.input).join(", ")}</div>`;
+    const list = data.unmatched.map(r => r.input).join(", ");
+    html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">Not playing today / unmatched (${data.unmatched.length}) — mostly minor leaguers</summary><div class="muted" style="font-size:12px;margin-top:4px;">${list}</div></details>`;
   }
   $("#lineup-out").innerHTML = html;
 });
