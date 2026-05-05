@@ -97,9 +97,10 @@ def _session() -> requests.Session:
 def list_teams(league_id: str) -> list[dict]:
     """Returns [{team_id, name, short}] for every team in the league."""
     api = _api(league_id)
+    # NB: team_lookup is a @property (returns dict), NOT a method.
     return [
-        {"team_id": t.id, "name": t.name, "short": t.short}
-        for t in api.teams
+        {"team_id": tid, "name": t.name, "short": t.short}
+        for tid, t in api.team_lookup.items()
     ]
 
 
@@ -110,7 +111,7 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     error payload listing the teams so the caller can pick.
     """
     api = _api(league_id)
-    teams = api.team_lookup()
+    teams = api.team_lookup   # property
     if not team_id:
         if len(teams) != 1:
             return {
