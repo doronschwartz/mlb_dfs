@@ -155,6 +155,14 @@
             <input type="checkbox" id="lineup-allow-callups" />
             Allow call-ups from minors
           </label>
+          <details style="font-size:12px;">
+            <summary class="muted" style="cursor:pointer;">Force-mark as Min ↓</summary>
+            <div class="muted" style="font-size:11px;margin:4px 0;max-width:240px;">
+              When Fantrax's roster slot is wrong/stale, paste names here (one per line or comma-sep) to treat them as Minors.
+            </div>
+            <textarea id="lineup-force-minors" rows="3" placeholder="Marcelo Mayer&#10;T.J. Rumfield"
+                      style="width:240px;font-family:ui-monospace,Menlo,monospace;font-size:11px;"></textarea>
+          </details>
         </div>
       </div>
       <div id="lineup-out"></div>

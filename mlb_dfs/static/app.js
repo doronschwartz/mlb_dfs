@@ -241,6 +241,13 @@ $("#lineup-go")?.addEventListener("click", async () => {
   if (_lastFantraxPlayers) body.fantrax_players = _lastFantraxPlayers;
   if (_lastFantraxSlotCounts) body.fantrax_slot_counts = _lastFantraxSlotCounts;
   body.allow_call_ups = !!$("#lineup-allow-callups")?.checked;
+  const forceMinRaw = ($("#lineup-force-minors")?.value || "").trim();
+  if (forceMinRaw) {
+    body.force_minors = forceMinRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    localStorage.setItem("mlb_dfs_force_minors", forceMinRaw);
+  } else {
+    localStorage.removeItem("mlb_dfs_force_minors");
+  }
   const data = await api(`/api/lineup`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -449,6 +456,8 @@ function _renderLineupOutput(data) {
 window.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem("mlb_dfs_lineup_names");
   if (saved && $("#lineup-names")) $("#lineup-names").value = saved;
+  const savedForceMin = localStorage.getItem("mlb_dfs_force_minors");
+  if (savedForceMin && $("#lineup-force-minors")) $("#lineup-force-minors").value = savedForceMin;
   const lg = localStorage.getItem("mlb_dfs_ftx_league");
   const tm = localStorage.getItem("mlb_dfs_ftx_team");
   if (lg && $("#ftx-league")) $("#ftx-league").value = lg;

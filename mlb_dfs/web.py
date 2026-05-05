@@ -229,6 +229,10 @@ class LineupRequest(BaseModel):
     # When True, include minor-leaguers (Fantrax slot "Min"/"Minors") in the
     # ranking — those would need a call-up before they could actually start.
     allow_call_ups: bool = False
+    # User-supplied list of names to force-treat as Min slot regardless of
+    # what Fantrax's roster API reports. Useful when Fantrax slot data is
+    # stale or the league's Min position has an unrecognized short_name.
+    force_minors: list[str] | None = None
 
 
 @app.post("/api/lineup")
@@ -293,6 +297,7 @@ def lineup_advice(req: LineupRequest):
     # whose name's last+first-initial matches a today-playing pitcher. This
     # turns 25 sequential MLB API calls (~30s) into ~2s with 12 workers.
     from concurrent.futures import ThreadPoolExecutor
+    forced_min_lower: set[str] = {n.strip().lower() for n in (req.force_minors or []) if n and n.strip()}
     # Build eligibility map up front so we can filter SP-only out of the parallel pre-fetch.
     eligibility_map: dict[str, set[str]] = {}
     fp_by_name: dict[str, dict] = {}
@@ -362,7 +367,12 @@ def lineup_advice(req: LineupRequest):
         # Minor-leaguer short-circuit: skip ranking unless allow_call_ups=True.
         fp_early = fp_by_name.get(lower, {})
         cur_slot_early = (fp_early.get("slot") or "").lower()
-        if cur_slot_early in ("min", "minors", "mi", "minorleague", "minor") and not req.allow_call_ups:
+        is_forced_min = lower in forced_min_lower
+        # NB: "mi" is intentionally NOT in this list — MI = Middle Infield, an
+        # active slot, not Minors. Variants seen across leagues: Min, Minors,
+        # Minor, MiL, ML, "Minor League".
+        is_min_slot = (cur_slot_early in ("min", "minors", "minor", "mil", "ml", "minor league", "minorleague"))
+        if (is_forced_min or is_min_slot) and not req.allow_call_ups:
             # Is this player actually MLB-active today (just hasn't been moved
             # up in Fantrax yet)? Cross-check against today's slate pool.
             mlb_active = lower in by_lower or lower in rp_pool
@@ -395,6 +405,7 @@ def lineup_advice(req: LineupRequest):
                 "playing_today": False, "is_rp": False,
                 "current_slot": fp_early.get("slot"), "is_minors": True,
                 "mlb_active_today": mlb_active,
+                "forced_minors": is_forced_min and not is_min_slot,
             })
             continue
         proj = by_lower.get(lower)
