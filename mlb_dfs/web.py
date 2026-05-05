@@ -224,10 +224,9 @@ class LineupRequest(BaseModel):
     names: list[str]
     league_id: str | None = None
     team_id: str | None = None
-    # Optional Fantrax-pulled metadata: list of {name, position (eligibility),
-    # slot (current), is_bench, is_ir} from get_roster. When provided we use
-    # the position eligibility to do slot-aware filling.
     fantrax_players: list[dict] | None = None
+    # {position_short_name: count} — derived from the actual roster grid.
+    fantrax_slot_counts: dict[str, int] | None = None
 
 
 @app.post("/api/lineup")
@@ -346,34 +345,21 @@ def lineup_advice(req: LineupRequest):
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
 
     # Position-aware slot filling, when Fantrax metadata is available.
-    slot_config = None
+    # Use slot_counts from the actual roster grid (truth) — count of rows per position.
+    slot_capacity: dict[str, int] = req.fantrax_slot_counts or {}
     eligibility_map: dict[str, set[str]] = {}   # input_name -> set of slot eligibilities
-    if req.league_id and req.team_id:
-        try:
-            slot_config = fantrax.get_position_counts(req.league_id, req.team_id)
-        except Exception:
-            slot_config = None
     if req.fantrax_players:
         for fp in req.fantrax_players:
             elig = (fp.get("position") or "").upper()
             slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
             eligibility_map[(fp.get("name") or "").lower()] = slots
 
-    if slot_config:
+    if slot_capacity:
         # Hitter slots to fill (everything that isn't a pitcher slot, BN, IR, Res).
         HITTER_SLOTS = ("C", "1B", "2B", "3B", "SS", "CI", "MI", "OF", "UT")
         PITCHER_SLOTS = ("SP", "RP", "P")
-        # Build slot capacity from `max` (or `min` if max is None — Fantrax uses
-        # `gp` for budget/cap on game-eligible plays per period; we use `max`
-        # as instantaneous active count, which mirrors lineup-card UX).
-        def _capacity(slot):
-            cfg = slot_config.get(slot)
-            if not cfg:
-                return 0
-            # Some leagues only have a `max` (UT, Res), others have a fixed slot count.
-            return cfg.get("max") or 0
-        hit_slots = {s: _capacity(s) for s in HITTER_SLOTS if _capacity(s) > 0}
-        pit_slots = {s: _capacity(s) for s in PITCHER_SLOTS if _capacity(s) > 0}
+        hit_slots = {s: slot_capacity.get(s, 0) for s in HITTER_SLOTS if slot_capacity.get(s, 0) > 0}
+        pit_slots = {s: slot_capacity.get(s, 0) for s in PITCHER_SLOTS if slot_capacity.get(s, 0) > 0}
         # Greedy assign in cat-value-desc order, prefer most-restrictive slot.
         SLOT_PRIORITY_HIT = ["C", "SS", "2B", "3B", "1B", "MI", "CI", "OF", "UT"]
         SLOT_PRIORITY_PIT = ["SP", "RP", "P"]

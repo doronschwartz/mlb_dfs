@@ -292,6 +292,14 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
 
     team = teams[team_id]
     roster = api.team_roster(team_id)
+    # Build slot capacity by counting rows per position (each row = one slot,
+    # whether occupied or empty). This is the truth for active lineup shape.
+    slot_counts: dict[str, int] = {}
+    for row in roster.rows:
+        if not row.position:
+            continue
+        sn = row.position.short_name
+        slot_counts[sn] = slot_counts.get(sn, 0) + 1
     players = []
     for row in roster.rows:
         if row.player is None:
@@ -318,6 +326,7 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
         "active_max": roster.active_max,
         "reserve": roster.reserve,
         "reserve_max": roster.reserve_max,
+        "slot_counts": slot_counts,    # {position_short_name: count of rows}
         "players": players,
     }
 

@@ -151,6 +151,7 @@ $("#refresh").addEventListener("click", async () => {
 
 // Cached Fantrax payload from last Pull (so /api/lineup gets position eligibility).
 let _lastFantraxPlayers = null;
+let _lastFantraxSlotCounts = null;
 
 $("#lineup-go")?.addEventListener("click", async () => {
   const names = ($("#lineup-names").value || "").split("\n").map(s => s.trim()).filter(Boolean);
@@ -165,6 +166,7 @@ $("#lineup-go")?.addEventListener("click", async () => {
   if (lg) body.league_id = lg;
   if (tm) body.team_id = tm;
   if (_lastFantraxPlayers) body.fantrax_players = _lastFantraxPlayers;
+  if (_lastFantraxSlotCounts) body.fantrax_slot_counts = _lastFantraxSlotCounts;
   const data = await api(`/api/lineup`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -401,6 +403,7 @@ $("#ftx-pull")?.addEventListener("click", async () => {
     // Cache the full player list — /api/lineup needs position eligibility for
     // slot-aware optimization.
     _lastFantraxPlayers = data.players || [];
+    _lastFantraxSlotCounts = data.slot_counts || null;
     $("#ftx-status").textContent = `✓ Pulled ${names.length} from ${data.team_name || "team"}. Click Project lineup.`;
     $("#ftx-status").style.color = "var(--accent-2)";
   } catch (e) {
