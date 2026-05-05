@@ -566,21 +566,16 @@ def lineup_advice(req: LineupRequest):
     hitters.sort(key=lambda r: r["cat_value"], reverse=True)
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
 
-    # Position-aware slot filling. eligibility_map already built above.
-    slot_capacity: dict[str, int] = req.fantrax_slot_counts or {}
-    if req.fantrax_players:
-        # Fallback: if frontend cached an old Fantrax pull (before slot_counts
-        # was added), derive slot capacity from the players' current slot
-        # positions. Each fantrax_player has a `slot` showing which lineup spot
-        # they occupy right now (C, 1B, OF, BN, IR, Res, etc.).
-        if not slot_capacity:
-            derived: dict[str, int] = {}
-            for fp in req.fantrax_players:
-                s = (fp.get("slot") or "").strip()
-                if s:
-                    derived[s] = derived.get(s, 0) + 1
-            if derived:
-                slot_capacity = derived
+    # Position-aware slot filling. Hardcode the standard MLB H2H Cat active-
+    # roster shape — same authority as fantrax.get_roster's hardcoded shape.
+    # Ignore frontend-supplied fantrax_slot_counts (often stale or row-counted
+    # multi-period dup, which inflates SS/OF/SP and prevents BENCH labels from
+    # ever appearing). 11 active hitter slots, 9 active pitcher slots.
+    STANDARD_SLOTS = {
+        "C": 1, "1B": 1, "2B": 1, "3B": 1, "SS": 1, "CI": 1, "MI": 1,
+        "OF": 4, "UT": 2, "SP": 4, "RP": 3, "P": 2,
+    }
+    slot_capacity: dict[str, int] = dict(STANDARD_SLOTS)
 
     if slot_capacity:
         # Hitter slots to fill (everything that isn't a pitcher slot, BN, IR, Res).
