@@ -487,6 +487,7 @@ function projTooltip(p) {
     <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
     <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
+    ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (±1σ)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
     ${(p.notes||[]).length ? `<div class="bk-rows muted" style="margin-top:4px;font-size:10px;">${p.notes.join(" · ")}</div>` : ""}
   </div>`;
@@ -1879,7 +1880,19 @@ function _shortMonthDay(iso) {
 }
 
 let _schedAnchorSunday = null;   // The Sunday at the LEFT of the visible chip strip.
+let _schedDraftDates = new Set(); // ISO dates of existing drafts.
 const SCHED_CHIP_COUNT = 5;
+
+function _weekHasDrafts(sundayIso) {
+  // A week is "built" if a draft exists for any day Sun-Thu of that week.
+  const sun = new Date(sundayIso + "T12:00:00Z");
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(sun);
+    d.setUTCDate(sun.getUTCDate() + i);
+    if (_schedDraftDates.has(_isoDate(d))) return true;
+  }
+  return false;
+}
 
 function _renderSundayChips() {
   if (!_schedAnchorSunday) return;
@@ -1896,11 +1909,13 @@ function _renderSundayChips() {
     const label = iso === todaySunday ? "This wk"
       : iso === _isoDate(new Date(new Date(todaySunday + "T12:00:00Z").getTime() + 7*86400000)) ? "Next wk"
       : _shortMonthDay(iso);
-    const sub = iso === todaySunday || iso.startsWith(_shortMonthDay(iso)) ? "" : _shortMonthDay(iso);
     const sel = iso === selected ? "selected" : "";
-    chips.push(`<div class="sunday-chip ${sel}" data-iso="${iso}">
+    const built = _weekHasDrafts(iso) ? "built" : "";
+    const builtTag = built ? `<span class="built-tag" title="Drafts already created for this week">✓ built</span>` : "";
+    chips.push(`<div class="sunday-chip ${sel} ${built}" data-iso="${iso}">
       <span class="label">${label}</span>
       ${label === "This wk" || label === "Next wk" ? `<span class="sub">${_shortMonthDay(iso)}</span>` : ""}
+      ${builtTag}
     </div>`);
   }
   host.innerHTML = chips.join("");
@@ -1912,16 +1927,23 @@ function _renderSundayChips() {
   });
 }
 
-function initScheduleTab() {
+async function _refreshSchedDrafts() {
+  try {
+    const data = await api(`/api/drafts`);
+    _schedDraftDates = new Set((data.drafts || []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  } catch {}
+}
+
+async function initScheduleTab() {
   const today = $("#date").value || _isoDate(new Date());
   const sun = _toSunday(today);
   if (!$("#sched-start").value) $("#sched-start").value = sun;
-  // Anchor strip slightly to the right of selected so user sees current + future weeks.
   if (!_schedAnchorSunday) {
     const anchor = new Date(sun + "T12:00:00Z");
-    anchor.setUTCDate(anchor.getUTCDate() - 7); // one week earlier so user sees prev/this/next/+/+/+
+    anchor.setUTCDate(anchor.getUTCDate() - 7);
     _schedAnchorSunday = _isoDate(anchor);
   }
+  await _refreshSchedDrafts();
   _renderSundayChips();
 }
 

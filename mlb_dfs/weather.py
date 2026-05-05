@@ -58,6 +58,42 @@ def park_factor(home_abbr: str) -> tuple[float, float]:
     """Returns (run_env, hr_factor) for the home park. Defaults to 1.0/1.0."""
     return PARK_FACTORS.get((home_abbr or "").upper(), (1.0, 1.0))
 
+
+# Per-handedness HR park factors. Multiplier on the base HR factor for L vs R hitters.
+# Sources: FanGraphs handedness park factors (3-yr 2022-2024). Values represent
+# how much MORE (or less) the park favors that handedness compared to the
+# other-handed batter at the same park. Default 1.0 = no handedness bias.
+HANDEDNESS_HR_BIAS = {
+    # park: (LHB multiplier on park HR factor, RHB multiplier on park HR factor)
+    "NYY": (1.18, 0.95),   # short porch RF helps lefties dramatically
+    "BOS": (0.92, 1.10),   # Green Monster crushes LHB pull power, helps RHB
+    "HOU": (1.10, 1.00),   # Crawford Boxes are short LF — but reachable to RHB
+    "SF":  (0.85, 1.00),   # Triples Alley kills LHB
+    "SD":  (0.97, 0.92),   # generally suppresses, more so RHB
+    "MIA": (0.92, 0.92),   # huge dimensions hurt both
+    "DET": (0.93, 1.00),   # deep CF hurts straightaway power, esp LHB
+    "PIT": (0.92, 1.00),   # PNC Park kills LHB HR (deep RF)
+    "KC":  (0.92, 0.92),   # huge OF
+    "CIN": (1.10, 1.18),   # GAB favors RHB slightly more
+    "PHI": (1.10, 1.05),   # both helped, slightly more LHB
+    "MIL": (1.05, 1.05),   # symmetric
+    "BAL": (1.10, 1.12),   # RHB now favored after wall move
+    "TEX": (1.12, 1.10),   # both helped
+    "COL": (1.20, 1.18),   # altitude helps everyone, slightly more LHB
+}
+
+
+def park_hr_handedness(home_abbr: str, bats: str | None) -> float:
+    """Multiplier on the base HR factor for the given handedness. Defaults to 1.0
+    (neutral) when handedness unknown or park not in the bias table."""
+    bias = HANDEDNESS_HR_BIAS.get((home_abbr or "").upper())
+    if not bias or not bats:
+        return 1.0
+    if bats == "L": return bias[0]
+    if bats == "R": return bias[1]
+    if bats == "S": return (bias[0] + bias[1]) / 2.0
+    return 1.0
+
 _CACHE: dict[str, tuple[float, dict]] = {}
 _TTL = 1800  # 30 min
 

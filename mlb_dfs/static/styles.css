@@ -419,6 +419,13 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .sunday-chip.selected { border-color: var(--accent); background: rgba(96,165,250,0.12); box-shadow: 0 0 0 1px var(--accent) inset; }
 .sunday-chip .label { font-weight: 600; font-size: 12px; }
 .sunday-chip .sub { color: var(--muted); font-size: 10.5px; }
+.sunday-chip.built { opacity: 0.5; }
+.sunday-chip.built .label { text-decoration: line-through; }
+.sunday-chip .built-tag {
+  font-size: 9px; color: var(--accent-2); font-weight: 600;
+  background: rgba(52,211,153,0.18); padding: 1px 5px; border-radius: 4px;
+  margin-top: 2px;
+}
 
 .agg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
 .agg { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12px; }

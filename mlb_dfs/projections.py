@@ -283,17 +283,20 @@ def project_hitter(
         notes.append(f"qoc residual x{qoc_factor:.2f} ({', '.join(qoc_notes)})")
 
     # Park factor — combine run env (overall offensive-friendliness) with HR
-    # factor (which directly affects HR-heavy fantasy scoring). Run env weighted
-    # higher since it captures more of the projected box-score value.
+    # factor (which directly affects HR-heavy fantasy scoring). Apply
+    # handedness bias to the HR component (e.g., NYY short porch boosts LHB
+    # ~+18%, slightly hurts RHB).
     park_factor = 1.0
     if park:
         run_env = park.get("run_env", 1.0)
         hr_f = park.get("hr_factor", 1.0)
-        park_factor = (run_env * 0.65) + (hr_f * 0.35)
-        # Clamp to keep it from doing more than ~15% in either direction.
-        park_factor = max(0.85, min(park_factor, 1.18))
         venue = park.get("venue", "")
-        notes.append(f"park {venue} x{park_factor:.2f} (run {run_env:.2f}, HR {hr_f:.2f})")
+        hand_bias = weather_mod.park_hr_handedness(venue, bats)
+        hr_f_adj = hr_f * hand_bias
+        park_factor = (run_env * 0.65) + (hr_f_adj * 0.35)
+        park_factor = max(0.82, min(park_factor, 1.22))
+        hand_note = f", {bats}H bias x{hand_bias:.2f}" if hand_bias != 1.0 else ""
+        notes.append(f"park {venue} x{park_factor:.2f} (run {run_env:.2f}, HR {hr_f:.2f}{hand_note})")
 
     # Batting-order PA factor: leadoff hitters get ~4.6 PA/game, #9 gets ~3.7.
     # That's a ~22% PA spread top to bottom. Only applies when lineup is posted.
@@ -347,6 +350,13 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
+
+    # Confidence interval: hitter single-game stdev empirically ~5.5 pts
+    # (calibration MAE ~4.3 → stdev ≈ MAE × 1.25). Floor/ceiling = ±1 stdev.
+    # Floor for low-projection guys clamped at 0.
+    sigma = 5.5
+    floor = max(0.0, proj - sigma)
+    ceiling = proj + sigma
     pitfalls: list[str] = []
     if games_14 < 7:
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
@@ -395,6 +405,9 @@ def project_hitter(
             "rolling_factor": round(rolling_factor, 3),
             "rolling_xwoba": rolling_xwoba,
             "season_xwoba": season_xwoba,
+            "floor": round(floor, 2),
+            "ceiling": round(ceiling, 2),
+            "sigma": sigma,
         },
         notes=notes,
     )
@@ -518,6 +531,12 @@ def project_pitcher(
         notes.append(f"rolling xwOBA-agst {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor
+
+    # Pitcher single-start stdev empirically ~7 pts (single starts are
+    # higher variance — quality starts vs blowups can swing 25 pts).
+    sigma = 7.0
+    floor = max(-5.0, proj - sigma)   # pitchers can score negative on bad starts
+    ceiling = proj + sigma
     pitfalls: list[str] = []
     # SPs typically start every ~5 days, so 2-3 GS in 14d is the norm. Only
     # flag truly tiny samples (1 or 0 starts) — that's where projection noise
@@ -564,6 +583,9 @@ def project_pitcher(
             "rolling_factor": round(rolling_factor, 3),
             "rolling_xwoba": rolling_xwoba,
             "season_xwoba": season_xwoba,
+            "floor": round(floor, 2),
+            "ceiling": round(ceiling, 2),
+            "sigma": sigma,
         },
         notes=notes,
     )
