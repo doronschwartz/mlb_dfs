@@ -291,6 +291,8 @@ def fantrax_auth_status():
 def fantrax_teams(league_id: str):
     try:
         return {"teams": fantrax.list_teams(league_id)}
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
     except Exception as e:
         raise HTTPException(502, f"Fantrax: {e}")
 
@@ -299,6 +301,8 @@ def fantrax_teams(league_id: str):
 def fantrax_roster(league_id: str, team_id: str | None = None):
     try:
         return fantrax.get_roster(league_id, team_id)
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
     except Exception as e:
         raise HTTPException(502, f"Fantrax: {e}")
 
