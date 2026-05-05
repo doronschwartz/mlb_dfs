@@ -233,7 +233,9 @@ def lineup_advice(req: LineupRequest):
     pitchers separately. Top-N of each get 'START', rest 'SIT'.
     """
     d = Date.fromisoformat(req.date) if req.date else Date.today()
-    projs = projections.project_slate_cached(d)
+    # force_refresh: ensure rolling_cats and the latest factors are present
+    # (the projections cache may be stale across model updates).
+    projs = projections.project_slate_cached(d, force_refresh=True)
     by_lower = {p.name.lower(): p for p in projs}
 
     # Build a tighter matcher: keyed by ASCII-normalized last name, with
@@ -273,16 +275,19 @@ def lineup_advice(req: LineupRequest):
                     last = n_parts[-2]
                 first = n_parts[0] if n_parts else ""
                 candidates = by_lastname.get(last, [])
-                # Single match on last name → take it. Multiple → also require
-                # first-name initial.
-                if len(candidates) == 1:
-                    proj = candidates[0]
-                elif len(candidates) > 1 and first:
-                    for cand in candidates:
-                        cand_first = _norm(cand.name).split()[0] if cand.name else ""
-                        if cand_first[:1] == first[:1] and (cand_first == first or first in cand_first or cand_first in first):
-                            proj = cand
-                            break
+                # ALWAYS require first name to match, even on single-candidate.
+                # Otherwise "Kenley Jansen" picks "Danny Jansen" just because
+                # Kenley isn't in today's slate.
+                for cand in candidates:
+                    cand_first = _norm(cand.name).split()[0] if cand.name else ""
+                    if not cand_first or not first:
+                        continue
+                    if cand_first[:1] != first[:1]:
+                        continue
+                    # First initials match — accept if names are very close.
+                    if cand_first == first or cand_first.startswith(first) or first.startswith(cand_first):
+                        proj = cand
+                        break
         # H2H Categories value: project per-cat contributions, sum z-scores.
         cat_value = 0.0
         cat_proj: dict = {}
