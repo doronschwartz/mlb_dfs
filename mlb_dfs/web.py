@@ -1040,10 +1040,16 @@ def _draft_state(dr) -> dict:
     def _pick_dict(p):
         ls = lineups.get(p.player_id)
         proj = proj_by_id.get(p.player_id)
+        # Prefer the LIVE projection over the snapshot at draft-time so values
+        # reflect the current model + latest stats. Falls back to snapshot if
+        # the player isn't in today's slate (e.g., off day).
+        live_pts = proj.projected_points if proj else None
         return {
             "slot": p.slot, "name": p.name, "player_id": p.player_id,
             "position": p.position, "role": p.role,
-            "projected": p.projected_points, "pick_number": p.pick_number,
+            "projected": live_pts if live_pts is not None else p.projected_points,
+            "projected_at_pick": p.projected_points,
+            "pick_number": p.pick_number,
             "drafter": p.drafter,
             "lineup_status": (ls.get("status") if ls else "pending"),
             "game_pk": p.game_pk,
