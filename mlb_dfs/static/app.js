@@ -188,6 +188,52 @@ window.addEventListener("DOMContentLoaded", () => {
   if (tm && $("#ftx-team")) $("#ftx-team").value = tm;
 });
 
+$("#ftx-auth")?.addEventListener("click", () => {
+  const panel = $("#ftx-auth-panel");
+  if (panel) panel.hidden = !panel.hidden;
+});
+$("#ftx-auth-close")?.addEventListener("click", () => {
+  const panel = $("#ftx-auth-panel");
+  if (panel) panel.hidden = true;
+});
+
+$("#ftx-cookie-save")?.addEventListener("click", async () => {
+  const raw = ($("#ftx-cookie-input")?.value || "").trim();
+  const status = $("#ftx-cookie-status");
+  if (!raw) { status.textContent = "Paste the cookie value first."; status.style.color = "var(--bad)"; return; }
+  // Strip a leading "Cookie:" if user copied the whole header line.
+  const cookie = raw.replace(/^cookie:\s*/i, "");
+  status.textContent = "Saving…"; status.style.color = "";
+  try {
+    await api(`/api/fantrax/cookie`, { method: "POST", body: JSON.stringify({ cookie }) });
+  } catch (e) {
+    status.textContent = `Save failed: ${e.message}`; status.style.color = "var(--bad)";
+    return;
+  }
+  // Verify by trying to list teams against the league_id (if entered).
+  const lg = ($("#ftx-league")?.value || "").trim();
+  if (!lg) {
+    status.textContent = "✓ Saved. Now enter your league_id and click Pull.";
+    status.style.color = "var(--accent-2)";
+    return;
+  }
+  status.textContent = "Saved. Verifying with Fantrax…";
+  try {
+    const data = await api(`/api/fantrax/teams?league_id=${encodeURIComponent(lg)}`);
+    const n = (data.teams || []).length;
+    status.innerHTML = `✓ Auth works — found <b>${n}</b> teams in this league. You can close this panel.`;
+    status.style.color = "var(--accent-2)";
+    $("#ftx-cookie-input").value = "";   // clear from UI for safety
+  } catch (e) {
+    if (/401/.test(e.message)) {
+      status.innerHTML = `✗ Cookie didn't work. Re-copy from a fresh logged-in fantrax.com request and try again.`;
+    } else {
+      status.textContent = `Saved but verification failed: ${e.message}`;
+    }
+    status.style.color = "var(--bad)";
+  }
+});
+
 $("#ftx-pull")?.addEventListener("click", async () => {
   const lg = $("#ftx-league").value.trim();
   const tm = $("#ftx-team").value.trim();

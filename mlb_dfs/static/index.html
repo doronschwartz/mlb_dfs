@@ -118,11 +118,33 @@
         hitters / top 2 pitchers. <b>OFF</b> = no game today.
       </p>
       <div class="setup-row">
-        <input id="ftx-league" placeholder="Fantrax league_id" style="width:200px;" />
+        <input id="ftx-league" placeholder="Fantrax league_id (from any league URL)" style="width:240px;" />
         <input id="ftx-team" placeholder="team_id (optional)" style="width:160px;" />
-        <button id="ftx-pull" type="button">📥 Pull from Fantrax</button>
-        <button id="ftx-auth" type="button" title="Paste Fantrax session cookie (private leagues)">🔑 Paste cookie</button>
+        <button id="ftx-pull" type="button" class="btn-pick">📥 Pull from Fantrax</button>
+        <button id="ftx-auth" type="button">🔑 Set up cookie auth</button>
         <span id="ftx-status" class="muted" style="font-size:12px;"></span>
+      </div>
+
+      <div id="ftx-auth-panel" class="ftx-panel" hidden>
+        <h3 style="margin:0 0 6px;">Set up Fantrax cookie auth</h3>
+        <p class="muted" style="font-size:12px;margin:0 0 8px;">
+          Required for <b>private</b> leagues only. Public leagues work without this.
+        </p>
+        <ol style="font-size:13px;line-height:1.6;margin:6px 0 10px 18px;padding:0;">
+          <li>Open <a href="https://www.fantrax.com" target="_blank" rel="noopener">fantrax.com</a> in a new tab and make sure you're logged in to your league.</li>
+          <li>Open DevTools: <b>Cmd+Option+I</b> (Mac) or <b>F12</b> (Windows).</li>
+          <li>Go to the <b>Network</b> tab. Refresh the Fantrax page (<b>Cmd+R</b> / <b>F5</b>).</li>
+          <li>In the Network list, click any request to <code>fantrax.com</code> (e.g. <code>fxpa/req</code>).</li>
+          <li>Scroll to <b>Request Headers</b>, find the line starting with <code>Cookie:</code>.</li>
+          <li>Copy <i>everything</i> after <code>Cookie: </code> (the entire long string), and paste it below.</li>
+        </ol>
+        <textarea id="ftx-cookie-input" placeholder="JSESSIONID=...; uig=...; (paste full Cookie header value here)"
+                  rows="4" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:11px;"></textarea>
+        <div class="setup-row" style="margin-top:8px;">
+          <button id="ftx-cookie-save" type="button" class="btn-pick">Save & test</button>
+          <button id="ftx-auth-close" type="button">Close</button>
+          <span id="ftx-cookie-status" style="font-size:12px;"></span>
+        </div>
       </div>
       <div class="setup-row">
         <textarea id="lineup-names" rows="14" style="flex:1; min-width:300px; font-family:ui-monospace,Menlo,monospace;" placeholder="Shohei Ohtani&#10;Aaron Judge&#10;Mookie Betts&#10;Paul Skenes&#10;..."></textarea>

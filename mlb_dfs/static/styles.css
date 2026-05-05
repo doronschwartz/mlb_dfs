@@ -430,6 +430,16 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .sunday-chip .sub { color: var(--muted); font-size: 10.5px; }
 .sunday-chip.built { opacity: 0.5; }
 .sunday-chip.built .label { text-decoration: line-through; }
+.ftx-panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin: 10px 0; max-width: 720px;
+}
+.ftx-panel code {
+  background: rgba(96,165,250,0.12); padding: 1px 6px; border-radius: 3px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+}
+.ftx-panel a { color: var(--accent); }
+
 .sunday-chip .built-tag {
   font-size: 9px; color: var(--accent-2); font-weight: 600;
   background: rgba(52,211,153,0.18); padding: 1px 5px; border-radius: 4px;
