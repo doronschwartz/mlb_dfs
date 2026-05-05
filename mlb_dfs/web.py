@@ -279,6 +279,30 @@ def lineup_advice(req: LineupRequest):
                 last = parts[-2]
             rp_by_lastname.setdefault(last, []).append(meta)
 
+    # Pre-fetch reliever projections in parallel for everyone in the input
+    # whose name's last+first-initial matches a today-playing pitcher. This
+    # turns 25 sequential MLB API calls (~30s) into ~2s with 12 workers.
+    from concurrent.futures import ThreadPoolExecutor
+    rp_pids_to_fetch: set[int] = set()
+    for raw in req.names:
+        n_parts = _norm(raw.strip()).split()
+        if not n_parts: continue
+        last = n_parts[-1]
+        SUFFIXES2 = {"jr", "sr", "ii", "iii", "iv"}
+        if last in SUFFIXES2 and len(n_parts) >= 2:
+            last = n_parts[-2]
+        first = n_parts[0]
+        if (raw.strip().lower() in by_lower):
+            continue   # already in slate projections (probable SP)
+        for cand in rp_by_lastname.get(last, []):
+            cand_parts = _norm(cand["name"] or "").split()
+            if cand_parts and cand_parts[0][:1] == first[:1]:
+                rp_pids_to_fetch.add(cand["player_id"])
+                break
+    if rp_pids_to_fetch:
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            list(ex.map(lambda pid: projections.project_reliever_cats(pid, d.year), rp_pids_to_fetch))
+
     # Build a tighter matcher: keyed by ASCII-normalized last name, with
     # full-name disambiguation when multiple players share a last name.
     def _norm(s):
