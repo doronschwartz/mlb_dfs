@@ -156,11 +156,12 @@ function _actionLabel(r) {
   const cur = r.current_slot ?? null;
   const isStart = r.recommendation === "START";
   const slotPart = r.slot_assignment ? ` <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>` : "";
+  const scratchTag = r.scratched ? ` <span class="muted" style="font-weight:400;font-size:10px;">(scratched)</span>` : "";
   if (r.recommendation === "OFF") return { label: "OFF", cls: "muted" };
   // No Fantrax data → fall back to the bare recommendation.
   if (cur == null) {
     if (isStart) return { label: `START${slotPart}`, cls: "edge-pos" };
-    if (r.recommendation === "BN") return { label: "BN", cls: "edge-neg" };
+    if (r.recommendation === "BN") return { label: `BN${scratchTag}`, cls: "edge-neg" };
     return { label: r.recommendation, cls: "edge-neg" };
   }
   const curBench = _BENCH_SLOTS.has(cur);
@@ -171,8 +172,8 @@ function _actionLabel(r) {
     return { label: `MOVE → ${r.slot_assignment || "?"}`, cls: "edge-pos" };
   }
   // Recommendation is BN / SIT
-  if (curBench) return { label: `STAY BN`, cls: "muted" };
-  return { label: `BENCH ↓ <span class="muted" style="font-weight:400;">(was ${cur})</span>`, cls: "edge-neg" };
+  if (curBench) return { label: `KEEP (BN)${scratchTag}`, cls: "muted" };
+  return { label: `BENCH ↓ <span class="muted" style="font-weight:400;">(was ${cur})</span>${scratchTag}`, cls: "edge-neg" };
 }
 
 // Per-cat z-score breakdown (text, used in Cat val cell title= tooltip).

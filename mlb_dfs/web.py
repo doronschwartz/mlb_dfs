@@ -543,10 +543,11 @@ def lineup_advice(req: LineupRequest):
             "current_slot": current_slot,
         })
     # Apply MLB lineup confirmation: a player who's in the slate pool but whose
-    # team has posted today's lineup card without them is scratched/benched IRL,
-    # so they're not actually playing today even though they have a projection.
-    # Same convention as the draft tool (which surfaces lineup_status). RP rows
-    # don't get downgraded — relievers don't appear in the batting order card.
+    # team has posted today's lineup card without them is scratched/benched IRL.
+    # Tag with lineup_status so _assign can force them to BN (won't take a START
+    # slot) but they still appear in the actives table — so the user gets a
+    # KEEP (BN) for already-benched scratches and BENCH ↓ (was X) for scratches
+    # currently in an active Fantrax slot. RPs don't appear in the batting card.
     try:
         lineup_statuses = mlb_api.lineups_by_date(d)
     except Exception:
@@ -556,9 +557,7 @@ def lineup_advice(req: LineupRequest):
         ls = lineup_statuses.get(pid) if pid else None
         status = ls.get("status") if ls else "pending"
         r["lineup_status"] = status
-        if status == "out" and not r.get("is_rp") and not r.get("is_minors"):
-            # Posted lineup says they're not in it — treat as not playing.
-            r["playing_today"] = False
+        r["scratched"] = (status == "out" and not r.get("is_rp") and not r.get("is_minors"))
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter" and r["playing_today"]]
     pitchers = [r for r in results if r["role"] == "pitcher" and r["playing_today"]]
@@ -593,6 +592,10 @@ def lineup_advice(req: LineupRequest):
                 r["slot_assignment"] = None
                 if not r["playing_today"]:
                     r["recommendation"] = "OFF"
+                    continue
+                if r.get("scratched"):
+                    # Scratched from posted lineup — can't START, force BN.
+                    r["recommendation"] = "BN"
                     continue
                 elig = eligibility_map.get(r["input"].lower(), set())
                 # Try slot priorities in order, take first that the player is
