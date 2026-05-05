@@ -106,21 +106,37 @@ def get_league_info(league_id: str) -> dict:
     base = _request(league_id, [Method("getFantasyLeagueInfo")], session=sess)
     fs = (base or {}).get("fantasySettings", {}) if isinstance(base, dict) else {}
 
-    # Probe each method individually so a 4xx on one doesn't fail them all.
+    # Probe a wide set of method names — Fantrax doesn't publish a method list,
+    # so we try plausible candidates. Anything that returns useful data lights
+    # up. Confirmed-existing methods from the fantraxapi library are first.
     candidates = [
-        # (method_name, kwargs)
+        ("getStandings", {}),                                  # confirmed exists — H2H Cat standings show categories
+        ("getStandingsInfo", {}),
+        ("getRefObject", {"type": "ScoringFormula"}),
+        ("getRefObject", {"type": "ScoringSystem"}),
+        ("getRefObject", {"type": "StatCategory"}),
+        ("getRefObject", {"type": "ScoringCategory"}),
+        ("getRefObject", {"type": "FantasyScoringSystem"}),
+        ("getRefObject", {"type": "ScoreCategoryGroup"}),
+        ("getRefObject", {"type": "Stat"}),
         ("getLeagueRules", {}),
         ("getLeagueSetup", {}),
+        ("getLeagueSettings", {}),
+        ("getLeagueInfo", {}),
         ("getScoringSystemInfo", {}),
         ("getScoringSystemRules", {}),
-        ("getRefObject", {"type": "ScoringSystem"}),
-        ("getRefObject", {"type": "ScoringFormula"}),
+        ("getScoringSystem", {}),
+        ("getScoringConfig", {}),
+        ("getScoreCategories", {}),
         ("getStatCategories", {}),
-        ("getRefObject", {"type": "StatCategory"}),
-        ("getStandings", {}),
-        ("getStandingsInfo", {}),
+        ("getMatchupTable", {}),
+        ("getMatchupResult", {}),
+        ("getMatchupBreakdown", {}),
+        ("getTeamScores", {}),
+        ("getCurrentScoringPeriod", {}),
         ("getScoringPeriodInfo", {}),
-        ("getLeagueInfo", {}),
+        ("getMatchups", {}),
+        ("getLeagueLeaders", {}),
     ]
     probes = {}
     for name, kw in candidates:
@@ -145,7 +161,7 @@ def get_league_info(league_id: str) -> dict:
     }
 
 
-def _trim(obj, depth: int = 0, max_depth: int = 3, max_str: int = 200, max_list: int = 8):
+def _trim(obj, depth: int = 0, max_depth: int = 4, max_str: int = 300, max_list: int = 30):
     """Recursively trim large API responses to a glanceable shape."""
     if depth > max_depth:
         return f"<{type(obj).__name__}>"

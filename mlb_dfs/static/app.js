@@ -196,19 +196,25 @@ $("#ftx-league-info")?.addEventListener("click", async () => {
   $("#ftx-status").style.color = "";
   try {
     const data = await api(`/api/fantrax/league_info?league_id=${encodeURIComponent(lg)}`);
-    // Render below the lineup output
     const out = $("#lineup-out");
+    const probesHtml = Object.entries(data.probes || {}).map(([k, v]) => {
+      const ok = !v._error;
+      const colorBadge = ok
+        ? `<span style="color:var(--accent-2);">✓</span>`
+        : `<span class="muted">✗</span>`;
+      return `<details ${ok ? "open" : ""} style="margin:4px 0;">
+        <summary style="cursor:pointer;font-size:12px;">${colorBadge} <code style="font-family:ui-monospace,Menlo,monospace;">${k}</code></summary>
+        <pre style="font-size:10.5px;background:var(--panel);border:1px solid var(--border);padding:6px;border-radius:4px;overflow:auto;max-height:280px;">${JSON.stringify(v, null, 2)}</pre>
+      </details>`;
+    }).join("");
     out.innerHTML = `
       <h3>League: ${data.leagueName || "?"} <span class="muted">(${data.subtitle || "?"})</span></h3>
-      <div style="margin:6px 0;font-size:13px;">
-        <b>Type:</b> ${data.leagueType || "?"} · <b>Scoring system:</b> ${data.scoringSystem || "?"}
-        · <b>Teams:</b> ${data.fantasyTeamCount ?? "?"}
+      <div style="margin:6px 0 12px;font-size:13px;">
+        <b>headToHead:</b> ${data.headToHead ?? "?"} · <b>Sport:</b> ${data.sport || "?"} · <b>Season:</b> ${data.season || "?"}
       </div>
-      <h4>Scoring formula</h4>
-      <pre style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px;overflow:auto;max-height:480px;font-size:11px;">${JSON.stringify(data.scoringFormulas, null, 2)}</pre>
-      <details><summary class="muted" style="cursor:pointer;">Raw fantasy-settings keys</summary>
-        <pre style="font-size:11px;">${JSON.stringify(data._raw_keys, null, 2)}</pre>
-      </details>
+      <h4>API method probes</h4>
+      <div class="muted" style="font-size:11px;margin-bottom:6px;">Each box below is a Fantrax API endpoint we tried. ✓ = it returned something useful. Open the boxes that have data and look for a list of stat categories.</div>
+      ${probesHtml}
     `;
     $("#ftx-status").textContent = "✓ League config loaded — check below.";
     $("#ftx-status").style.color = "var(--accent-2)";
