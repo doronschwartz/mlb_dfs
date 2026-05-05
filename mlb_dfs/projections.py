@@ -316,9 +316,10 @@ def project_hitter(
         # Vegas already prices in opposing SP quality. To avoid double-counting,
         # dampen sp_factor toward 1.0 by 50% when Vegas data is present.
         if sp_factor != 1.0:
+            old_sp = sp_factor
             sp_factor = 1.0 + (sp_factor - 1.0) * 0.5
-            # Also relax the floor since Vegas now carries half the matchup weight.
             sp_factor = max(0.75, min(sp_factor, 1.25))
+            notes.append(f"  → SP dampened {old_sp:.2f}→{sp_factor:.2f} (Vegas double-count guard)")
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
     # Magnitude small because it's already entangled with sp_factor.
@@ -510,8 +511,10 @@ def project_pitcher(
         notes.append(f"opp Vegas {opp_implied_total:.1f} R x{vegas_factor:.2f}")
         # opp_factor (opponent runs/game) overlaps with Vegas implied; dampen.
         if opp_factor != 1.0:
+            old_opp = opp_factor
             opp_factor = 1.0 + (opp_factor - 1.0) * 0.5
             opp_factor = max(0.85, min(opp_factor, 1.20))
+            notes.append(f"  → opp dampened {old_opp:.2f}→{opp_factor:.2f} (Vegas double-count guard)")
 
     # Rolling xwOBA-against — pitcher's recent suppressed-contact form vs season.
     # Inverted: lower rolling xwOBA = better pitcher = higher projection.
