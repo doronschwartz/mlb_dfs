@@ -239,6 +239,31 @@ $("#ftx-cookie-save")?.addEventListener("click", async () => {
   }
 });
 
+function _showTeamPicker(teams, leagueId) {
+  $("#ftx-status").innerHTML = "";
+  // Insert a picker right after the status span if not already there.
+  let picker = document.getElementById("ftx-team-picker");
+  if (picker) picker.remove();
+  picker = document.createElement("div");
+  picker.id = "ftx-team-picker";
+  picker.className = "setup-row";
+  picker.style.marginTop = "6px";
+  const opts = teams.map(t => `<option value="${t.team_id}">${t.name}</option>`).join("");
+  picker.innerHTML = `
+    <span class="muted" style="font-size:12px;">League has ${teams.length} teams — pick yours:</span>
+    <select id="ftx-team-select" style="min-width:200px;">${opts}</select>
+    <button id="ftx-team-confirm" type="button" class="btn-pick">Use this team</button>
+  `;
+  $("#ftx-status").parentNode.insertAdjacentElement("afterend", picker);
+  document.getElementById("ftx-team-confirm").addEventListener("click", () => {
+    const tid = document.getElementById("ftx-team-select").value;
+    $("#ftx-team").value = tid;
+    localStorage.setItem("mlb_dfs_ftx_team", tid);
+    picker.remove();
+    $("#ftx-pull").click();
+  });
+}
+
 $("#ftx-pull")?.addEventListener("click", async () => {
   const lg = $("#ftx-league").value.trim();
   const tm = $("#ftx-team").value.trim();
@@ -251,9 +276,7 @@ $("#ftx-pull")?.addEventListener("click", async () => {
     const url = `/api/fantrax/roster?league_id=${encodeURIComponent(lg)}` + (tm ? `&team_id=${encodeURIComponent(tm)}` : "");
     const data = await api(url);
     if (data.error) {
-      const teamList = (data.teams || []).map(t => `${t.team_id}: ${t.name}`).join("\n");
-      $("#ftx-status").textContent = "Multiple teams — paste a team_id:";
-      alert(data.error + "\n\nTeams in this league:\n" + teamList);
+      _showTeamPicker(data.teams || [], lg);
       return;
     }
     const names = (data.players || []).map(p => p.name).filter(Boolean);
