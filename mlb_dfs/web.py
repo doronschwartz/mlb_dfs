@@ -950,6 +950,13 @@ def score(draft_id: str):
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
     standings = live_mod.score_draft(dr)
+    # Pull live projections so the Proj column reflects the current model,
+    # not the snapshot at draft time.
+    try:
+        live_projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
+        live_proj_by_id = {lp.player_id: lp for lp in live_projs}
+    except Exception:
+        live_proj_by_id = {}
     return {
         "draft_id": draft_id,
         "standings": [
@@ -965,7 +972,9 @@ def score(draft_id: str):
                         "player_id": p.player_id,
                         "pick_number": p.pick_number,
                         "drafter": p.drafter,
-                        "projected": p.projected_points,
+                        "projected": (live_proj_by_id[p.player_id].projected_points
+                                      if p.player_id in live_proj_by_id
+                                      else p.projected_points),
                         "actual": (ps.points if ps and ps.played else None),
                         "raw": (ps.raw if ps else None),
                         "game_state": (ps.game_state if ps else None),
