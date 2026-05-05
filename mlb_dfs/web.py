@@ -416,15 +416,26 @@ def lineup_advice(req: LineupRequest):
     hitters.sort(key=lambda r: r["cat_value"], reverse=True)
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
 
-    # Position-aware slot filling, when Fantrax metadata is available.
-    # Use slot_counts from the actual roster grid (truth) — count of rows per position.
+    # Position-aware slot filling.
     slot_capacity: dict[str, int] = req.fantrax_slot_counts or {}
-    eligibility_map: dict[str, set[str]] = {}   # input_name -> set of slot eligibilities
+    eligibility_map: dict[str, set[str]] = {}
     if req.fantrax_players:
         for fp in req.fantrax_players:
             elig = (fp.get("position") or "").upper()
             slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
             eligibility_map[(fp.get("name") or "").lower()] = slots
+        # Fallback: if frontend cached an old Fantrax pull (before slot_counts
+        # was added), derive slot capacity from the players' current slot
+        # positions. Each fantrax_player has a `slot` showing which lineup spot
+        # they occupy right now (C, 1B, OF, BN, IR, Res, etc.).
+        if not slot_capacity:
+            derived: dict[str, int] = {}
+            for fp in req.fantrax_players:
+                s = (fp.get("slot") or "").strip()
+                if s:
+                    derived[s] = derived.get(s, 0) + 1
+            if derived:
+                slot_capacity = derived
 
     if slot_capacity:
         # Hitter slots to fill (everything that isn't a pitcher slot, BN, IR, Res).
