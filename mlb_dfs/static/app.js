@@ -221,9 +221,14 @@ $("#ftx-cookie-save")?.addEventListener("click", async () => {
   try {
     const data = await api(`/api/fantrax/teams?league_id=${encodeURIComponent(lg)}`);
     const n = (data.teams || []).length;
-    status.innerHTML = `✓ Auth works — found <b>${n}</b> teams in this league. You can close this panel.`;
+    status.innerHTML = `✓ Auth works — found <b>${n}</b> teams. Re-pulling your roster…`;
     status.style.color = "var(--accent-2)";
     $("#ftx-cookie-input").value = "";   // clear from UI for safety
+    // Auto-trigger the Pull so the user doesn't have to click again.
+    setTimeout(() => {
+      $("#ftx-auth-panel").hidden = true;
+      $("#ftx-pull")?.click();
+    }, 600);
   } catch (e) {
     if (/401/.test(e.message)) {
       status.innerHTML = `✗ Cookie didn't work. Re-copy from a fresh logged-in fantrax.com request and try again.`;
@@ -241,6 +246,7 @@ $("#ftx-pull")?.addEventListener("click", async () => {
   localStorage.setItem("mlb_dfs_ftx_league", lg);
   if (tm) localStorage.setItem("mlb_dfs_ftx_team", tm);
   $("#ftx-status").textContent = "Pulling roster…";
+  $("#ftx-status").style.color = "";
   try {
     const url = `/api/fantrax/roster?league_id=${encodeURIComponent(lg)}` + (tm ? `&team_id=${encodeURIComponent(tm)}` : "");
     const data = await api(url);
@@ -254,8 +260,26 @@ $("#ftx-pull")?.addEventListener("click", async () => {
     $("#lineup-names").value = names.join("\n");
     localStorage.setItem("mlb_dfs_lineup_names", $("#lineup-names").value);
     $("#ftx-status").textContent = `✓ Pulled ${names.length} from ${data.team_name || "team"}. Click Project lineup.`;
+    $("#ftx-status").style.color = "var(--accent-2)";
   } catch (e) {
-    $("#ftx-status").textContent = `Error: ${e.message}`;
+    // 401 = auth needed/expired. Auto-open the cookie panel so the user
+    // doesn't have to hunt for the button.
+    if (/^401\b/.test(e.message)) {
+      $("#ftx-status").innerHTML = `<span style="color:var(--bad);">Auth required — opening cookie setup ↓</span>`;
+      const panel = $("#ftx-auth-panel");
+      if (panel) {
+        panel.hidden = false;
+        panel.scrollIntoView({ behavior: "smooth", block: "center" });
+        const status = $("#ftx-cookie-status");
+        if (status) {
+          status.innerHTML = `<span style="color:var(--bad);">Your saved cookie didn't work (or there isn't one). Follow the steps above to paste a fresh one, then click Save & test.</span>`;
+        }
+        setTimeout(() => $("#ftx-cookie-input")?.focus(), 400);
+      }
+    } else {
+      $("#ftx-status").textContent = `Error: ${e.message}`;
+      $("#ftx-status").style.color = "var(--bad)";
+    }
   }
 });
 $("#date").addEventListener("change", async () => {
