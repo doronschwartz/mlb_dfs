@@ -363,6 +363,29 @@ def lineup_advice(req: LineupRequest):
         fp_early = fp_by_name.get(lower, {})
         cur_slot_early = (fp_early.get("slot") or "").lower()
         if cur_slot_early in ("min", "minors", "mi", "minorleague", "minor") and not req.allow_call_ups:
+            # Is this player actually MLB-active today (just hasn't been moved
+            # up in Fantrax yet)? Cross-check against today's slate pool.
+            mlb_active = lower in by_lower or lower in rp_pool
+            if not mlb_active:
+                # Try last-name + first-initial match against slate pool.
+                n_parts = _norm(name).split()
+                if n_parts:
+                    last_e = n_parts[-1]
+                    SUFFIXES_E = {"jr", "sr", "ii", "iii", "iv"}
+                    if last_e in SUFFIXES_E and len(n_parts) >= 2:
+                        last_e = n_parts[-2]
+                    first_e = n_parts[0]
+                    for cand in by_lastname.get(last_e, []):
+                        cand_first = _norm(cand.name).split()[0] if cand.name else ""
+                        if cand_first[:1] == first_e[:1]:
+                            mlb_active = True
+                            break
+                    if not mlb_active:
+                        for cand_meta in rp_by_lastname.get(last_e, []):
+                            cand_parts = _norm(cand_meta["name"] or "").split()
+                            if cand_parts and cand_parts[0][:1] == first_e[:1]:
+                                mlb_active = True
+                                break
             results.append({
                 "input": name,
                 "matched_name": fp_early.get("name") or name,
@@ -371,6 +394,7 @@ def lineup_advice(req: LineupRequest):
                 "team_id": None, "components": {},
                 "playing_today": False, "is_rp": False,
                 "current_slot": fp_early.get("slot"), "is_minors": True,
+                "mlb_active_today": mlb_active,
             })
             continue
         proj = by_lower.get(lower)
@@ -581,13 +605,17 @@ def lineup_advice(req: LineupRequest):
             r["recommendation"] = "START" if i < 8 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
         for i, r in enumerate(pitchers):
             r["recommendation"] = "START" if i < 2 and r["playing_today"] else ("SIT" if r["playing_today"] else "OFF")
-    minors_list = [r["input"] for r in results if r.get("is_minors")]
+    minors_callup = [r["input"] for r in results if r.get("is_minors") and r.get("mlb_active_today")]
+    minors_pure = [r["input"] for r in results if r.get("is_minors") and not r.get("mlb_active_today")]
+    minors_list = minors_callup + minors_pure
     return {
         "date": d.isoformat(),
         "hitters": hitters,
         "pitchers": pitchers,
         "unmatched": [{"input": r["input"]} for r in results if not r["playing_today"] and not r.get("is_minors")],
         "minors": minors_list,
+        "minors_callup": minors_callup,
+        "minors_pure": minors_pure,
         "matchup": matchup,
         "leverage": leverage_map,
         "slot_capacity": slot_capacity,

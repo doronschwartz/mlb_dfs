@@ -418,7 +418,17 @@ function _renderLineupOutput(data) {
   html += renderTable("Hitters", data.hitters, "No hitters matched.", _lineupSort.hitter);
   html += renderTable("Pitchers", data.pitchers, "No pitchers matched.", _lineupSort.pitcher);
   if (data.minors && data.minors.length) {
-    html += `<details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;font-size:13px;">⚾ Minor-league (need call-up to start) — ${data.minors.length}. Toggle "Allow call-ups" above to include them.</summary><div class="muted" style="font-size:12px;margin-top:4px;">${data.minors.join(", ")}</div></details>`;
+    const callup = data.minors_callup || [];
+    const pure = data.minors_pure || data.minors;
+    let body = "";
+    if (callup.length) {
+      body += `<div style="margin-top:6px;"><b style="color:var(--edge-pos,#0a7);font-size:12px;">MLB-active today — promote in Fantrax (${callup.length}):</b><div class="muted" style="font-size:12px;margin-top:2px;">${callup.join(", ")}</div></div>`;
+    }
+    if (pure.length) {
+      body += `<div style="margin-top:6px;"><b class="muted" style="font-size:12px;">AAA / not on a slate today (${pure.length}):</b><div class="muted" style="font-size:12px;margin-top:2px;">${pure.join(", ")}</div></div>`;
+    }
+    if (!body) body = `<div class="muted" style="font-size:12px;margin-top:4px;">${data.minors.join(", ")}</div>`;
+    html += `<details style="margin-top:12px;" ${callup.length ? "open" : ""}><summary class="muted" style="cursor:pointer;font-size:13px;">⚾ Minor-league slot in Fantrax — ${data.minors.length}${callup.length ? ` (${callup.length} actually MLB-active today)` : ""}. Toggle "Allow call-ups" to include them.</summary>${body}</details>`;
   }
   if (data.unmatched && data.unmatched.length) {
     const list = data.unmatched.map(r => r.input).join(", ");
