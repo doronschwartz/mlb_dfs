@@ -293,11 +293,14 @@ def lineup_advice(req: LineupRequest):
     from concurrent.futures import ThreadPoolExecutor
     # Build eligibility map up front so we can filter SP-only out of the parallel pre-fetch.
     eligibility_map: dict[str, set[str]] = {}
+    fp_by_name: dict[str, dict] = {}
     if req.fantrax_players:
         for fp in req.fantrax_players:
             elig = (fp.get("position") or "").upper()
             slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
-            eligibility_map[(fp.get("name") or "").lower()] = slots
+            nlower = (fp.get("name") or "").lower()
+            eligibility_map[nlower] = slots
+            fp_by_name[nlower] = fp
     rp_pids_to_fetch: set[int] = set()
     for raw in req.names:
         nm = raw.strip()
@@ -462,6 +465,11 @@ def lineup_advice(req: LineupRequest):
                         opp_abbr = projections._TEAM_ABBR.get(h.get("id", 0), "")
                         is_home = False
                         break
+        # Look up the player's CURRENT Fantrax slot (where they're slotted right
+        # now). When a Fantrax pull was sent, fp_by_name was built above —
+        # use it for action recommendations (KEEP / BENCH / PROMOTE).
+        fp = fp_by_name.get(name.lower(), {}) if 'fp_by_name' in dir() else {}
+        current_slot = fp.get("slot")
         results.append({
             "input": name,
             "matched_name": proj.name if proj else (rp_meta["name"] if rp_meta else None),
@@ -478,6 +486,7 @@ def lineup_advice(req: LineupRequest):
             "opp_abbr": opp_abbr,
             "opp_sp_name": opp_sp_name,
             "is_home": is_home,
+            "current_slot": current_slot,
         })
     # Rank hitters / pitchers separately, mark top-N as START.
     hitters = [r for r in results if r["role"] == "hitter"]

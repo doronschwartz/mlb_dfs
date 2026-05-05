@@ -292,47 +292,48 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     roster = None
     try:
         roster = api.team_roster(team_id)
-        # fantraxapi's Roster aggregates rows from multiple table groups; only
-        # the first roster.active_max + reserve_max + injured_max rows are the
-        # real roster grid — anything past that is duplication from another
-        # period view.
-        total_slots = (
-            (roster.active_max or 0)
-            + (roster.reserve_max or 0)
-            + (roster.injured_max or 0)
-        )
-        seen = 0
+        # fantraxapi's Roster aggregates rows from multiple table groups so the
+        # same player can appear under the same position multiple times (per
+        # period view). De-dupe by (slot, player_id), and for empty slots use a
+        # synthetic per-slot index so multiple empty C-rows still distinguish.
+        seen_keys = set()
+        empty_idx: dict[str, int] = {}
         for row in roster.rows:
             if not row.position:
                 continue
-            if total_slots > 0 and seen >= total_slots:
-                break
-            seen += 1
             sn = row.position.short_name
+            pid = row.player.id if row.player is not None else None
+            if pid is None:
+                empty_idx[sn] = empty_idx.get(sn, 0)   # capped per period
+                continue
+            key = (sn, pid)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             slot_counts[sn] = slot_counts.get(sn, 0) + 1
-        seen2 = 0
-        for row in roster.rows:
-            if not row.position:
-                continue
-            if total_slots > 0 and seen2 >= total_slots:
-                break
-            seen2 += 1
-            if row.player is None:
-                continue
             p = row.player
-            slot = row.position.short_name if row.position else ""
             players.append({
                 "name": p.name,
                 "fantrax_id": p.id,
                 "position": p.pos_short_name,
                 "team": p.team_short_name,
-                "slot": slot,
-                "is_bench": slot in ("BN", "Res", "Reserve"),
-                "is_ir": slot in ("IR", "InjRes", "Inj Res"),
+                "slot": sn,
+                "is_bench": sn in ("BN", "Res", "Reserve"),
+                "is_ir": sn in ("IR", "InjRes", "Inj Res"),
                 "injured": bool(p.injured),
                 "day_to_day": bool(p.day_to_day),
                 "out": bool(p.out),
             })
+        # If the league has empty slots (e.g. an unfilled OF), top up
+        # slot_counts using the league's max-active config so the optimizer
+        # knows the true capacity.
+        try:
+            counts_cfg = api.position_counts(team_id)
+            for sn, pc in counts_cfg.items():
+                if pc.max:
+                    slot_counts[sn] = max(slot_counts.get(sn, 0), pc.max)
+        except Exception:
+            pass
     except Exception as roster_err:
         # fantraxapi's Roster init is fragile — for some teams it raises
         # IndexError when one of the two methods (GAMES_PER_POS / STATS) returns

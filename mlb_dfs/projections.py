@@ -939,6 +939,12 @@ def project_reliever_cats(pid: int, season: int) -> dict | None:
     if ip <= 0:
         _RP_CACHE[key] = (now, None)
         return None
+    # Skip starters — players whose appearances are mostly starts. They're
+    # SPs not pitching today, NOT relievers.
+    gs = _safe_float(seasn.get("gamesStarted"))
+    if g > 0 and (gs / g) > 0.5:
+        _RP_CACHE[key] = (now, None)
+        return None
     k = _safe_float(seasn.get("strikeOuts"))
     sv = _safe_float(seasn.get("saves"))
     hld = _safe_float(seasn.get("holds"))
