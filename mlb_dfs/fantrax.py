@@ -324,21 +324,33 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
                 "day_to_day": bool(p.day_to_day),
                 "out": bool(p.out),
             })
-        # If the league has empty slots (e.g. an unfilled OF), top up
-        # slot_counts using the league's max-active config — but Fantrax's
-        # position_counts.max is "games per period" (e.g. 28 for 4×OF over 7
-        # days), not a slot count. Sanity-cap each position so we don't end up
-        # with 28×OF capacity.
+        # Top up slot_counts using the league's position_counts config. Note:
+        # `pc.max` is games-per-period budget (e.g. 4×OF over a 7-day weekly
+        # period = max 28). Convert to slot count by dividing by the period
+        # length. Find period length from any single-slot position with a
+        # filled row to calibrate (typically C or 1B with count=1, where
+        # pc.max = period_days).
         SANE_SLOT_CAP = {
             "C": 2, "1B": 2, "2B": 2, "3B": 2, "SS": 2, "MI": 2, "CI": 2,
             "OF": 6, "UT": 4, "SP": 8, "RP": 6, "P": 6,
         }
         try:
             counts_cfg = api.position_counts(team_id)
+            # Calibrate period length: find a position where we know slot=1
+            # (most leagues have C×1, 1B×1, 2B×1, 3B×1, SS×1, MI×1, CI×1).
+            single_slot_positions = ("C", "1B", "2B", "3B", "SS", "MI", "CI")
+            period_days = 7
+            for sn in single_slot_positions:
+                pc = counts_cfg.get(sn)
+                if pc and pc.max and pc.max <= 14:
+                    period_days = pc.max
+                    break
             for sn, pc in counts_cfg.items():
-                if pc.max:
-                    cap = SANE_SLOT_CAP.get(sn, 4)
-                    slot_counts[sn] = max(slot_counts.get(sn, 0), min(pc.max, cap))
+                if pc.max and period_days > 0:
+                    slot_count = max(1, round(pc.max / period_days))
+                    cap = SANE_SLOT_CAP.get(sn, 8)
+                    slot_count = min(slot_count, cap)
+                    slot_counts[sn] = max(slot_counts.get(sn, 0), slot_count)
         except Exception:
             pass
         # Final pass: cap whatever made it through.
