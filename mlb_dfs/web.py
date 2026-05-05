@@ -288,17 +288,28 @@ def lineup_advice(req: LineupRequest):
     # whose name's last+first-initial matches a today-playing pitcher. This
     # turns 25 sequential MLB API calls (~30s) into ~2s with 12 workers.
     from concurrent.futures import ThreadPoolExecutor
+    # Build eligibility map up front so we can filter SP-only out of the parallel pre-fetch.
+    eligibility_map: dict[str, set[str]] = {}
+    if req.fantrax_players:
+        for fp in req.fantrax_players:
+            elig = (fp.get("position") or "").upper()
+            slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
+            eligibility_map[(fp.get("name") or "").lower()] = slots
     rp_pids_to_fetch: set[int] = set()
     for raw in req.names:
-        n_parts = _norm(raw.strip()).split()
+        nm = raw.strip()
+        if nm.lower() in by_lower:
+            continue   # already in slate projections (probable SP)
+        elig = eligibility_map.get(nm.lower(), set())
+        if elig == {"SP"}:
+            continue   # SP-only → not pitching today if not starting
+        n_parts = _norm(nm).split()
         if not n_parts: continue
         last = n_parts[-1]
         SUFFIXES2 = {"jr", "sr", "ii", "iii", "iv"}
         if last in SUFFIXES2 and len(n_parts) >= 2:
             last = n_parts[-2]
         first = n_parts[0]
-        if (raw.strip().lower() in by_lower):
-            continue   # already in slate projections (probable SP)
         for cand in rp_by_lastname.get(last, []):
             cand_parts = _norm(cand["name"] or "").split()
             if cand_parts and cand_parts[0][:1] == first[:1]:
@@ -364,28 +375,35 @@ def lineup_advice(req: LineupRequest):
                     if cand_first == first or cand_first.startswith(first) or first.startswith(cand_first):
                         proj = cand
                         break
-        # If no SP-projection match, see if this is a reliever on a team playing today.
+        # If no SP-projection match, see if this is a reliever on a team playing
+        # today. ONLY consider someone a reliever today when Fantrax marks them
+        # RP-eligible (or P-eligible) — pure SPs who aren't starting today
+        # simply aren't pitching.
         is_rp = False
         rp_meta = None
         rp_rates = None
         if not proj:
-            n_parts = _norm(name).split()
-            if n_parts:
-                last = n_parts[-1]
-                first = n_parts[0]
-                SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
-                if last in SUFFIXES and len(n_parts) >= 2:
-                    last = n_parts[-2]
-                for cand in rp_by_lastname.get(last, []):
-                    cand_parts = _norm(cand["name"] or "").split()
-                    if not cand_parts: continue
-                    cand_first = cand_parts[0]
-                    if cand_first[:1] == first[:1]:
-                        rp_meta = cand
-                        rp_rates = projections.project_reliever_cats(cand["player_id"], d.year)
-                        if rp_rates:
-                            is_rp = True
-                            break
+            elig_today = eligibility_map.get(name.lower(), set())
+            rp_eligible = bool(elig_today & {"RP", "P"})
+            sp_only = elig_today == {"SP"}
+            if rp_eligible or (not elig_today and not sp_only):
+                n_parts = _norm(name).split()
+                if n_parts:
+                    last = n_parts[-1]
+                    first = n_parts[0]
+                    SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
+                    if last in SUFFIXES and len(n_parts) >= 2:
+                        last = n_parts[-2]
+                    for cand in rp_by_lastname.get(last, []):
+                        cand_parts = _norm(cand["name"] or "").split()
+                        if not cand_parts: continue
+                        cand_first = cand_parts[0]
+                        if cand_first[:1] == first[:1]:
+                            rp_meta = cand
+                            rp_rates = projections.project_reliever_cats(cand["player_id"], d.year)
+                            if rp_rates:
+                                is_rp = True
+                                break
 
         # H2H Categories value: project per-cat contributions, sum z-scores.
         cat_value = 0.0
@@ -440,14 +458,9 @@ def lineup_advice(req: LineupRequest):
     hitters.sort(key=lambda r: r["cat_value"], reverse=True)
     pitchers.sort(key=lambda r: r["cat_value"], reverse=True)
 
-    # Position-aware slot filling.
+    # Position-aware slot filling. eligibility_map already built above.
     slot_capacity: dict[str, int] = req.fantrax_slot_counts or {}
-    eligibility_map: dict[str, set[str]] = {}
     if req.fantrax_players:
-        for fp in req.fantrax_players:
-            elig = (fp.get("position") or "").upper()
-            slots = {s.strip() for s in elig.replace(",", " ").split() if s.strip()}
-            eligibility_map[(fp.get("name") or "").lower()] = slots
         # Fallback: if frontend cached an old Fantrax pull (before slot_counts
         # was added), derive slot capacity from the players' current slot
         # positions. Each fantrax_player has a `slot` showing which lineup spot
