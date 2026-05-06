@@ -249,6 +249,13 @@ $("#lineup-go")?.addEventListener("click", async () => {
   } else {
     localStorage.removeItem("mlb_dfs_force_minors");
   }
+  const forceBenchRaw = ($("#lineup-force-bench")?.value || "").trim();
+  if (forceBenchRaw) {
+    body.force_bench = forceBenchRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    localStorage.setItem("mlb_dfs_force_bench", forceBenchRaw);
+  } else {
+    localStorage.removeItem("mlb_dfs_force_bench");
+  }
   const data = await api(`/api/lineup`, {
     method: "POST",
     body: JSON.stringify(body),
@@ -467,6 +474,8 @@ window.addEventListener("DOMContentLoaded", () => {
   if (saved && $("#lineup-names")) $("#lineup-names").value = saved;
   const savedForceMin = localStorage.getItem("mlb_dfs_force_minors");
   if (savedForceMin && $("#lineup-force-minors")) $("#lineup-force-minors").value = savedForceMin;
+  const savedForceBench = localStorage.getItem("mlb_dfs_force_bench");
+  if (savedForceBench && $("#lineup-force-bench")) $("#lineup-force-bench").value = savedForceBench;
   const lg = localStorage.getItem("mlb_dfs_ftx_league");
   const tm = localStorage.getItem("mlb_dfs_ftx_team");
   if (lg && $("#ftx-league")) $("#ftx-league").value = lg;

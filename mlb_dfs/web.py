@@ -233,6 +233,35 @@ class LineupRequest(BaseModel):
     # what Fantrax's roster API reports. Useful when Fantrax slot data is
     # stale or the league's Min position has an unrecognized short_name.
     force_minors: list[str] | None = None
+    # Same idea for bench — names here are treated as currentslot=BN so the
+    # action label resolves to KEEP (BN) instead of BENCH ↓ when Fantrax's
+    # slot data is stale and still says they're in an active spot.
+    force_bench: list[str] | None = None
+
+
+def _matchup_elapsed_fraction(sub_caption: str, today: Date) -> float:
+    """Parse '(Mon May 4 - Sun May 10)' style range; return share of the week
+    completed BEFORE `today`'s games (i.e. games already in the books). Falls
+    back to 1.0 (full leverage) if parsing fails — same as previous behavior."""
+    import re
+    m = re.search(r"\(([A-Za-z]+\s+[A-Za-z]+\s+\d+)\s*-\s*([A-Za-z]+\s+[A-Za-z]+\s+\d+)", sub_caption or "")
+    if not m:
+        return 1.0
+    year = today.year
+    from datetime import datetime
+    def _parse(s: str):
+        try:
+            return datetime.strptime(f"{s} {year}", "%a %b %d %Y").date()
+        except ValueError:
+            return None
+    start = _parse(m.group(1))
+    end = _parse(m.group(2))
+    if not start or not end or end < start:
+        return 1.0
+    total_days = (end - start).days + 1   # inclusive
+    # Games "in the books" = days strictly before `today`.
+    elapsed_days = max(0, (today - start).days)
+    return max(0.0, min(1.0, elapsed_days / total_days))
 
 
 @app.post("/api/lineup")
@@ -300,6 +329,8 @@ def lineup_advice(req: LineupRequest):
     forced_min_lower: set[str] = {n.strip().lower() for n in (req.force_minors or []) if n and n.strip()}
     # Also build a punctuation-stripped/normalized set so 'T.J Rumfield' matches 'T.J. Rumfield'.
     forced_min_norm: set[str] = {_norm(n) for n in (req.force_minors or []) if n and n.strip()}
+    forced_bench_lower: set[str] = {n.strip().lower() for n in (req.force_bench or []) if n and n.strip()}
+    forced_bench_norm: set[str] = {_norm(n) for n in (req.force_bench or []) if n and n.strip()}
     # Build eligibility map up front so we can filter SP-only out of the parallel pre-fetch.
     eligibility_map: dict[str, set[str]] = {}
     fp_by_name: dict[str, dict] = {}
@@ -355,8 +386,14 @@ def lineup_advice(req: LineupRequest):
     if req.league_id and req.team_id:
         try:
             matchup = fantrax.get_current_matchup(req.league_id, req.team_id) or {}
+            # Parse "(Mon May 4 - Sun May 10)" or "(Mon May 4 - Sun May 10, 2026)"
+            # to get the period bounds, then compute how much of the week is in
+            # the books as of `d`. Early in the week, no cat is actually decided,
+            # so leverage scales toward neutral (1.0).
+            elapsed_fraction = _matchup_elapsed_fraction(matchup.get("subCaption") or "", d)
             for cat, (my_v, opp_v) in (matchup.get("values") or {}).items():
-                leverage_map[cat] = projections.category_leverage(my_v, opp_v, cat)
+                leverage_map[cat] = projections.category_leverage(my_v, opp_v, cat, elapsed_fraction)
+            matchup["elapsed_fraction"] = round(elapsed_fraction, 2)
         except Exception:
             matchup = {}
 
@@ -523,6 +560,11 @@ def lineup_advice(req: LineupRequest):
         # use it for action recommendations (KEEP / BENCH / PROMOTE).
         fp = fp_by_name.get(name.lower(), {})
         current_slot = fp.get("slot")
+        # Force-bench override: if the user marked this name as already on
+        # bench (Fantrax slot data may be stale), treat current_slot as BN so
+        # the action label resolves to KEEP (BN) instead of BENCH ↓.
+        if (lower in forced_bench_lower) or (_norm(name) in forced_bench_norm):
+            current_slot = "BN"
         results.append({
             "input": name,
             "player_id": proj.player_id if proj else (rp_meta.get("player_id") if rp_meta else None),

@@ -875,16 +875,24 @@ TYPICAL_WEEKLY_SWING = {
 }
 
 
-def category_leverage(my_val: float, opp_val: float, cat: str) -> float:
-    """Returns 0.5 / 1.0 / 1.5 based on how close this category is — close
-    matchups get a leverage boost (every contribution matters), locked cats
-    get damped (you're already winning/losing the cat regardless)."""
+def category_leverage(my_val: float, opp_val: float, cat: str, elapsed_fraction: float = 1.0) -> float:
+    """Returns leverage multiplier in [0.5, 1.5] based on how close this
+    category is — close matchups boost every contribution, locked cats get
+    damped. `elapsed_fraction` (0..1) is the share of the scoring week that's
+    already played: scales the delta from neutral, so early in the week
+    nothing is treated as locked or close (you're just trying to play the
+    best lineup). Defaults to 1.0 for callers that don't supply it."""
     swing = TYPICAL_WEEKLY_SWING.get(cat, 1.0)
     gap = abs(my_val - opp_val)
     ratio = gap / max(swing, 0.001)
-    if ratio < 0.30: return 1.5     # very close, every point swings the cat
-    if ratio < 1.00: return 1.0     # competitive
-    return 0.5                       # essentially decided
+    if ratio < 0.30: raw = 1.5     # very close, every point swings the cat
+    elif ratio < 1.00: raw = 1.0   # competitive
+    else: raw = 0.5                # essentially decided
+    # Damp the deviation from neutral by how much of the week is in the books.
+    # On Monday (elapsed≈0.14), the gap is mostly noise and leverage stays ~1.0.
+    # On Sunday (elapsed≈1.0), full leverage applies.
+    f = max(0.0, min(1.0, elapsed_fraction))
+    return 1.0 + (raw - 1.0) * f
 
 
 def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_factor: float, order_factor: float, leverage: dict | None = None) -> tuple[float, dict]:
