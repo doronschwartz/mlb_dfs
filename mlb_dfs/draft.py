@@ -30,6 +30,10 @@ class Pick:
     # team has more than one slate game on the date (doubleheader). Auto-
     # resolved to the only slate game otherwise. None on legacy picks.
     game_pk: int | None = None
+    # True for SP picks taken out-of-order via drafter_override — these don't
+    # advance the snake position, so the on-the-clock drafter still gets their
+    # natural turn. Only the lone-SP-needer can do this (see can_pick_sp_out_of_order).
+    out_of_order: bool = False
 
 
 @dataclass
@@ -71,18 +75,24 @@ class Draft:
         """Returns (drafter, slot) for the next pick, or None if complete."""
         if self.is_complete():
             return None
-        n = len(self.picks)
+        # Snake position counts only in-order picks. Out-of-order SP picks (the
+        # lone-SP-needer convenience) don't steal anyone's turn — the drafter
+        # who was on the clock when the OOO pick happened is still on the clock.
+        n = sum(1 for p in self.picks if not getattr(p, "out_of_order", False))
         round_idx = n // len(self.drafters)
         idx_in_round = n % len(self.drafters)
         order = self.drafters if round_idx % 2 == 0 else list(reversed(self.drafters))
-        drafter = order[idx_in_round]
 
-        # Slot for that drafter is the next empty slot in their roster.
-        taken_slots = [p.slot for p in self.picks if p.drafter == drafter]
-        for s in SLOTS:
-            if taken_slots.count(s) < SLOTS.count(s):
-                return drafter, s
-        return drafter, "BN"
+        # If the natural drafter has already filled every slot (e.g. they took
+        # one out-of-order then completed their snake picks earlier), advance
+        # to the next drafter in the round who still has an open slot.
+        for skip in range(len(self.drafters)):
+            d = order[(idx_in_round + skip) % len(self.drafters)]
+            taken_slots = [p.slot for p in self.picks if p.drafter == d]
+            for s in SLOTS:
+                if taken_slots.count(s) < SLOTS.count(s):
+                    return d, s
+        return order[idx_in_round], "BN"
 
     def picked_ids(self) -> set[int]:
         return {p.player_id for p in self.picks}
@@ -186,6 +196,7 @@ class Draft:
             projected_points=projection.projected_points,
             pick_number=old.pick_number,
             game_pk=game_pk,
+            out_of_order=getattr(old, "out_of_order", False),
         )
         return self.picks[idx]
 
@@ -196,6 +207,9 @@ class Draft:
         drafter, _suggested_slot = info
         # Out-of-order SP pick — allowed only when the requesting drafter is
         # the LAST one with an open SP slot (everyone else is done with SPs).
+        # Marked out_of_order=True so the snake position doesn't advance and
+        # the drafter who was on the clock keeps their natural turn.
+        is_ooo = False
         if drafter_override and drafter_override != drafter:
             if slot != "SP":
                 raise ValueError("out-of-order pick allowed only for SP slot")
@@ -204,6 +218,7 @@ class Draft:
                     f"out-of-order SP pick: {drafter_override} isn't the last drafter with an open SP slot"
                 )
             drafter = drafter_override
+            is_ooo = True
         if projection.player_id in self.picked_ids():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(slot, projection):
@@ -225,6 +240,7 @@ class Draft:
             projected_points=projection.projected_points,
             pick_number=len(self.picks) + 1,
             game_pk=game_pk,
+            out_of_order=is_ooo,
         )
         self.picks.append(pick)
         return pick
@@ -331,6 +347,7 @@ def _replace_slot(pick: Pick, new_slot: str) -> Pick:
         projected_points=pick.projected_points,
         pick_number=pick.pick_number,
         game_pk=pick.game_pk,
+        out_of_order=getattr(pick, "out_of_order", False),
     )
 
 
