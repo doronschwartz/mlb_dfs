@@ -1736,13 +1736,21 @@ $("#score-load").addEventListener("click", async () => {
               : `<td></td>`;
             const tooltip = renderBreakdownTooltip(p);
             const actualVal = p.actual === null ? "-" : p.actual.toFixed(1);
+            const stateLabel = (() => {
+              const gs = (p.game_state || "").toLowerCase();
+              if (!gs) return "";
+              if (gs.includes("final")) return "Final";
+              if (gs.includes("progress") || gs.includes("live") || gs.includes("delayed")) return "Live";
+              if (gs.includes("pre") || gs.includes("warmup") || gs.includes("scheduled")) return "Pre";
+              return p.game_state;
+            })();
             return `
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
-            <td>${p.name} ${lineupTag} ${tag} ${promoted}</td>
+            <td title="${escapeAttr(p.name)}">${p.name} ${lineupTag} ${tag} ${promoted}</td>
             <td>${p.projected.toFixed(1)}</td>
             <td class="player-cell"><span class="name-trigger">${actualVal}</span>${tooltip}</td>
-            <td class="muted">${p.game_state ?? ""}</td>
+            <td>${stateLabel}</td>
             ${replaceCell}
           </tr>`;
           },

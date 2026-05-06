@@ -220,6 +220,19 @@ tr.pitcher td:first-child { color: var(--warn); }
 .standings .row.rank-3 { color: #dc2626; font-weight: 600; }
 .standings .row.rank-1 .muted, .standings .row.rank-2 .muted, .standings .row.rank-3 .muted { color: inherit; opacity: 0.7; }
 .score-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+.score-grid table { width: 100%; table-layout: auto; border-collapse: collapse; font-size: 13px; }
+.score-grid th, .score-grid td { padding: 5px 6px; vertical-align: middle; }
+/* Slot col: tight and centered */
+.score-grid th:nth-child(1), .score-grid td:nth-child(1) { width: 38px; color: var(--muted); font-weight: 600; }
+/* Player col: take the leftover space, no wrapping */
+.score-grid th:nth-child(2), .score-grid td:nth-child(2) { white-space: nowrap; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Proj / Actual: numeric, narrow */
+.score-grid th:nth-child(3), .score-grid td:nth-child(3),
+.score-grid th:nth-child(4), .score-grid td:nth-child(4) { width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+/* State col: short labels, never wrap */
+.score-grid th:nth-child(5), .score-grid td:nth-child(5) { white-space: nowrap; font-size: 11px; color: var(--muted); }
+/* Replace col: button only */
+.score-grid th:nth-child(6), .score-grid td:nth-child(6) { width: 60px; text-align: right; }
 tr.benched-out { opacity: 0.5; }
 tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration: line-through; }
 .identity-bar {
@@ -307,7 +320,7 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   .score-grid th:nth-child(4), .score-grid td:nth-child(4) {
     width: 46px; text-align: right; font-variant-numeric: tabular-nums;
   }
-  .score-grid td:nth-child(2) { font-size: 13.5px; line-height: 1.25; }
+  .score-grid td:nth-child(2) { font-size: 13.5px; line-height: 1.25; white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
   .score-grid td:nth-child(2) .lineup-tag { font-size: 9px; padding: 1px 4px; vertical-align: middle; }
   .score-grid td:last-child { width: 50px; padding-right: 0; }
   .score-grid .replace-btn.score-replace-btn {
