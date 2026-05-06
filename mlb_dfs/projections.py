@@ -246,13 +246,14 @@ def project_hitter(
     # Streak-trust override: 4 days of calibration showed HOT players were
     # consistently under-projected by ~+4 pts and COLD over-projected by ~-3 pts.
     # After first 70% override, residual remained ~+2/-1.3 — the L3 sample
-    # itself underestimates HOT players' continuation. Bumped to 80%.
+    # itself underestimates HOT players' continuation. Bumped to 80%, then to
+    # 90% after 2026-05-05 calibration showed HOT bias still +3.95 on n=43.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
         # Negative L3 averages are noise (a -2.8 pts/G sample from K-heavy 3
         # games doesn't predict true-talent negative). Floor at 0.
         pg_3_safe = max(pg_3, 0.0)
-        streak_base = 0.80 * pg_3_safe + 0.20 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.8*L3 + 0.2*weighted → {streak_base:.2f}")
+        streak_base = 0.90 * pg_3_safe + 0.10 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.9*L3 + 0.1*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
@@ -279,13 +280,13 @@ def project_hitter(
     # streak gets dragged toward his Statcast baseline.
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        # Adaptive blend: Statcast is THE most predictive signal for true talent
-        # on a typical day, so it gets full weight (0.35) for steady/untagged
-        # players. But when the player is HOT or COLD, the rolling base is
-        # capturing a real streak signal that Statcast can't see — calibration
-        # showed HOT players were under-projected by ~+5 pts at w=0.35. Drop
-        # Statcast weight for streaking players so the streak signal carries.
-        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.35
+        # Adaptive blend: Statcast is a strong true-talent prior, but 5/5/2026
+        # calibration showed it over-projects ELITE-tier hitters (proj 7.08 →
+        # actual 6.0) and under-projects POOR-tier hitters (proj 4.73 → actual
+        # 6.4) — a regression-to-mean miss. Dropped non-streaking weight 0.35
+        # → 0.25 so projections lean a bit more on each player's own rolling
+        # form. HOT/COLD weight stays 0.15 (streak override already dominates).
+        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.25
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
