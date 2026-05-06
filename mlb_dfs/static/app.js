@@ -153,27 +153,23 @@ $("#refresh").addEventListener("click", async () => {
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.
 const _BENCH_SLOTS = new Set(["BN", "Res", "Reserve", "IR", "InjRes", "Inj Res", ""]);
 function _actionLabel(r) {
+  // Action-forward labels: tell the user what to do, don't rely on current_slot.
+  // Fantrax's roster API returns the period-default lineup, not today's active
+  // slots, so KEEP/MOVE comparisons against current_slot were misleading. We
+  // only show "(currently X)" as a subtle hint — the action itself stands alone.
   const cur = r.current_slot ?? null;
   const isStart = r.recommendation === "START";
   const slotPart = r.slot_assignment ? ` <span class="muted" style="font-weight:400;">(${r.slot_assignment})</span>` : "";
   const scratchTag = r.scratched ? ` <span class="muted" style="font-weight:400;font-size:10px;">(scratched)</span>` : "";
+  // Show current slot as a subtle hint when meaningfully different. Force-bench
+  // and force-minors overrides set cur explicitly so we trust those.
+  const curHint = cur ? ` <span class="muted" style="font-weight:400;font-size:10px;">cur:${cur}</span>` : "";
   if (r.recommendation === "OFF") return { label: "OFF", cls: "muted" };
-  // No Fantrax data → fall back to the bare recommendation.
-  if (cur == null) {
-    if (isStart) return { label: `START${slotPart}`, cls: "edge-pos" };
-    if (r.recommendation === "BN") return { label: `BN${scratchTag}`, cls: "edge-neg" };
-    return { label: r.recommendation, cls: "edge-neg" };
-  }
-  const curBench = _BENCH_SLOTS.has(cur);
   if (isStart) {
-    if (curBench) return { label: `PROMOTE ↑${slotPart}`, cls: "edge-pos" };
-    if (cur === r.slot_assignment) return { label: `KEEP${slotPart}`, cls: "edge-pos" };
-    // Currently active but in a different slot
-    return { label: `MOVE → ${r.slot_assignment || "?"}`, cls: "edge-pos" };
+    return { label: `START${slotPart}${curHint}`, cls: "edge-pos" };
   }
   // Recommendation is BN / SIT
-  if (curBench) return { label: `KEEP (BN)${scratchTag}`, cls: "muted" };
-  return { label: `BENCH ↓ <span class="muted" style="font-weight:400;">(was ${cur})</span>${scratchTag}`, cls: "edge-neg" };
+  return { label: `BENCH${scratchTag}${curHint}`, cls: "edge-neg" };
 }
 
 // Per-cat z-score breakdown (text, used in Cat val cell title= tooltip).
