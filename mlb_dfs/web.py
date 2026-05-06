@@ -741,6 +741,44 @@ def fantrax_roster(league_id: str, team_id: str | None = None):
         raise HTTPException(502, f"Fantrax: {e}")
 
 
+@app.get("/api/fantrax/_debug_slots")
+def fantrax_debug_slots(league_id: str, team_id: str, date: str | None = None):
+    """Diagnostic: try multiple Fantrax method/view combos and show what slot
+    each returns for each player. Helps figure out which call returns today's
+    daily lineup vs the period default."""
+    from fantraxapi.api import Method, _request
+    from fantraxapi import FantraxAPI
+    sess = fantrax._session()
+    api = FantraxAPI(league_id, session=sess)
+    out: dict[str, dict] = {}
+    attempts = [
+        ("getTeamRosterInfo view=STATS", Method("getTeamRosterInfo", teamId=team_id, view="STATS")),
+        ("getTeamRosterInfo view=GAMES_PER_POS", Method("getTeamRosterInfo", teamId=team_id, view="GAMES_PER_POS")),
+        ("getTeamRosterInfo view=SCHEDULE_FULL", Method("getTeamRosterInfo", teamId=team_id, view="SCHEDULE_FULL")),
+        ("getLiveScoringStats date=today", Method("getLiveScoringStats", date=date or Date.today().isoformat(), newView=True, period="1", playerViewType="1", sppId="-1", viewType="1")),
+    ]
+    for label, m in attempts:
+        try:
+            raw = _request(league_id, [m], session=sess)
+            slot_by_pid: dict[str, dict] = {}
+            for table in (raw.get("tables") or []):
+                for row in (table.get("rows") or []):
+                    pos_id = row.get("posId")
+                    if not pos_id:
+                        continue
+                    pos = (api.positions or {}).get(pos_id)
+                    sn = pos.short_name if pos else f"?{pos_id}"
+                    scorer = row.get("scorer") or {}
+                    pid = scorer.get("scorerId")
+                    nm = scorer.get("name")
+                    if pid:
+                        slot_by_pid[pid] = {"name": nm, "slot": sn}
+            out[label] = {"n_players": len(slot_by_pid), "by_name": {v["name"]: v["slot"] for v in slot_by_pid.values()}}
+        except Exception as e:
+            out[label] = {"error": str(e)}
+    return out
+
+
 @app.get("/api/notify/test")
 def notify_test():
     if not notify.is_configured():
