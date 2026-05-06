@@ -752,26 +752,32 @@ def fantrax_probe(league_id: str, team_id: str, date: str | None = None, method:
     today = date or Date.today().isoformat()
     # Each entry: (label, Method)
     if method:
-        attempts = [(f"{method} view={view} date={today}",
-                     Method(method, teamId=team_id, view=view, date=today, period="1", newView=True))]
+        kw = {"teamId": team_id}
+        if view: kw["view"] = view
+        if date: kw["date"] = date
+        attempts = [(f"{method} {kw}", Method(method, **kw))]
     else:
+        # Each call gets a fresh session — a malformed call kills the underlying
+        # connection on Fantrax's side, so reusing the session corrupts later
+        # ones. We swap out the session per attempt below.
         attempts = [
-            ("getTeamRosterInfo STATS+date", Method("getTeamRosterInfo", teamId=team_id, view="STATS", date=today)),
-            ("getTeamRosterInfo SCHEDULE_FULL+date", Method("getTeamRosterInfo", teamId=team_id, view="SCHEDULE_FULL", date=today)),
-            ("getTeamRosterInfo DAILY", Method("getTeamRosterInfo", teamId=team_id, view="DAILY", date=today)),
-            ("getRosterMode", Method("getRosterMode", teamId=team_id, date=today)),
-            ("getDailyRoster", Method("getDailyRoster", teamId=team_id, date=today)),
-            ("getActiveLineup", Method("getActiveLineup", teamId=team_id, date=today)),
-            ("getStartingLineup", Method("getStartingLineup", teamId=team_id, date=today)),
-            ("getEditTeamRoster", Method("getEditTeamRoster", teamId=team_id, date=today)),
-            ("getRosterDays", Method("getRosterDays", teamId=team_id, date=today)),
-            ("getActivePlayersByDate", Method("getActivePlayersByDate", teamId=team_id, date=today)),
-            ("getLiveScoringStats raw", Method("getLiveScoringStats", date=today, newView=True, period="1", playerViewType="1", sppId="-1", viewType="1")),
+            ("getTeamRosterInfo STATS", Method("getTeamRosterInfo", teamId=team_id, view="STATS")),
+            ("getTeamRosterInfo SCHEDULE_FULL", Method("getTeamRosterInfo", teamId=team_id, view="SCHEDULE_FULL")),
+            ("getTeamRoster", Method("getTeamRoster", teamId=team_id)),
+            ("getRosterEditMode", Method("getRosterEditMode", teamId=team_id)),
+            ("getMyTeamRoster", Method("getMyTeamRoster", teamId=team_id)),
+            ("getEditTeamRosterInfo", Method("getEditTeamRosterInfo", teamId=team_id)),
+            ("getDailyTransactions", Method("getDailyTransactions", teamId=team_id)),
+            ("getTeamFantasyTeam", Method("getTeamFantasyTeam", teamId=team_id)),
+            ("getTeamLineup", Method("getTeamLineup", teamId=team_id)),
         ]
     out: dict[str, dict] = {}
     for label, m in attempts:
+        # Fresh session per attempt: a malformed Fantrax method tears down the
+        # connection, so a shared session leaves later calls in a broken state.
+        s = fantrax._session()
         try:
-            raw = _request(league_id, [m], session=sess)
+            raw = _request(league_id, [m], session=s)
         except Exception as e:
             out[label] = {"error": str(e)[:300]}
             continue
