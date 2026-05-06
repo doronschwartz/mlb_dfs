@@ -741,6 +741,59 @@ def fantrax_roster(league_id: str, team_id: str | None = None):
         raise HTTPException(502, f"Fantrax: {e}")
 
 
+@app.get("/api/fantrax/_probe")
+def fantrax_probe(league_id: str, team_id: str, date: str | None = None, method: str | None = None, view: str | None = None):
+    """Diagnostic probe: try many candidate Fantrax method names with daily-
+    lineup-related params and surface their top-level response shape so we can
+    find which one actually carries today's slot assignments. ?method=X overrides
+    to call a single method directly with the supplied view/date."""
+    from fantraxapi.api import Method, _request
+    sess = fantrax._session()
+    today = date or Date.today().isoformat()
+    # Each entry: (label, Method)
+    if method:
+        attempts = [(f"{method} view={view} date={today}",
+                     Method(method, teamId=team_id, view=view, date=today, period="1", newView=True))]
+    else:
+        attempts = [
+            ("getTeamRosterInfo STATS+date", Method("getTeamRosterInfo", teamId=team_id, view="STATS", date=today)),
+            ("getTeamRosterInfo SCHEDULE_FULL+date", Method("getTeamRosterInfo", teamId=team_id, view="SCHEDULE_FULL", date=today)),
+            ("getTeamRosterInfo DAILY", Method("getTeamRosterInfo", teamId=team_id, view="DAILY", date=today)),
+            ("getRosterMode", Method("getRosterMode", teamId=team_id, date=today)),
+            ("getDailyRoster", Method("getDailyRoster", teamId=team_id, date=today)),
+            ("getActiveLineup", Method("getActiveLineup", teamId=team_id, date=today)),
+            ("getStartingLineup", Method("getStartingLineup", teamId=team_id, date=today)),
+            ("getEditTeamRoster", Method("getEditTeamRoster", teamId=team_id, date=today)),
+            ("getRosterDays", Method("getRosterDays", teamId=team_id, date=today)),
+            ("getActivePlayersByDate", Method("getActivePlayersByDate", teamId=team_id, date=today)),
+            ("getLiveScoringStats raw", Method("getLiveScoringStats", date=today, newView=True, period="1", playerViewType="1", sppId="-1", viewType="1")),
+        ]
+    out: dict[str, dict] = {}
+    for label, m in attempts:
+        try:
+            raw = _request(league_id, [m], session=sess)
+        except Exception as e:
+            out[label] = {"error": str(e)[:300]}
+            continue
+        # Summarize the response shape so we can spot slot-like data.
+        if isinstance(raw, dict):
+            top_keys = list(raw.keys())
+            sample = {}
+            for k in top_keys[:5]:
+                v = raw.get(k)
+                if isinstance(v, list) and v:
+                    sample[k] = {"type": "list", "len": len(v),
+                                 "first_keys": list(v[0].keys()) if isinstance(v[0], dict) else type(v[0]).__name__}
+                elif isinstance(v, dict):
+                    sample[k] = {"type": "dict", "keys": list(v.keys())[:8]}
+                else:
+                    sample[k] = {"type": type(v).__name__, "val": str(v)[:60]}
+            out[label] = {"top_keys": top_keys, "sample": sample}
+        else:
+            out[label] = {"type": type(raw).__name__, "val": str(raw)[:200]}
+    return out
+
+
 
 
 @app.get("/api/notify/test")
