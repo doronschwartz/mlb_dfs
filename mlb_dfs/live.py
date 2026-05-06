@@ -268,13 +268,14 @@ def _index_boxscores(d: Date, *, game_pks: set[int] | None = None) -> dict[int, 
         for person, stats in mlb_api.iter_boxscore_pitchers(box):
             pid = person.get("id")
             if pid and person.get("isStarter"):
-                # If a player both batted and started, the starter line
-                # supersedes the batting line for SP-slotted players. Replace
-                # any earlier hitter entry for that pid with the pitcher line.
-                existing = out.get(pid, [])
-                out[pid] = [e for e in existing if e["role"] != "hitter"] + [
+                # Two-way players (Ohtani) appear in BOTH iterators on a day they
+                # bat and start. Keep both lines — _score_player filters by the
+                # pick's role/slot so the right line is scored. (Previously we
+                # replaced the hitter line, which lost Ohtani's hitting actuals
+                # for accuracy / live scoring of his UTIL projection.)
+                out.setdefault(pid, []).append(
                     {"role": "pitcher", "stats": stats, "state": state, "game_pk": pk}
-                ]
+                )
     return out
 
 
@@ -288,6 +289,11 @@ def _score_player(pick: Pick, lines: list[dict]) -> PlayerScore:
     """
     if pick.game_pk is not None:
         lines = [ln for ln in lines if ln.get("game_pk") == pick.game_pk]
+    # Two-way player support: a pick can only score lines matching its role.
+    # If the pick is in an SP slot or has role=pitcher, only score pitcher lines.
+    # Otherwise (UTIL / hitter slot), only score hitter lines.
+    want_pitcher = (pick.slot == "SP") or (pick.role == "pitcher")
+    lines = [ln for ln in lines if (ln["role"] == "pitcher") == want_pitcher]
     if not lines:
         return PlayerScore(
             player_id=pick.player_id, name=pick.name, role=pick.role,
