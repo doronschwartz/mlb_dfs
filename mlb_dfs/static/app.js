@@ -1149,7 +1149,9 @@ async function renderDraft() {
   state.lastPicksCount = (data.picks || []).length;
   state._spJumpDrafter = data.sp_jump_drafter || null;
   state._nonSpFree = !!data.non_sp_free;
-  state._myTurnAtLastRender = isMyTurn(data.on_the_clock);
+  // Match the poll's myTurn definition exactly — otherwise the poll detects
+  // a phantom flip every 4s and re-renders, which looks like flashing.
+  state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
   renderIdentityBar(data);
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
   const html = [];
