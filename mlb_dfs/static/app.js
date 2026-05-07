@@ -1190,18 +1190,20 @@ async function renderDraft() {
   const round = Math.floor((data.picks || []).length / nDrafters);
   const order = round % 2 === 0 ? data.drafters : [...data.drafters].reverse();
   const onClockName = data.on_the_clock ? data.on_the_clock[0] : null;
-  const heldName = data.non_sp_free ? data.sp_jump_drafter : null;   // lone SP-needer on hold
-  const oooNext = data.next_ooo_drafter || null;                     // next-in-snake to pick OOO
+  // The lone SP-needer in OOO mode can pick SP anytime (not just "on hold").
+  const spAnytime = data.sp_jump_drafter || null;
+  const oooNext = data.next_ooo_drafter || null;                     // next-in-snake for non-SP OOO pick
   const orderHtml = order.map((d) => {
     let cls = "";
     let label = d;
     if (d === oooNext) {
       cls = "on-clock";
-      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ OOO</span>`;
-    } else if (d === heldName) {
+      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ next</span>`;
+    } else if (d === spAnytime && data.non_sp_free) {
+      // Held by snake but can interject SP picks at any time — both true.
       cls = "held";
-      label = `${d} <span style="font-size:10px;opacity:0.7;">on hold (SP)</span>`;
-    } else if (d === onClockName && !heldName) {
+      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ SP anytime</span>`;
+    } else if (d === onClockName && !spAnytime) {
       cls = "on-clock";
     } else if (data.rosters[d]?.length > round) {
       cls = "done";
