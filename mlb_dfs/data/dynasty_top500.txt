@@ -1,13 +1,13 @@
 # MLB Dynasty Top — order = rank (line 1 is #1 overall).
-# Lines starting with # and blank lines are ignored. Edit freely; backend
-# reads top-to-bottom to assign ranks 1..N. Used by the draft pool's
-# "Sort: Dynasty rank" so star talent surfaces even when their projection
-# is COLD-tagged.
+# Lines starting with # and blank lines are ignored. Backend reads top to
+# bottom to assign ranks 1..N. Used by the draft pool's "Sort: Dynasty rank"
+# so star talent surfaces even when their projection is COLD-tagged.
 #
-# Curated 2026 starter list. Replace/extend as you like — the file is the
-# source of truth.
+# 2026 starter list. ~150 names — rather than padding to 500 with guesses,
+# this stops where confidence drops. Edit freely — file is the source of truth.
+# Pasting an authoritative list (FantasyPros/KTC/Razzball/Fantrax) will sharpen it.
 
-# ----- Hitters: top dynasty bats -----
+# ----- Tier 1: foundational stars -----
 Bobby Witt Jr.
 Shohei Ohtani
 Aaron Judge
@@ -20,14 +20,16 @@ Julio Rodríguez
 Fernando Tatis Jr.
 Mookie Betts
 Yordan Alvarez
-José Ramírez
 Kyle Tucker
-Freddie Freeman
-Vladimir Guerrero Jr.
+José Ramírez
+
+# ----- Tier 2: top studs / proven elite -----
 Bryce Harper
+Vladimir Guerrero Jr.
 Adley Rutschman
 Francisco Lindor
 Trea Turner
+Freddie Freeman
 William Contreras
 Pete Alonso
 Manny Machado
@@ -36,6 +38,10 @@ Matt Olson
 Bryan Reynolds
 Steven Kwan
 Luis Robert Jr.
+Jazz Chisholm Jr.
+Marcell Ozuna
+
+# ----- Tier 3: top young/breakout MLB bats -----
 Jackson Chourio
 Jackson Holliday
 Jackson Merrill
@@ -44,6 +50,79 @@ James Wood
 Junior Caminero
 Dylan Crews
 Roman Anthony
+Pete Crow-Armstrong
+Riley Greene
+Spencer Steer
+Anthony Volpe
+Brent Rooker
+Yainer Diaz
+Triston Casas
+Bo Bichette
+Cal Raleigh
+Will Smith
+CJ Abrams
+Bryson Stott
+Masyn Winn
+Lawrence Butler
+Colt Keith
+Heliot Ramos
+Wilyer Abreu
+Jordan Walker
+Jasson Domínguez
+
+# ----- Tier 4: top MLB regulars / role-players -----
+Salvador Perez
+Cody Bellinger
+George Springer
+Ozzie Albies
+Ketel Marte
+Jose Altuve
+Andrés Giménez
+Xander Bogaerts
+Marcus Semien
+Corey Seager
+Jeremy Peña
+Oneil Cruz
+Christian Walker
+Josh Naylor
+Spencer Torkelson
+Brandon Lowe
+Nolan Arenado
+Austin Riley
+Alex Bregman
+Ke'Bryan Hayes
+Eugenio Suárez
+Anthony Santander
+Lars Nootbaar
+Christian Yelich
+Adolis García
+Teoscar Hernández
+Tommy Edman
+Brendan Donovan
+Ezequiel Tovar
+Edouard Julien
+Nico Hoerner
+Gabriel Moreno
+Patrick Bailey
+Sean Murphy
+Jonah Heim
+Tyler Stephenson
+Iván Herrera
+Bo Naylor
+Daulton Varsho
+Cedric Mullins
+Brandon Nimmo
+J.T. Realmuto
+Travis d'Arnaud
+Carlos Correa
+Willy Adames
+Kyle Schwarber
+Lourdes Gurriel Jr.
+Jurickson Profar
+Ryan Mountcastle
+Mike Trout
+
+# ----- Tier 5: prospect-heavy / longer-term dynasty -----
 Walker Jenkins
 Kristian Campbell
 Samuel Basallo
@@ -55,124 +134,42 @@ Coby Mayo
 Carson Williams
 Colson Montgomery
 Brooks Lee
-Mike Trout
-Anthony Volpe
-Spencer Steer
 Royce Lewis
-Triston Casas
-Riley Greene
-Bo Bichette
-Yainer Diaz
-Cal Raleigh
-Will Smith
-Salvador Perez
-Cody Bellinger
-George Springer
-Ozzie Albies
-Ketel Marte
-Jose Altuve
-Andrés Giménez
-Xander Bogaerts
-Marcus Semien
-Corey Seager
-CJ Abrams
-Jeremy Peña
-Oneil Cruz
-Christian Walker
-Josh Naylor
-Spencer Torkelson
-Brandon Lowe
-Christopher Morel
-Nolan Arenado
-Austin Riley
-Alex Bregman
-Ke'Bryan Hayes
-Eugenio Suárez
-Isaac Paredes
-Brent Rooker
-Anthony Santander
-Lars Nootbaar
-Christian Yelich
-Adolis García
-Teoscar Hernández
-Tommy Edman
-Brendan Donovan
-Masyn Winn
-Ezequiel Tovar
-Bryson Stott
-Edouard Julien
-Nico Hoerner
-Brendan Rodgers
-Pete Crow-Armstrong
-Colt Keith
-Bo Naylor
-Daulton Varsho
-Jordan Walker
-Lawrence Butler
-Heliot Ramos
-Nolan Schanuel
-Wilyer Abreu
-Spencer Horwitz
-Jasson Domínguez
 Jordan Lawlar
 Curtis Mead
-Trevor Larnach
+Brett Baty
+Spencer Horwitz
+Tyler Soderstrom
 Matt McLain
 Vinnie Pasquantino
-Patrick Bailey
 Geraldo Perdomo
-Gabriel Moreno
 Maikel Garcia
-Tyler Soderstrom
-Brett Baty
-Ryan Mountcastle
-Brandon Nimmo
-Lourdes Gurriel Jr.
-Cedric Mullins
-Jurickson Profar
-Connor Wong
-Sean Murphy
-Jonah Heim
-Tyler Stephenson
-Iván Herrera
-Logan O'Hoppe
-Mickey Moniak
-Lane Thomas
-Jake McCarthy
-Hunter Goodman
 Brice Turang
 Sal Frelick
 Joey Ortiz
 Garrett Mitchell
 Brandon Marsh
-Tyler O'Neill
-Jeimer Candelario
-J.T. Realmuto
-Travis d'Arnaud
-J.D. Martinez
-Mitch Garver
-Carlos Correa
-Willy Adames
-Kyle Schwarber
-Jonathan India
-Esteury Ruiz
-Adam Frazier
-Andrew McCutchen
-Justin Turner
-Jorge Polanco
+Logan O'Hoppe
+Mickey Moniak
+Jake McCarthy
+Hunter Goodman
+Trevor Larnach
 
-# ----- Pitchers: top dynasty arms -----
-Roki Sasaki
-Andrew Painter
+# ===== Pitchers =====
+# ----- Tier P1: aces / top young arms -----
 Paul Skenes
 Tarik Skubal
 Garrett Crochet
+Roki Sasaki
+Andrew Painter
 Logan Webb
 Zack Wheeler
 Cole Ragans
 Spencer Strider
 Corbin Burnes
-Gerrit Cole
+Yoshinobu Yamamoto
+
+# ----- Tier P2: high-end starters -----
 Pablo López
 George Kirby
 Logan Gilbert
@@ -180,7 +177,6 @@ Bryce Miller
 Tanner Bibee
 Hunter Brown
 Framber Valdez
-Yoshinobu Yamamoto
 Tyler Glasnow
 Aaron Nola
 Max Fried
@@ -189,43 +185,43 @@ Joe Ryan
 Bryan Woo
 Cristopher Sánchez
 Shota Imanaga
-Reynaldo López
-Jared Jones
-Bowden Francis
-Sonny Gray
 Freddy Peralta
+Jared Jones
+Sonny Gray
 Bailey Ober
 Robbie Ray
 Kevin Gausman
-José Berríos
-Chris Sale
-Blake Snell
-Yu Darvish
-Walker Buehler
-Sandy Alcántara
-Shane McClanahan
-Eury Pérez
-Jacob deGrom
-Jesús Luzardo
 Hunter Greene
+Eury Pérez
 Grayson Rodriguez
 MacKenzie Gore
-Andrew Abbott
-Mitchell Parker
-David Peterson
-Mitch Keller
+Jesús Luzardo
 Edward Cabrera
 Brandon Pfaadt
-Ryan Pepiot
+Mitch Keller
 Reese Olson
+Sandy Alcántara
+Walker Buehler
+Blake Snell
+Yu Darvish
+Andrew Abbott
 Jack Flaherty
+Drew Rasmussen
+
+# ----- Tier P3: solid / streaming-tier SPs -----
+Ryan Pepiot
+Joe Musgrove
+Mitchell Parker
+David Peterson
 Aaron Civale
 Charlie Morton
 Lucas Giolito
 Justin Verlander
-Joe Musgrove
-Drew Rasmussen
 Sean Manaea
+Bowden Francis
+Reynaldo López
+Reid Detmers
+Spencer Schwellenbach
 
 # ----- Closers / high-leverage relievers -----
 Emmanuel Clase
@@ -242,17 +238,12 @@ Félix Bautista
 Andrés Muñoz
 Tanner Scott
 Pete Fairbanks
-Kenley Jansen
 Trevor Megill
-Liam Hendriks
-Ryan Pressly
-Aroldis Chapman
-Yennier Cano
 Jhoan Duran
 Clay Holmes
-A.J. Puk
-Hector Neris
 Justin Martinez
 Carlos Estévez
-Kyle Finnegan
-Alexis Díaz
+Ryan Pressly
+Kenley Jansen
+A.J. Puk
+Liam Hendriks

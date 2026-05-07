@@ -1729,7 +1729,14 @@ async function _loadDynasty() {
     const r = await fetch("/api/dynasty_rankings");
     if (!r.ok) return;
     const data = await r.json();
-    const norm = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[^\w\s]/g, "").trim();
+    const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
+    const norm = (s) => {
+      const tokens = (s || "").toLowerCase().normalize("NFKD")
+        .replace(/[^\w\s]/g, "")
+        .trim().split(/\s+/)
+        .filter((t) => t && !SUFFIXES.has(t));
+      return tokens.join(" ");
+    };
     const map = new Map();
     (data.rankings || []).forEach((name, i) => {
       const k = norm(name);
