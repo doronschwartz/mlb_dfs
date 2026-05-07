@@ -1534,6 +1534,7 @@ def _draft_state(dr) -> dict:
         "on_the_clock": dr.on_the_clock(),
         "is_complete": dr.is_complete(),
         "sp_jump_drafter": _can_jump_for_sp(dr),
+        "non_sp_free": dr.non_sp_free_for_all(),
         "game_pks": list(dr.game_pks),
         "selected_games": _selected_games_summary(dr),
         "rosters": {

@@ -46,6 +46,13 @@ function isMyTurn(onClock) {
 function canJumpForSP() {
   return !!(state.identity && state._spJumpDrafter && state._spJumpDrafter === state.identity);
 }
+// True when the lone SP-needer is someone ELSE and they only have SP slots
+// remaining. In that state the snake is just waiting on their pitcher picks
+// — every other drafter can finish their non-SP slots in any order.
+function canJumpForNonSP() {
+  if (!state.identity || !state._nonSpFree) return false;
+  return state._spJumpDrafter && state._spJumpDrafter !== state.identity;
+}
 
 // Fixed roster shape (matches mlb_dfs.draft.SLOTS).
 const SLOT_TEMPLATE = [
@@ -1141,6 +1148,7 @@ async function renderDraft() {
   const data = await api(`/api/drafts/${state.currentDraftId}`);
   state.lastPicksCount = (data.picks || []).length;
   state._spJumpDrafter = data.sp_jump_drafter || null;
+  state._nonSpFree = !!data.non_sp_free;
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock);
   renderIdentityBar(data);
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
@@ -1525,7 +1533,13 @@ async function renderRecs() {
     const data = await api(`/api/drafts/${state.currentDraftId}/recommend?top_n=10`);
     const myTurn = isMyTurn(data.on_the_clock);
     const spJump = canJumpForSP();
-    const lockFor = (slot) => (myTurn || (spJump && slot === "SP")) ? "" : "locked";
+    const nonSpJump = canJumpForNonSP();
+    const lockFor = (slot) => {
+      if (myTurn) return "";
+      if (spJump && slot === "SP") return "";
+      if (nonSpJump && slot !== "SP") return "";
+      return "locked";
+    };
     const rows = data.recommendations
       .map(
         (r) => {
@@ -1568,7 +1582,7 @@ async function renderRecs() {
               player_id: Number(b.dataset.pid),
               slot: b.dataset.slot,
               game_pk: gamePk,
-              drafter_override: (b.dataset.slot === "SP" && canJumpForSP()) ? state.identity : undefined,
+              drafter_override: ((b.dataset.slot === "SP" && canJumpForSP()) || (b.dataset.slot !== "SP" && canJumpForNonSP())) ? state.identity : undefined,
             }),
           });
         } catch (e) {
@@ -1605,8 +1619,17 @@ function drawPool() {
   const sortMode = $("#pool-sort")?.value || "proj";
   const myTurn = state._myTurnAtLastRender;
   const spOnly = canJumpForSP();
-  // SP free-for-all: SP pills unlock; non-SP pills stay locked unless it's our turn.
-  const lockFor = (slot) => (myTurn || (spOnly && slot === "SP")) ? "" : "locked";
+  const nonSpOpen = canJumpForNonSP();
+  // Two OOO unlock modes:
+  //   1) I'm the lone SP-needer  → my SP pills unlock.
+  //   2) Someone else is the lone SP-needer with only SPs left → my non-SP
+  //      pills unlock (snake is just waiting on their pitcher picks).
+  const lockFor = (slot) => {
+    if (myTurn) return "";
+    if (spOnly && slot === "SP") return "";
+    if (nonSpOpen && slot !== "SP") return "";
+    return "locked";
+  };
   // {normalized_name -> rank} from the internal dynasty Top 500 (loaded once).
   // Lower rank = better. Case- and punctuation-insensitive match.
   const dynasty = state._dynastyMap || null;
@@ -1707,7 +1730,7 @@ function drawPool() {
             player_id: Number(el.dataset.pid),
             slot: el.dataset.slot,
             game_pk: gamePk,
-            drafter_override: (el.dataset.slot === "SP" && canJumpForSP()) ? state.identity : undefined,
+            drafter_override: ((el.dataset.slot === "SP" && canJumpForSP()) || (el.dataset.slot !== "SP" && canJumpForNonSP())) ? state.identity : undefined,
           }),
         });
       } catch (e) {
@@ -1865,7 +1888,7 @@ async function pollDraft() {
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}`);
     const newCount = (data.picks || []).length;
-    const myTurn = isMyTurn(data.on_the_clock) || canJumpForSP();
+    const myTurn = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
     // Re-render fully if a pick happened or the turn flipped to/from us.
     if (newCount !== state.lastPicksCount || myTurn !== state._myTurnAtLastRender) {
       await renderDraft();

@@ -71,6 +71,47 @@ class Draft:
                     return False
         return self_needs
 
+    def non_sp_free_for_all(self) -> bool:
+        """True iff exactly one drafter has open slots remaining AND those open
+        slots are all SP. In that state the snake is effectively just waiting
+        on that drafter's pitcher picks — every other drafter should be able
+        to finish their non-SP slots in any order without being gated."""
+        sp_needers: list[str] = []
+        for d in self.drafters:
+            taken_sp = sum(1 for p in self.picks if p.drafter == d and p.slot == "SP")
+            if taken_sp < SLOTS.count("SP"):
+                sp_needers.append(d)
+        if len(sp_needers) != 1:
+            return False
+        lone = sp_needers[0]
+        # The lone SP-needer must have ONLY SP slots remaining; if they still
+        # owe IF/OF/UTIL/BN picks, the snake should still gate those (otherwise
+        # others could rob them of slot priority).
+        for s in SLOTS:
+            if s == "SP":
+                continue
+            taken = sum(1 for p in self.picks if p.drafter == lone and p.slot == s)
+            if taken < SLOTS.count(s):
+                return False
+        return True
+
+    def can_pick_out_of_order(self, drafter: str, slot: str) -> bool:
+        """Combined OOO rule used by make_pick:
+          - SP slot: drafter is the lone SP-needer (existing rule).
+          - non-SP slot: someone *else* is the lone SP-needer and has only
+            SP slots remaining (free-for-all on the rest of the board)."""
+        if drafter not in self.drafters:
+            return False
+        if slot == "SP":
+            return self.can_pick_sp_out_of_order(drafter)
+        # Non-SP override only legal when the lone-SP-needer is someone else.
+        if not self.non_sp_free_for_all():
+            return False
+        sp_taken = sum(1 for p in self.picks if p.drafter == drafter and p.slot == "SP")
+        if sp_taken < SLOTS.count("SP"):
+            return False  # caller IS the lone SP-needer; they shouldn't be hitter-jumping
+        return True
+
     def on_the_clock(self) -> tuple[str, str] | None:
         """Returns (drafter, slot) for the next pick, or None if complete."""
         if self.is_complete():
@@ -205,17 +246,17 @@ class Draft:
         if info is None:
             raise RuntimeError("draft already complete")
         drafter, _suggested_slot = info
-        # Out-of-order SP pick — allowed only when the requesting drafter is
-        # the LAST one with an open SP slot (everyone else is done with SPs).
-        # Marked out_of_order=True so the snake position doesn't advance and
-        # the drafter who was on the clock keeps their natural turn.
+        # Out-of-order pick. Two flavors, both delegated to can_pick_out_of_order:
+        #   - SP pick by the lone SP-needer (existing).
+        #   - Non-SP pick by anyone else when the lone SP-needer has only SPs
+        #     remaining (the snake is just waiting on that one drafter's SPs,
+        #     so others can finish their hitter/UTIL/BN slots freely).
+        # Out-of-order picks are flagged so they don't advance the snake.
         is_ooo = False
         if drafter_override and drafter_override != drafter:
-            if slot != "SP":
-                raise ValueError("out-of-order pick allowed only for SP slot")
-            if not self.can_pick_sp_out_of_order(drafter_override):
+            if not self.can_pick_out_of_order(drafter_override, slot):
                 raise ValueError(
-                    f"out-of-order SP pick: {drafter_override} isn't the last drafter with an open SP slot"
+                    f"out-of-order pick not allowed for {drafter_override} into {slot}"
                 )
             drafter = drafter_override
             is_ooo = True
