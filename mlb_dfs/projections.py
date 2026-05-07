@@ -365,6 +365,16 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
+    # COLD post-matchup shrink. Two days of calibration (5/5 n=100 bias -1.15,
+    # 5/6 n=108 bias -1.23 — combined n>200) showed COLD-tagged hitters
+    # consistently over-projected even after the streak override and lighter
+    # Statcast weight. Matchup multipliers (Vegas/park/order) compound on a
+    # base that's already a bit too high for slumping hitters; trim 15% off
+    # the final number for COLD only. HOT is calibrated post-bump (n=42 bias
+    # +0.61), so this asymmetric fix targets the residual we have evidence for.
+    if form_tag == "COLD":
+        proj *= 0.85
+        notes.append("COLD post-matchup shrink x0.85")
     # No floor — strikeouts and GIDPs are negative-scoring events, so a
     # deeply slumping K-prone hitter facing an elite SP genuinely can be a
     # negative-EV play. The streak override above already protects against
