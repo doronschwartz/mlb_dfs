@@ -1639,10 +1639,14 @@ function drawPool() {
     $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">No matches.</div>`;
     return;
   }
+  const rankOf = (p) => {
+    if (!dynasty) return null;
+    return dynasty.map.get(dynasty.norm(p.name)) ?? null;
+  };
   const html = `
     <table>
       <thead>
-        <tr><th>Proj</th><th>Player</th><th>Pos</th><th>Role</th><th>Statcast</th><th>Pick into…</th><th>Notes</th></tr>
+        <tr><th>Proj</th><th title="Dynasty rank from internal Top list (— = unranked)">Dyn</th><th>Player</th><th>Pos</th><th>Role</th><th>Statcast</th><th>Pick into…</th><th>Notes</th></tr>
       </thead>
       <tbody>${rows
         .map(
@@ -1658,9 +1662,14 @@ function drawPool() {
               const xw = c.xwoba_against != null ? c.xwoba_against.toFixed(3) : "—";
               stat = `<span title="xERA ${xe} · xwOBA ${xw} · qoc x${(c.qoc_factor||1).toFixed(2)}">xERA ${xe}</span>`;
             }
+            const dr = rankOf(p);
+            const dynCell = dr == null
+              ? `<span class="muted">—</span>`
+              : `<span class="${dr <= 50 ? 'edge-pos' : ''}" style="font-variant-numeric:tabular-nums;">#${dr}</span>`;
             return `
         <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
+          <td>${dynCell}</td>
           <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
