@@ -568,3 +568,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .btn-danger-outline { color: var(--bad); border-color: var(--bad); }
 .btn-danger-outline:hover { background: var(--bad); color: #fff; }
 .notes { color: var(--muted); font-size: 11px; }
+.tag-guide {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin: 10px 0; font-size: 13px; line-height: 1.5;
+}
+.tag-guide h4 { font-size: 14px; }
+.tag-guide-section { margin-top: 10px; }
+.tag-guide-section:first-of-type { margin-top: 0; }
+.tag-guide-header { font-weight: 600; margin-bottom: 4px; }
+.tag-guide ul { margin: 0; padding-left: 18px; }
+.tag-guide li { margin: 3px 0; }
+.tag-guide li .bench-tag { margin-right: 4px; }

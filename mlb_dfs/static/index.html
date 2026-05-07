@@ -64,6 +64,34 @@
           <button id="randomize" type="button" title="Randomize draft order">🎲 Randomize</button>
           <button id="new-draft" class="btn-pick">Start draft</button>
           <button id="show-eligibility" type="button">Eligibility ❓</button>
+          <button id="show-tag-guide" type="button">Tags ❓</button>
+        </div>
+        <div id="tag-guide" class="tag-guide" hidden>
+          <h4 style="margin:0 0 8px;">Player tags — what they mean</h4>
+          <div class="tag-guide-section">
+            <div class="tag-guide-header">Form tags <span class="muted" style="font-weight:400;font-size:11px;">(based on recent game logs)</span></div>
+            <ul>
+              <li><span class="bench-tag" style="background:rgba(239,68,68,0.25);color:#fca5a5;">🔥 HOT</span> — last 3 games well above their 14-day average. Streak signal: we weight L3 at 0.9 of projection.</li>
+              <li><span class="bench-tag" style="background:rgba(59,130,246,0.25);color:#93c5fd;">🧊 COLD</span> — last 3 games well below their 14-day average. Projections shrunk an extra 15% post-matchup (calibrated on n&gt;200 days).</li>
+              <li><span class="bench-tag" style="background:rgba(52,211,153,0.25);color:var(--accent-2);">⭐ ELITE</span> — L3, L7, L14 all consistently above league average. Always-on producer; no streak dampening.</li>
+              <li><span class="bench-tag" style="background:rgba(148,163,184,0.25);color:var(--text);">📊 STEADY</span> — L3/L7/L14 close to each other, around league average. Reliable floor, modest ceiling.</li>
+              <li><span class="muted">untagged</span> — none of the above thresholds tripped. Default projection.</li>
+            </ul>
+          </div>
+          <div class="tag-guide-section">
+            <div class="tag-guide-header">Quality-of-contact (Statcast) tier <span class="muted" style="font-weight:400;font-size:11px;">(true-talent prior, season-long sample)</span></div>
+            <ul>
+              <li><b style="color:var(--accent-2);">ELITE</b> — barrel% ≥ 11. Top tier of contact quality. Higher floor in slumps.</li>
+              <li><b>SOLID</b> — above-average barrel/hard-hit. Reliable real production behind the rate stats.</li>
+              <li><b>AVERAGE</b> — league-average contact. No prior tilt either direction.</li>
+              <li><b style="color:var(--bad);">POOR</b> — below-average barrel/hard-hit. We trust their hot rolling form less; surface stats often regress.</li>
+              <li><span class="muted">—</span> — small Statcast sample (call-up, low BBE), no prior applied.</li>
+            </ul>
+          </div>
+          <div class="tag-guide-section">
+            <div class="tag-guide-header">How they combine</div>
+            <p class="muted" style="font-size:12px;margin:0;">Form tags drive short-term streak weighting (L3 vs L14). Statcast tier drives the true-talent prior blended into the rolling base. A <b>HOT + ELITE</b> hitter is the highest-confidence play — both signals say "buy". A <b>COLD + POOR</b> is the strongest fade — recent form bad, underlying skill weak.</p>
+          </div>
         </div>
         <div class="setup-row">
           <span class="muted">Pick which games are in the pool — leave all unchecked to use the full slate:</span>

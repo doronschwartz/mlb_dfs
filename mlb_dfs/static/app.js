@@ -1023,6 +1023,11 @@ $("#randomize").addEventListener("click", () => {
   input.value = names.join(", ");
 });
 
+$("#show-tag-guide")?.addEventListener("click", () => {
+  const guide = $("#tag-guide");
+  if (guide) guide.hidden = !guide.hidden;
+});
+
 $("#show-eligibility").addEventListener("click", () => {
   const html = `
     <div class="replace-modal" id="eligibility-modal">
