@@ -64,6 +64,24 @@ class UpdateGamesRequest(BaseModel):
 # -------------------- API routes --------------------
 
 
+@app.get("/api/dynasty_rankings")
+def dynasty_rankings():
+    """Static internal Top-500-style dynasty list, ordered top to bottom.
+    Loaded from mlb_dfs/data/dynasty_top500.txt — edit that file to update."""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "data", "dynasty_top500.txt")
+    rankings: list[str] = []
+    try:
+        with open(path) as f:
+            for line in f:
+                s = line.strip()
+                if s and not s.startswith("#"):
+                    rankings.append(s)
+    except FileNotFoundError:
+        pass
+    return {"rankings": rankings, "n": len(rankings)}
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True}

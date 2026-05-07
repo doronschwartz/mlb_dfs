@@ -1602,10 +1602,14 @@ async function renderPool() {
 function drawPool() {
   const search = ($("#pool-search").value || "").toLowerCase().trim();
   const filter = $("#pool-filter").value;
+  const sortMode = $("#pool-sort")?.value || "proj";
   const myTurn = state._myTurnAtLastRender;
   const spOnly = canJumpForSP();
   // SP free-for-all: SP pills unlock; non-SP pills stay locked unless it's our turn.
   const lockFor = (slot) => (myTurn || (spOnly && slot === "SP")) ? "" : "locked";
+  // {normalized_name -> rank} from the internal dynasty Top 500 (loaded once).
+  // Lower rank = better. Case- and punctuation-insensitive match.
+  const dynasty = state._dynastyMap || null;
   const rows = poolCache.pool.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search)) return false;
     if (filter === "hitter") return p.role === "hitter";
@@ -1613,6 +1617,23 @@ function drawPool() {
     if (filter === "IF" || filter === "OF") return (p.position_slots || p.eligible_slots).includes(filter);
     return true;
   });
+  // Apply sort. Default "proj" — preserve incoming pool order (already ranked
+  // by projected_points desc on the backend).
+  if (sortMode === "name") {
+    rows.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortMode === "dynasty") {
+    const big = 9999;
+    const rankOf = (p) => {
+      if (!dynasty) return big;
+      return dynasty.map.get(dynasty.norm(p.name)) ?? big;
+    };
+    rows.sort((a, b) => {
+      const ra = rankOf(a), rb = rankOf(b);
+      if (ra !== rb) return ra - rb;
+      // Tiebreak: keep projection order so unranked players stay sensible.
+      return (b.projected_points || 0) - (a.projected_points || 0);
+    });
+  }
   $("#pool-count").textContent = `${rows.length} available`;
   if (!rows.length) {
     $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">No matches.</div>`;
@@ -1690,6 +1711,25 @@ function drawPool() {
 
 $("#pool-search").addEventListener("input", () => poolCache.pool.length && drawPool());
 $("#pool-filter").addEventListener("change", () => poolCache.pool.length && drawPool());
+$("#pool-sort")?.addEventListener("change", () => poolCache.pool.length && drawPool());
+
+// Load the internal dynasty Top 500 list once at startup. Tolerates failure —
+// dynasty sort just falls back to projection order when the list isn't loaded.
+async function _loadDynasty() {
+  try {
+    const r = await fetch("/api/dynasty_rankings");
+    if (!r.ok) return;
+    const data = await r.json();
+    const norm = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[^\w\s]/g, "").trim();
+    const map = new Map();
+    (data.rankings || []).forEach((name, i) => {
+      const k = norm(name);
+      if (k && !map.has(k)) map.set(k, i + 1);
+    });
+    state._dynastyMap = { map, norm };
+  } catch {}
+}
+_loadDynasty();
 
 // ---------- live scoring ----------
 $("#score-load").addEventListener("click", async () => {
