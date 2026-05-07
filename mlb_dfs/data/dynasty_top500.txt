@@ -1,12 +1,11 @@
 # MLB Dynasty Top — order = rank (line 1 is #1 overall).
-# Lines starting with # and blank lines are ignored. Backend reads top to
-# bottom to assign ranks 1..N. Used by the draft pool's "Sort: Dynasty rank".
+# Lines starting with # and blank lines are ignored.
 #
-# 2026 list — kept tight (~120 names). Padding with "competent MLB regular"
-# types just makes the sort noisier; better to say "unranked" honestly than
-# claim a backup catcher is top-200 dynasty. Edit freely; the file is the
-# source of truth. If you have an authoritative list (KTC/FantasyPros/Razzball/
-# Fantrax), drop it in and the sort gets a lot sharper.
+# This is a STARTER list of the most-consensus elite dynasty assets only
+# (~60 names). Past the top tier, hand-curated rankings get unreliable fast,
+# so I'd rather underclaim than mis-rank a young player at #66 when the
+# market has them at #395. Edit/extend this file with an authoritative source
+# (Fantrax player rater export, KTC, FantasyPros) for sharper sorting.
 
 # ----- Tier 1: foundational stars -----
 Bobby Witt Jr.
@@ -41,87 +40,21 @@ Luis Robert Jr.
 Jazz Chisholm Jr.
 William Contreras
 
-# ----- Tier 3: top young/breakout MLB bats -----
+# ----- Tier 3: top young/breakout MLB bats with everyday role -----
 Jackson Chourio
 Jackson Holliday
 Jackson Merrill
 Wyatt Langford
 James Wood
 Junior Caminero
-Dylan Crews
-Roman Anthony
 Pete Crow-Armstrong
-Riley Greene
 Anthony Volpe
-Brent Rooker
-Yainer Diaz
-Triston Casas
-Bo Bichette
-Cal Raleigh
-CJ Abrams
-Bryson Stott
-Masyn Winn
-Lawrence Butler
-Colt Keith
-Heliot Ramos
-Jordan Walker
-Jasson Domínguez
-Wilyer Abreu
-Spencer Steer
 
-# ----- Tier 4: top prospects (long-term dynasty) -----
-Walker Jenkins
-Kristian Campbell
-Samuel Basallo
-Sebastian Walcott
-Marcelo Mayer
-Ethan Salas
-Termarr Johnson
-Coby Mayo
-Carson Williams
-Colson Montgomery
-Brooks Lee
-Jordan Lawlar
-Curtis Mead
-
-# ----- Tier 5: regulars with starting-job lock -----
-Will Smith
-Ozzie Albies
-Jose Altuve
-Marcus Semien
-Corey Seager
-Salvador Perez
-Cody Bellinger
-Christian Walker
-Josh Naylor
-Austin Riley
-Alex Bregman
-Kyle Schwarber
-Brandon Nimmo
-Christian Yelich
-Adolis García
-Tommy Edman
-Brendan Donovan
-Spencer Torkelson
-Royce Lewis
-Matt McLain
-Vinnie Pasquantino
-Tyler Soderstrom
-Ke'Bryan Hayes
-Anthony Santander
-Lars Nootbaar
-Mike Trout
-Oneil Cruz
-Jeremy Peña
-Andrés Giménez
-
-# ===== Pitchers =====
-# ----- Tier P1: aces / top young arms -----
+# ----- Aces -----
 Paul Skenes
 Tarik Skubal
 Garrett Crochet
 Roki Sasaki
-Andrew Painter
 Logan Webb
 Zack Wheeler
 Cole Ragans
@@ -129,46 +62,9 @@ Spencer Strider
 Corbin Burnes
 Yoshinobu Yamamoto
 
-# ----- Tier P2: high-end starters -----
-Pablo López
-George Kirby
-Logan Gilbert
-Bryce Miller
-Tanner Bibee
-Hunter Brown
-Framber Valdez
-Tyler Glasnow
-Aaron Nola
-Max Fried
-Justin Steele
-Joe Ryan
-Bryan Woo
-Cristopher Sánchez
-Shota Imanaga
-Freddy Peralta
-Hunter Greene
-Eury Pérez
-Grayson Rodriguez
-Jared Jones
-Sonny Gray
-Jesús Luzardo
-Edward Cabrera
-MacKenzie Gore
-Sandy Alcántara
-Blake Snell
-
-# ----- Closers / high-leverage relievers -----
+# ----- Top closers (high-leverage, locked roles) -----
 Emmanuel Clase
 Edwin Díaz
 Devin Williams
 Josh Hader
 Mason Miller
-Ryan Helsley
-Robert Suarez
-Camilo Doval
-Raisel Iglesias
-David Bednar
-Félix Bautista
-Andrés Muñoz
-Tanner Scott
-Jhoan Duran
