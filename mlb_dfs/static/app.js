@@ -1289,9 +1289,59 @@ async function renderDraft() {
     await renderRecs();
     await renderPool();
   } else {
-    $("#recs-out").innerHTML = `<div class="muted">Draft complete.</div>`;
+    // Draft over: replace recs with a flat table of every drafted player +
+    // their live projection / form / Statcast / notes. The roster cells above
+    // show the headline number; this gives the full breakdown in one place.
+    $("#recs-out").innerHTML = renderDraftedTable(data);
     $("#pool-out").innerHTML = "";
   }
+}
+
+function renderDraftedTable(data) {
+  // Flatten every roster pick into one sortable list. Order by drafter then
+  // by projection desc within drafter so it reads like a leaderboard.
+  const all = [];
+  for (const d of data.drafters) {
+    for (const p of (data.rosters[d] || [])) all.push(p);
+  }
+  if (!all.length) {
+    return `<div class="muted">Draft complete — no picks recorded.</div>`;
+  }
+  all.sort((a, b) => {
+    if (a.drafter !== b.drafter) return data.drafters.indexOf(a.drafter) - data.drafters.indexOf(b.drafter);
+    return (b.projected ?? 0) - (a.projected ?? 0);
+  });
+  const rows = all.map((p) => {
+    const c = p.components || {};
+    let stat = "—";
+    if (p.role === "hitter" && (c.barrel_pct != null || c.hardhit_pct != null)) {
+      const brl = c.barrel_pct != null ? c.barrel_pct.toFixed(1) : "—";
+      const hh = c.hardhit_pct != null ? c.hardhit_pct.toFixed(0) : "—";
+      stat = `brl ${brl}% · hh ${hh}%`;
+    } else if (p.role === "pitcher" && (c.xera != null || c.xwoba_against != null)) {
+      const xe = c.xera != null ? c.xera.toFixed(2) : "—";
+      stat = `xERA ${xe}`;
+    }
+    const notes = (p.notes || []).join(" · ");
+    return `
+      <tr class="${p.role || ""} score-row">
+        <td>${p.drafter}</td>
+        <td>${p.slot}</td>
+        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
+        <td>${(p.projected ?? 0).toFixed(2)}</td>
+        <td>${p.position ?? "-"}</td>
+        <td class="muted" style="font-size:11px;">${stat}</td>
+        <td class="notes">${notes}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <div class="muted" style="margin-bottom:6px;">Draft complete — projections for every drafted player:</div>
+    <table>
+      <thead>
+        <tr><th>Drafter</th><th>Slot</th><th>Player</th><th>Proj</th><th>Pos</th><th>Statcast</th><th>Notes</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 function renderIdentityBar(data) {
