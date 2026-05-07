@@ -1325,7 +1325,21 @@ def get_pool(draft_id: str):
     )
     picked = dr.picked_ids()
     on_clock = dr.on_the_clock()
-    remaining = dr.remaining_slots(on_clock[0]) if on_clock else []
+    # When the snake is in non-SP free-for-all mode, anyone with an open slot
+    # can pick — the pool's "open slots" should reflect the UNION across all
+    # drafters, not just the on-clock drafter's. Otherwise hitters show 'no
+    # slot left' because the on-clock drafter (the lone SP-needer) only needs
+    # SPs. Frontend filters per-user from there.
+    if dr.non_sp_free_for_all():
+        remaining_set: set[str] = set()
+        for d in dr.drafters:
+            remaining_set.update(dr.remaining_slots(d))
+        remaining = list(remaining_set)
+    else:
+        remaining = dr.remaining_slots(on_clock[0]) if on_clock else []
+    # Per-drafter remaining slots so the frontend can filter pills to slots the
+    # currently-identified user can actually fill (avoids show-then-reject).
+    remaining_by_drafter = {d: dr.remaining_slots(d) for d in dr.drafters}
     pool = []
     for p in projs:
         if p.player_id in picked:
@@ -1366,6 +1380,8 @@ def get_pool(draft_id: str):
     return {
         "on_the_clock": on_clock,
         "remaining_slots": remaining,
+        "remaining_by_drafter": remaining_by_drafter,
+        "non_sp_free": dr.non_sp_free_for_all(),
         "pool": pool,
     }
 

@@ -1608,7 +1608,12 @@ async function renderPool() {
   $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">Loading available players…</div>`;
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}/pool`);
-    poolCache = { draftId: state.currentDraftId, pool: data.pool };
+    poolCache = {
+      draftId: state.currentDraftId,
+      pool: data.pool,
+      remainingByDrafter: data.remaining_by_drafter || {},
+      nonSpFree: !!data.non_sp_free,
+    };
     drawPool();
   } catch (e) {
     $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">${e.message}</div>`;
@@ -1699,19 +1704,22 @@ function drawPool() {
           <td>${p.position ?? "-"}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
-          <td>${
-            p.eligible_slots.length
-              ? (() => {
-                  const tg = encodeAttrJSON(p.team_games_in_slate);
-                  return p.eligible_slots
-                    .map(
-                      (s) =>
-                        `<span class="slot-pill ${lockFor(s)}" data-pid="${p.player_id}" data-slot="${s}" data-name="${escapeAttr(p.name)}" data-team-games="${tg}">${s}</span>`,
-                    )
-                    .join("");
-                })()
-              : `<span class="slot-pill disabled">no slot left</span>`
-          }</td>
+          <td>${(() => {
+            // In non-SP free-for-all mode, eligible_slots is the union across
+            // all drafters. Filter to slots THIS user actually has open.
+            let pickable = p.eligible_slots;
+            if (poolCache.nonSpFree && state.identity && poolCache.remainingByDrafter) {
+              const mine = new Set(poolCache.remainingByDrafter[state.identity] || []);
+              pickable = p.eligible_slots.filter((s) => mine.has(s));
+            }
+            if (!pickable.length) {
+              return `<span class="slot-pill disabled">no slot left</span>`;
+            }
+            const tg = encodeAttrJSON(p.team_games_in_slate);
+            return pickable
+              .map((s) => `<span class="slot-pill ${lockFor(s)}" data-pid="${p.player_id}" data-slot="${s}" data-name="${escapeAttr(p.name)}" data-team-games="${tg}">${s}</span>`)
+              .join("");
+          })()}</td>
           <td class="notes">${(p.notes || []).join(" · ")}</td>
         </tr>`;
           },
