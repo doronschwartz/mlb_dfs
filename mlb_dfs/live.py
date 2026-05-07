@@ -57,84 +57,66 @@ class DrafterScore:
 def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore"]]) -> tuple[float, float]:
     """Returns (total, full_total) and mutates each PlayerScore.counted_in_total.
 
-    Two-phase bench swap (position-aware):
+    Optimal hitter assignment: pool every hitter (regardless of drafted slot),
+    sort by actual points DESC, place each into the most-restrictive eligible
+    starting slot (IF → OF → UTIL) with capacity remaining. OOL players still
+    get placed if their slot would otherwise go empty, but they're sorted to
+    the bottom on ties so a played 'in' player wins.
 
-    Phase 1 — OOL promotion (works pre-game):
-      If a starter is "out" of the lineup AND a position-eligible bench
-      player is in/pending, the bench takes that slot. The OOL starter is
-      benched-out. This applies even with no game data yet — once MLB
-      posts the lineup card and the player isn't in it, the swap fires.
-
-    Phase 2 — score-based swap (post-game / mid-game):
-      For any bench player still on the bench whose game has actual data,
-      if they outscore the weakest position-eligible starter, swap them
-      in. Only compares played-vs-played scores so a benched player who
-      hasn't played yet doesn't get promoted ahead of a 0-pt-but-played
-      starter.
+    This is provably optimal here because slot eligibility forms a hierarchy
+    (IF and OF both feed UTIL). It naturally chains swaps the old two-phase
+    greedy missed — e.g. if BN (OF-only) outscores a UTIL starter who is
+    IF-eligible, the UTIL starter slides into IF, displacing a weaker IF
+    starter to bench.
 
     SPs always count; the bench can never replace pitching.
     Full total: sum of every drafted player's score, ignoring swaps.
     """
-    starters: list[tuple[Pick, PlayerScore]] = []   # IF / OF / UTIL
-    bench: list[tuple[Pick, PlayerScore]] = []      # BN (hitter-only)
-    sps: list[tuple[Pick, PlayerScore]] = []        # SP
+    # Slot capacities mirror the draft template's hitter slots.
+    SLOT_CAP = {"IF": 3, "OF": 3, "UTIL": 1}
+    SLOT_PRIORITY = ("IF", "OF", "UTIL")
+
+    hitters: list[tuple[Pick, PlayerScore]] = []
+    sps: list[tuple[Pick, PlayerScore]] = []
     full_total = 0.0
 
     for pick, ps in picks_with_scores:
         full_total += ps.points
-        if pick.slot in HITTER_STARTING_SLOTS:
-            starters.append((pick, ps))
-        elif pick.slot == "BN":
-            bench.append((pick, ps))
-        elif pick.slot == "SP":
+        if pick.slot == "SP":
             sps.append((pick, ps))
+        else:
+            hitters.append((pick, ps))
 
-    # Defaults
-    for _, ps in starters:
-        ps.counted_in_total = True
+    # Defaults: SPs always count, hitters start un-counted and we'll place them.
     for _, ps in sps:
         ps.counted_in_total = True
-    for _, ps in bench:
+    for _, ps in hitters:
         ps.counted_in_total = False
         ps.promoted_from_bench = False
 
-    # ---- Phase 1: OOL bench promotion ------------------------------------
-    for bn_pick, bn_ps in bench:
-        if bn_ps.lineup_status == "out":
-            continue  # bench is also out, can't help anyone
-        ool_targets = [
-            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
-            if sp_ps.counted_in_total                        # not already swapped out
-            and _slot_eligible(sp_pick.slot, bn_pick)
-            and sp_ps.lineup_status == "out"
-        ]
-        if not ool_targets:
-            continue
-        # Replace the weakest OOL starter (lowest points; usually 0 pre-game).
-        worst_pick, worst_ps = min(ool_targets, key=lambda t: t[1].points)
-        worst_ps.counted_in_total = False
-        bn_ps.counted_in_total = True
-        bn_ps.promoted_from_bench = True
+    # Sort hitters by points DESC. Tiebreaker: lineup_status 'in/pending' beats
+    # 'out' (so a 0-pt OOL starter doesn't grab a slot ahead of a 0-pt 'in'
+    # player who could still play). Bench players (drafted slot=BN) get a tiny
+    # tiebreak edge below 'in' starters at equal pts so existing layouts feel
+    # familiar pre-game.
+    def _key(t: tuple[Pick, PlayerScore]) -> tuple:
+        pick, ps = t
+        ool_penalty = 1 if (ps.lineup_status == "out") else 0
+        bench_penalty = 1 if pick.slot == "BN" else 0
+        return (-ps.points, ool_penalty, bench_penalty)
 
-    # ---- Phase 2: score-based swap (live, "best of" rule) ---------------
-    # At any point in time the higher-scoring of (bench, eligible starter)
-    # is the one that counts. Pre-game players score 0; that's a valid
-    # comparison input — if a starter has gone negative and the bench
-    # hasn't played yet, the bench's 0 wins.
-    for bn_pick, bn_ps in bench:
-        if bn_ps.counted_in_total:
-            continue  # already promoted in phase 1
-        eligible = [
-            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
-            if sp_ps.counted_in_total
-            and _slot_eligible(sp_pick.slot, bn_pick)
-        ]
-        if not eligible:
-            continue
-        worst_pick, worst_ps = min(eligible, key=lambda t: t[1].points)
-        if bn_ps.points > worst_ps.points:
-            worst_ps.counted_in_total = False
-            bn_ps.counted_in_total = True
+    remaining = dict(SLOT_CAP)
+    for pick, ps in sorted(hitters, key=_key):
+        for s in SLOT_PRIORITY:
+            if remaining[s] <= 0:
+                continue
+            if not _slot_eligible(s, pick):
+                continue
+            remaining[s] -= 1
+            ps.counted_in_total = True
+            if pick.slot == "BN":
+                ps.promoted_from_bench = True
+            break
 
     counted_total = sum(ps.points for _, ps in picks_with_scores if ps.counted_in_total)
     return counted_total, full_total
