@@ -1551,6 +1551,7 @@ def _draft_state(dr) -> dict:
         "is_complete": dr.is_complete(),
         "sp_jump_drafter": _can_jump_for_sp(dr),
         "non_sp_free": dr.non_sp_free_for_all(),
+        "next_ooo_drafter": dr.next_ooo_drafter(),
         "game_pks": list(dr.game_pks),
         "selected_games": _selected_games_summary(dr),
         "rosters": {

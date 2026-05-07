@@ -273,6 +273,10 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   box-shadow: 0 0 0 2px var(--accent) inset;
 }
 .drafter-strip-row.done { opacity: 0.45; text-decoration: line-through; }
+.drafter-strip-row.held {
+  background: rgba(245,158,11,0.15); color: var(--warn);
+  border: 1px dashed var(--warn);
+}
 
 .bench-tag {
   display: inline-block; background: var(--border); color: var(--muted);

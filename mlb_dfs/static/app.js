@@ -46,12 +46,13 @@ function isMyTurn(onClock) {
 function canJumpForSP() {
   return !!(state.identity && state._spJumpDrafter && state._spJumpDrafter === state.identity);
 }
-// True when the lone SP-needer is someone ELSE and they only have SP slots
-// remaining. In that state the snake is just waiting on their pitcher picks
-// — every other drafter can finish their non-SP slots in any order.
+// During non-SP free-for-all, snake order still applies: only the next
+// drafter in the snake (skipping the held-up lone SP-needer) gets the OOO
+// non-SP pick at any one moment. Backend computes that drafter as
+// next_ooo_drafter — when it's me, I can jump.
 function canJumpForNonSP() {
-  if (!state.identity || !state._nonSpFree) return false;
-  return state._spJumpDrafter && state._spJumpDrafter !== state.identity;
+  if (!state.identity) return false;
+  return state._nextOooDrafter && state._nextOooDrafter === state.identity;
 }
 
 // Fixed roster shape (matches mlb_dfs.draft.SLOTS).
@@ -1149,6 +1150,7 @@ async function renderDraft() {
   state.lastPicksCount = (data.picks || []).length;
   state._spJumpDrafter = data.sp_jump_drafter || null;
   state._nonSpFree = !!data.non_sp_free;
+  state._nextOooDrafter = data.next_ooo_drafter || null;
   // Match the poll's myTurn definition exactly — otherwise the poll detects
   // a phantom flip every 4s and re-renders, which looks like flashing.
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
@@ -1188,9 +1190,23 @@ async function renderDraft() {
   const round = Math.floor((data.picks || []).length / nDrafters);
   const order = round % 2 === 0 ? data.drafters : [...data.drafters].reverse();
   const onClockName = data.on_the_clock ? data.on_the_clock[0] : null;
+  const heldName = data.non_sp_free ? data.sp_jump_drafter : null;   // lone SP-needer on hold
+  const oooNext = data.next_ooo_drafter || null;                     // next-in-snake to pick OOO
   const orderHtml = order.map((d) => {
-    const cls = d === onClockName ? "on-clock" : (data.rosters[d]?.length > round ? "done" : "");
-    return `<div class="drafter-strip-row ${cls}">${d}</div>`;
+    let cls = "";
+    let label = d;
+    if (d === oooNext) {
+      cls = "on-clock";
+      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ OOO</span>`;
+    } else if (d === heldName) {
+      cls = "held";
+      label = `${d} <span style="font-size:10px;opacity:0.7;">on hold (SP)</span>`;
+    } else if (d === onClockName && !heldName) {
+      cls = "on-clock";
+    } else if (data.rosters[d]?.length > round) {
+      cls = "done";
+    }
+    return `<div class="drafter-strip-row ${cls}">${label}</div>`;
   }).join("");
   html.push(`<div class="draft-strip">
     <div class="strip-time">⏰ ${startTime}</div>

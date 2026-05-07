@@ -95,22 +95,53 @@ class Draft:
                 return False
         return True
 
+    def next_ooo_drafter(self) -> str | None:
+        """When the snake is held up by a lone SP-needer, return the drafter
+        whose snake position is next AND who still has a non-SP slot open.
+        Rotates through drafters in snake order — each OOO pick advances the
+        offset so a drafter with multiple open slots doesn't lock the queue.
+        Returns None when not in free-for-all or no eligible drafter."""
+        if not self.non_sp_free_for_all():
+            return None
+        # Identify the lone SP-needer (whose SPs we're waiting on).
+        lone_sp: str | None = None
+        for d in self.drafters:
+            if sum(1 for p in self.picks if p.drafter == d and p.slot == "SP") < SLOTS.count("SP"):
+                lone_sp = d
+                break
+        # Snake position (in-order picks only — OOO picks don't advance it).
+        n_in = sum(1 for p in self.picks if not getattr(p, "out_of_order", False))
+        n_ooo = sum(1 for p in self.picks if getattr(p, "out_of_order", False))
+        round_idx = n_in // len(self.drafters)
+        idx_in_round = n_in % len(self.drafters)
+        order = self.drafters if round_idx % 2 == 0 else list(reversed(self.drafters))
+        # Start one slot AFTER the lone SP-needer's natural turn, then advance
+        # by the count of OOO picks already taken — this rotates through
+        # drafters in snake order rather than stalling on whoever has the
+        # most open slots.
+        base = (idx_in_round + 1 + n_ooo) % len(self.drafters)
+        for skip in range(len(self.drafters)):
+            d = order[(base + skip) % len(self.drafters)]
+            if d == lone_sp:
+                continue
+            taken_slots = [p.slot for p in self.picks if p.drafter == d]
+            for s in SLOTS:
+                if s == "SP":
+                    continue
+                if taken_slots.count(s) < SLOTS.count(s):
+                    return d
+        return None
+
     def can_pick_out_of_order(self, drafter: str, slot: str) -> bool:
         """Combined OOO rule used by make_pick:
           - SP slot: drafter is the lone SP-needer (existing rule).
-          - non-SP slot: someone *else* is the lone SP-needer and has only
-            SP slots remaining (free-for-all on the rest of the board)."""
+          - non-SP slot: drafter is next_ooo_drafter — i.e. snake order
+            advanced past the held-up lone SP-needer to them."""
         if drafter not in self.drafters:
             return False
         if slot == "SP":
             return self.can_pick_sp_out_of_order(drafter)
-        # Non-SP override only legal when the lone-SP-needer is someone else.
-        if not self.non_sp_free_for_all():
-            return False
-        sp_taken = sum(1 for p in self.picks if p.drafter == drafter and p.slot == "SP")
-        if sp_taken < SLOTS.count("SP"):
-            return False  # caller IS the lone SP-needer; they shouldn't be hitter-jumping
-        return True
+        return self.next_ooo_drafter() == drafter
 
     def on_the_clock(self) -> tuple[str, str] | None:
         """Returns (drafter, slot) for the next pick, or None if complete."""
