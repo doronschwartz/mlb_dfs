@@ -739,8 +739,15 @@ function renderGame(g) {
   const awayScore = g.away.score ?? (live ? 0 : null);
   const homeScore = g.home.score ?? (live ? 0 : null);
 
-  // Live status header — inning + half indicator, or FINAL
-  let topBar = `<div class="status">${g.detailedStatus ?? ""}</div>`;
+  // First-pitch local time for SCHEDULED games (no value once live/final).
+  const gameTime = (() => {
+    if (!g.gameDate) return "";
+    try {
+      return new Date(g.gameDate).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch { return ""; }
+  })();
+  // Live status header — inning + half indicator, or FINAL, or SCHEDULED + time.
+  let topBar = `<div class="status">${g.detailedStatus ?? ""}${gameTime ? ` <span class="muted" style="font-weight:400;">· ${gameTime}</span>` : ""}</div>`;
   if (isLive) {
     const half = live.inningHalf || "";
     const arrow = half === "Top" ? "▲" : half === "Bottom" ? "▼" : "•";
