@@ -1904,7 +1904,9 @@ $("#score-load").addEventListener("click", async () => {
                     title="Replace ${escapeAttr(p.name)}"><span class="rb-full">Replace</span><span class="rb-short">↻</span></button></td>`
               : `<td></td>`;
             const tooltip = renderBreakdownTooltip(p);
-            const actualVal = p.actual === null ? "-" : p.actual.toFixed(1);
+            // 2 decimals so per-pick actuals literally sum to the team total
+            // (e.g. Blackburn 0.45 displays as 0.45, not rounded 0.5).
+            const actualVal = p.actual === null ? "-" : p.actual.toFixed(2);
             const stateLabel = (() => {
               const gs = (p.game_state || "").toLowerCase();
               if (!gs) return "";
@@ -1917,7 +1919,7 @@ $("#score-load").addEventListener("click", async () => {
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
             <td title="${escapeAttr(p.name)}">${p.name} ${lineupTag} ${tag} ${promoted}</td>
-            <td>${p.projected.toFixed(1)}</td>
+            <td>${p.projected.toFixed(2)}</td>
             <td class="player-cell"><span class="name-trigger">${actualVal}</span>${tooltip}</td>
             <td>${stateLabel}</td>
             ${replaceCell}
