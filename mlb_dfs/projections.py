@@ -243,17 +243,21 @@ def project_hitter(
     if form_note:
         notes.append(form_note)
 
-    # Streak-trust override: 4 days of calibration showed HOT players were
-    # consistently under-projected by ~+4 pts and COLD over-projected by ~-3 pts.
-    # After first 70% override, residual remained ~+2/-1.3 — the L3 sample
-    # itself underestimates HOT players' continuation. Bumped to 80%, then to
-    # 90% after 2026-05-05 calibration showed HOT bias still +3.95 on n=43.
+    # Streak-trust override.
+    # IMPORTANT — this rule was iteratively bumped 0.70 → 0.80 → 0.90 based on
+    # short windows of calibration data, then walked back to 0.70 after a
+    # proper 9-day audit (n=2,647 player-days, 4/27–5/8) showed:
+    #   HOT  bias -2.84 (6.1σ, n=338) — i.e. over-projecting HOT by ~3 pts
+    #   COLD bias +1.80 (7.8σ, n=788) — i.e. under-projecting COLD by ~2 pts
+    # The aggressive 0.90 weight on L3 was noise-fitting to days when streaks
+    # happened to continue. Across the full record, the L3 sample over-shoots
+    # in both directions — hot players cool toward true talent more than 0.90
+    # implies, cold players bounce back more than 0.90 implies. Back to 0.70
+    # which gives the L3 streak signal real weight without letting it dominate.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
-        # Negative L3 averages are noise (a -2.8 pts/G sample from K-heavy 3
-        # games doesn't predict true-talent negative). Floor at 0.
-        pg_3_safe = max(pg_3, 0.0)
-        streak_base = 0.90 * pg_3_safe + 0.10 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.9*L3 + 0.1*weighted → {streak_base:.2f}")
+        pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
+        streak_base = 0.70 * pg_3_safe + 0.30 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
@@ -365,15 +369,11 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
-    # COLD post-matchup shrink. Iterative tuning across three days:
-    #   5/5 bias -1.15 (pre-shrink), 5/6 -1.23 (pre-shrink),
-    #   5/7 -0.76 with x0.85 in place — moved in right direction but residual
-    #   still ~-1.0 averaged over n>250 player-days. Tighten to x0.78 to
-    #   close the remaining gap. HOT is calibrated (3-day mean ~0), so this
-    #   asymmetric fix targets only the side with persistent evidence.
-    if form_tag == "COLD":
-        proj *= 0.78
-        notes.append("COLD post-matchup shrink x0.78")
+    # NB: a COLD post-matchup x0.78 shrink lived here briefly, motivated by
+    # 3 days of negative bias on COLD. Removed after a 9-day audit (n=788)
+    # showed COLD is actually UNDER-projected by +1.80 on average (7.8σ) —
+    # the shrink was making it worse. The recent 3-day window of negative
+    # bias was variance, not signal.
     # No floor — strikeouts and GIDPs are negative-scoring events, so a
     # deeply slumping K-prone hitter facing an elite SP genuinely can be a
     # negative-EV play. The streak override above already protects against
