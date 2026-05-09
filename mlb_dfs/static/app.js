@@ -133,9 +133,26 @@ $$("nav button").forEach((b) => {
         state.slateGames = [];
       }
       const sel = $("#draft-id");
-      if (sel && Array.from(sel.options).some((o) => o.value === today)) {
-        sel.value = today;
-        state.currentDraftId = today;
+      const opts = sel ? Array.from(sel.options).map((o) => o.value).filter(Boolean) : [];
+      let pick = null;
+      if (opts.includes(today)) {
+        pick = today;
+      } else if (opts.length) {
+        // Today has no draft — auto-load the next upcoming draft (≥ today),
+        // or the most recent past draft as a fallback.
+        const upcoming = opts.filter((d) => d >= today).sort();
+        const past = opts.filter((d) => d < today).sort().reverse();
+        pick = upcoming[0] || past[0];
+      }
+      if (sel && pick) {
+        sel.value = pick;
+        state.currentDraftId = pick;
+        // Also point the date input at the auto-loaded draft so the UI is consistent.
+        if ($("#date").value !== pick) {
+          $("#date").value = pick;
+          state._slateDate = null;
+          state.slateGames = [];
+        }
         syncToLoadedDraft().catch(() => {});
       } else {
         state.currentDraftId = null;
@@ -679,9 +696,20 @@ $("#date").addEventListener("change", async () => {
     poolCache = { draftId: null, pool: [] };
     try { await loadDraftList(); } catch {}
     const sel = $("#draft-id");
-    if (sel && Array.from(sel.options).some((o) => o.value === newDate)) {
-      sel.value = newDate;
-      state.currentDraftId = newDate;
+    const opts = sel ? Array.from(sel.options).map((o) => o.value).filter(Boolean) : [];
+    let pick = null;
+    if (opts.includes(newDate)) {
+      pick = newDate;
+    } else {
+      // No draft on the chosen date — fall back to the next upcoming draft
+      // (≥ chosen date), or the most recent past draft if none upcoming.
+      const upcoming = opts.filter((d) => d >= newDate).sort();
+      const past = opts.filter((d) => d < newDate).sort().reverse();
+      pick = upcoming[0] || past[0] || null;
+    }
+    if (pick && sel) {
+      sel.value = pick;
+      state.currentDraftId = pick;
       await syncToLoadedDraft();
       startPolling();
       return;
@@ -1092,7 +1120,8 @@ async function syncToLoadedDraft() {
   // Pre-check the draft's games in the picker.
   state.selectedGamePks = new Set(data.game_pks || []);
   renderGamePicker();
-  await renderDraft();
+  // Pass the already-fetched data so renderDraft skips its own fetch.
+  await renderDraft(data);
 }
 
 // "Load" button removed in favor of dropdown auto-load; handler kept for
@@ -1136,7 +1165,7 @@ $("#delete").addEventListener("click", async () => {
   await renderDraft();
 });
 
-async function renderDraft() {
+async function renderDraft(prefetchedData) {
   if (!state.currentDraftId) {
     $("#draft-state").innerHTML = `<div class="muted">No draft loaded. Start a new one or pick from the dropdown.</div>`;
     $("#pick-log").innerHTML = "";
@@ -1146,7 +1175,10 @@ async function renderDraft() {
     state.lastPicksCount = -1;
     return;
   }
-  const data = await api(`/api/drafts/${state.currentDraftId}`);
+  // Allow caller (e.g. syncToLoadedDraft) to pass already-fetched draft state
+  // so we don't re-hit /api/drafts/{id}, which triggers a slow projection
+  // recompute on cold cache.
+  const data = prefetchedData || await api(`/api/drafts/${state.currentDraftId}`);
   state.lastPicksCount = (data.picks || []).length;
   state._spJumpDrafter = data.sp_jump_drafter || null;
   state._nonSpFree = !!data.non_sp_free;
@@ -1598,7 +1630,14 @@ function renderPickLog(data) {
 }
 
 async function renderRecs() {
-  $("#recs-out").innerHTML = `<div class="muted">Loading recommendations…</div>`;
+  // Only show 'Loading…' on the first paint when the panel is empty.
+  // Subsequent re-renders (e.g. triggered by polling) keep the existing list
+  // visible and swap atomically when the new HTML is ready, so the user
+  // doesn't see a blank flash every 4 seconds.
+  const out = $("#recs-out");
+  if (!out.innerHTML.trim() || out.dataset.empty === "1") {
+    out.innerHTML = `<div class="muted">Loading recommendations…</div>`;
+  }
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}/recommend?top_n=10`);
     const myTurn = isMyTurn(data.on_the_clock);
@@ -1673,7 +1712,12 @@ let poolCache = { draftId: null, pool: [] };
 async function renderPool() {
   if (!state.currentDraftId) return;
   if (poolCache.draftId !== state.currentDraftId) poolCache = { draftId: null, pool: [] };
-  $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">Loading available players…</div>`;
+  // Only show 'Loading…' when the panel is empty. Subsequent re-renders keep
+  // the existing pool visible and swap atomically when fresh data arrives.
+  const out = $("#pool-out");
+  if (!out.innerHTML.trim()) {
+    out.innerHTML = `<div class="muted" style="padding:12px;">Loading available players…</div>`;
+  }
   try {
     const data = await api(`/api/drafts/${state.currentDraftId}/pool`);
     poolCache = {
