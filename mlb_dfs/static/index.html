@@ -94,9 +94,12 @@
           </div>
         </div>
         <div class="setup-row">
-          <span class="muted">Pick which games are in the pool — leave all unchecked to use the full slate:</span>
+          <span class="muted">Games in the pool: green = included. Click <b>Edit</b> to change, then <b>Save</b>.</span>
           <span id="game-count" class="muted"></span>
-          <button id="games-clear" type="button">Clear</button>
+          <button id="games-edit" type="button">Edit pool</button>
+          <button id="games-save" type="button" hidden>Save</button>
+          <button id="games-cancel" type="button" hidden>Cancel</button>
+          <button id="games-clear" type="button" hidden>Clear (full slate)</button>
         </div>
         <div id="game-picker" class="grid"></div>
       </div>

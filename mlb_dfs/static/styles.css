@@ -118,13 +118,16 @@ tr.pitcher td:first-child { color: var(--warn); }
   padding: 10px 12px; cursor: pointer; user-select: none;
   display: flex; flex-direction: column; gap: 4px;
 }
-.game-card:hover { border-color: var(--accent); }
+.game-card.editable:hover { border-color: var(--accent); }
+.game-card.readonly { cursor: default; }
+.game-card.readonly:hover { border-color: var(--border); }
 .game-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: #0d2030; }
 #game-picker.editing-draft .game-card.selected {
   border-color: var(--accent-2);
   box-shadow: 0 0 0 1px var(--accent-2) inset;
   background: rgba(52,211,153,0.08);
 }
+#game-picker.edit-mode { outline: 2px dashed var(--warn); outline-offset: 4px; border-radius: 8px; }
 .game-card .matchup { font-weight: 600; font-size: 13px; }
 .game-card .sps { color: var(--muted); font-size: 11px; }
 .game-card .status { font-size: 10px; color: var(--accent); text-transform: uppercase; }

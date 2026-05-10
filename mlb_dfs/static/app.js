@@ -838,6 +838,12 @@ function renderGame(g) {
     </div>`;
 }
 
+// Edit-mode lock: the game pool is read-only by default. User clicks "Edit
+// pool" to mutate, then "Save" to commit (or "Cancel" to discard). Prevents
+// accidentally clobbering a curated 6-game pool with a stray click.
+let _poolEditing = false;
+let _poolEditOriginal = null;  // snapshot of selectedGamePks at edit start
+
 function renderGamePicker() {
   const host = $("#game-picker");
   if (!host) return;
@@ -847,63 +853,63 @@ function renderGamePicker() {
     return;
   }
   // In draft-edit mode with no explicit game selection, the full slate is
-  // implicitly included in the pool. Show every card highlighted so the user
-  // sees "yes, all 15 games are in this draft" rather than a sea of unhighlighted
-  // cards that visually read as "nothing selected".
+  // implicitly included in the pool. Show every card green so the user
+  // sees "yes, all 15 games are in this draft".
   const fullSlateInDraft = !!state.currentDraftId && state.selectedGamePks.size === 0;
   host.innerHTML = state.slateGames
     .map((g) => {
       const explicitlySel = state.selectedGamePks.has(g.gamePk);
       const sel = (explicitlySel || fullSlateInDraft) ? "selected" : "";
+      const editClass = _poolEditing ? "editable" : "readonly";
       const ap = g.away.probablePitcher?.name ?? "TBD";
       const hp = g.home.probablePitcher?.name ?? "TBD";
       return `
-        <div class="game-card ${sel}" data-pk="${g.gamePk}">
+        <div class="game-card ${sel} ${editClass}" data-pk="${g.gamePk}">
           <div class="status">${g.detailedStatus ?? ""}</div>
           <div class="matchup">${g.away.abbr ?? g.away.name} @ ${g.home.abbr ?? g.home.name}</div>
           <div class="sps">SP: ${ap} vs ${hp}</div>
         </div>`;
     })
     .join("");
-  $$("#game-picker .game-card").forEach((el) => {
-    el.addEventListener("click", async () => {
-      const pk = Number(el.dataset.pk);
-      // From implicit-all (empty selectedGamePks shown as all-green), any
-      // click starts a NARROW explicit selection containing just that game.
-      // User clicks a few more to build their pool. (Previously this auto-
-      // added 14 games which made narrowing painful.) To go back to full-
-      // slate, click "Clear".
-      if (fullSlateInDraft && state.selectedGamePks.size === 0) {
-        state.selectedGamePks.add(pk);
-      } else if (state.selectedGamePks.has(pk)) {
-        state.selectedGamePks.delete(pk);
-      } else {
-        state.selectedGamePks.add(pk);
-      }
-      renderGamePicker();
-      // If a draft is loaded, persist the new selection to the server so
-      // the pool / recommendations / scoring update live.
-      if (state.currentDraftId) {
-        try {
-          await api(`/api/drafts/${state.currentDraftId}/games`, {
-            method: "POST",
-            body: JSON.stringify({ game_pks: Array.from(state.selectedGamePks) }),
-          });
-          poolCache = { draftId: null, pool: [] };
-          await renderDraft();
-        } catch (e) {
-          alert(e.message);
+  // Click handler is only wired when the picker is in Edit mode. In view
+  // mode cards are pure display — no accidental mutations.
+  if (_poolEditing) {
+    $$("#game-picker .game-card").forEach((el) => {
+      el.addEventListener("click", () => {
+        const pk = Number(el.dataset.pk);
+        // Starting from implicit-all, the first click in Edit mode promotes
+        // to explicit-all (so subsequent clicks subtract). User can then
+        // build the desired narrow set.
+        if (fullSlateInDraft && state.selectedGamePks.size === 0) {
+          state.slateGames.forEach((g) => state.selectedGamePks.add(g.gamePk));
+          state.selectedGamePks.delete(pk);
+        } else if (state.selectedGamePks.has(pk)) {
+          state.selectedGamePks.delete(pk);
+        } else {
+          state.selectedGamePks.add(pk);
         }
-      }
+        renderGamePicker();
+      });
     });
-  });
+  }
   const n = state.selectedGamePks.size;
-  let suffix = n ? `· ${n} selected` : `· ${state.slateGames.length} total`;
-  if (state.currentDraftId) {
-    suffix += ` · ✏️ live-editing slate for ${state.currentDraftId}`;
+  const total = state.slateGames.length;
+  let suffix;
+  if (_poolEditing) {
+    suffix = `· editing — ${n || "all " + total} in pool`;
+  } else if (state.currentDraftId) {
+    suffix = n ? `· ${n} of ${total} games` : `· full slate (${total} games)`;
+  } else {
+    suffix = n ? `· ${n} selected` : `· ${total} total`;
   }
   $("#game-count").textContent = suffix;
   $("#game-picker").classList.toggle("editing-draft", !!state.currentDraftId);
+  $("#game-picker").classList.toggle("edit-mode", _poolEditing);
+  // Toggle button visibility based on edit state.
+  $("#games-edit").hidden = _poolEditing;
+  $("#games-save").hidden = !_poolEditing;
+  $("#games-cancel").hidden = !_poolEditing;
+  $("#games-clear").hidden = !_poolEditing;
 }
 
 // ---------- projections ----------
@@ -1059,7 +1065,45 @@ $("#new-draft").addEventListener("click", async () => {
 });
 
 $("#games-clear").addEventListener("click", () => {
+  // Clear in edit mode = full slate intent. Save still has to be clicked
+  // to commit, so this isn't a destructive action without confirmation.
   state.selectedGamePks.clear();
+  renderGamePicker();
+});
+
+$("#games-edit").addEventListener("click", () => {
+  _poolEditing = true;
+  _poolEditOriginal = new Set(state.selectedGamePks);
+  renderGamePicker();
+});
+
+$("#games-cancel").addEventListener("click", () => {
+  // Restore the snapshot taken when Edit was clicked.
+  if (_poolEditOriginal) state.selectedGamePks = new Set(_poolEditOriginal);
+  _poolEditing = false;
+  _poolEditOriginal = null;
+  renderGamePicker();
+});
+
+$("#games-save").addEventListener("click", async () => {
+  // Commit: POST to backend if a draft is loaded, then exit edit mode.
+  // No-op write when no draft is loaded — selection is just used by the
+  // Start-draft path.
+  if (state.currentDraftId) {
+    try {
+      await api(`/api/drafts/${state.currentDraftId}/games`, {
+        method: "POST",
+        body: JSON.stringify({ game_pks: Array.from(state.selectedGamePks) }),
+      });
+      poolCache = { draftId: null, pool: [] };
+      await renderDraft();
+    } catch (e) {
+      alert(e.message);
+      return;
+    }
+  }
+  _poolEditing = false;
+  _poolEditOriginal = null;
   renderGamePicker();
 });
 
