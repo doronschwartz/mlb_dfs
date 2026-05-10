@@ -57,66 +57,86 @@ class DrafterScore:
 def compute_totals(picks_with_scores: list[tuple[Pick, "PlayerScore"]]) -> tuple[float, float]:
     """Returns (total, full_total) and mutates each PlayerScore.counted_in_total.
 
-    Optimal hitter assignment: pool every hitter (regardless of drafted slot),
-    sort by actual points DESC, place each into the most-restrictive eligible
-    starting slot (IF → OF → UTIL) with capacity remaining. OOL players still
-    get placed if their slot would otherwise go empty, but they're sorted to
-    the bottom on ties so a played 'in' player wins.
+    Direct-swap bench promotion (no chain reshuffling):
 
-    This is provably optimal here because slot eligibility forms a hierarchy
-    (IF and OF both feed UTIL). It naturally chains swaps the old two-phase
-    greedy missed — e.g. if BN (OF-only) outscores a UTIL starter who is
-    IF-eligible, the UTIL starter slides into IF, displacing a weaker IF
-    starter to bench.
+    Phase 1 — OOL promotion:
+      Each BN-drafted hitter looks at its directly-eligible OOL starters
+      (drafted slot the BN player qualifies for AND lineup_status='out').
+      Swap into the worst-scoring OOL match. The OOL starter benches.
 
-    SPs always count; the bench can never replace pitching.
-    Full total: sum of every drafted player's score, ignoring swaps.
+    Phase 2 — score-based swap:
+      For each remaining BN hitter, find the worst-scoring eligible starter
+      (drafted slot the BN qualifies for). Swap only if BN > starter — i.e.
+      strict improvement. The displaced starter benches.
+
+    This is more conservative than the previous full re-optimization. We
+    REJECTED chain reshuffling after a live-scoring case where Trout
+    (BN, OF-only) being promoted caused Murakami (IF) to bench via Baldwin
+    (UTIL, catcher) cascading to IF. The chain gained 1 pt of total but
+    moved a player who shouldn't have been touched. Direct swap costs
+    occasional optimization (~1-2 pts in chain-able scenarios) but keeps
+    bench promotions confined to their natural eligibility branch.
+
+    SPs always count; bench never replaces pitching.
     """
-    # Slot capacities mirror the draft template's hitter slots.
-    SLOT_CAP = {"IF": 3, "OF": 3, "UTIL": 1}
-    SLOT_PRIORITY = ("IF", "OF", "UTIL")
-
-    hitters: list[tuple[Pick, PlayerScore]] = []
-    sps: list[tuple[Pick, PlayerScore]] = []
+    starters: list[tuple[Pick, PlayerScore]] = []     # IF / OF / UTIL drafted
+    bench: list[tuple[Pick, PlayerScore]] = []        # BN drafted, hitter
+    sps: list[tuple[Pick, PlayerScore]] = []          # SP drafted
     full_total = 0.0
 
     for pick, ps in picks_with_scores:
         full_total += ps.points
         if pick.slot == "SP":
             sps.append((pick, ps))
+        elif pick.slot == "BN":
+            bench.append((pick, ps))
         else:
-            hitters.append((pick, ps))
+            starters.append((pick, ps))
 
-    # Defaults: SPs always count, hitters start un-counted and we'll place them.
+    # Defaults.
     for _, ps in sps:
         ps.counted_in_total = True
-    for _, ps in hitters:
+    for _, ps in starters:
+        ps.counted_in_total = True
+    for _, ps in bench:
         ps.counted_in_total = False
         ps.promoted_from_bench = False
 
-    # Sort hitters by points DESC. Tiebreaker: lineup_status 'in/pending' beats
-    # 'out' (so a 0-pt OOL starter doesn't grab a slot ahead of a 0-pt 'in'
-    # player who could still play). Bench players (drafted slot=BN) get a tiny
-    # tiebreak edge below 'in' starters at equal pts so existing layouts feel
-    # familiar pre-game.
-    def _key(t: tuple[Pick, PlayerScore]) -> tuple:
-        pick, ps = t
-        ool_penalty = 1 if (ps.lineup_status == "out") else 0
-        bench_penalty = 1 if pick.slot == "BN" else 0
-        return (-ps.points, ool_penalty, bench_penalty)
+    # Phase 1 — OOL promotion. Bench player replaces OOL starter directly.
+    for bn_pick, bn_ps in bench:
+        if bn_ps.lineup_status == "out":
+            continue  # bench is also out, can't help
+        ool_targets = [
+            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
+            if sp_ps.counted_in_total
+            and _slot_eligible(sp_pick.slot, bn_pick)
+            and sp_ps.lineup_status == "out"
+        ]
+        if not ool_targets:
+            continue
+        worst_pick, worst_ps = min(ool_targets, key=lambda t: t[1].points)
+        worst_ps.counted_in_total = False
+        bn_ps.counted_in_total = True
+        bn_ps.promoted_from_bench = True
 
-    remaining = dict(SLOT_CAP)
-    for pick, ps in sorted(hitters, key=_key):
-        for s in SLOT_PRIORITY:
-            if remaining[s] <= 0:
-                continue
-            if not _slot_eligible(s, pick):
-                continue
-            remaining[s] -= 1
-            ps.counted_in_total = True
-            if pick.slot == "BN":
-                ps.promoted_from_bench = True
-            break
+    # Phase 2 — strict-improvement direct swap. NO chain.
+    # Sort bench DESC so the highest-scoring bench player gets first crack
+    # at the weakest eligible starter slot.
+    for bn_pick, bn_ps in sorted(bench, key=lambda t: -t[1].points):
+        if bn_ps.counted_in_total:
+            continue
+        eligible = [
+            (sp_pick, sp_ps) for sp_pick, sp_ps in starters
+            if sp_ps.counted_in_total
+            and _slot_eligible(sp_pick.slot, bn_pick)
+        ]
+        if not eligible:
+            continue
+        worst_pick, worst_ps = min(eligible, key=lambda t: t[1].points)
+        if bn_ps.points > worst_ps.points:
+            worst_ps.counted_in_total = False
+            bn_ps.counted_in_total = True
+            bn_ps.promoted_from_bench = True
 
     counted_total = sum(ps.points for _, ps in picks_with_scores if ps.counted_in_total)
     return counted_total, full_total
