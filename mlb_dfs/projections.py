@@ -260,8 +260,11 @@ def project_hitter(
     # blend without override.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
         pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
-        streak_base = 0.70 * pg_3_safe + 0.30 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
+        # 0.80 weight after 17-day v5 audit showed residual HOT bias +1.83
+        # and COLD bias -1.31 at 0.70 weight — both pointing same direction
+        # (streaks persist more than 0.70 implies). Bumped one notch.
+        streak_base = 0.80 * pg_3_safe + 0.20 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.8*L3 + 0.2*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
@@ -1120,7 +1123,7 @@ _PROJ_TTL_SEC = 6 * 3600
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-10-v5"   # restored streak override 0.7 + adaptive STATCAST_WEIGHT 0.15/0.40
+MODEL_REV = "2026-05-10-v6"   # streak override 0.7 → 0.8 to close residual HOT/COLD bias
 
 
 def _proj_disk_path(key: tuple) -> str:
