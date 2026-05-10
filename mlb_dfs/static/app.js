@@ -846,9 +846,15 @@ function renderGamePicker() {
     $("#game-count").textContent = "";
     return;
   }
+  // In draft-edit mode with no explicit game selection, the full slate is
+  // implicitly included in the pool. Show every card highlighted so the user
+  // sees "yes, all 15 games are in this draft" rather than a sea of unhighlighted
+  // cards that visually read as "nothing selected".
+  const fullSlateInDraft = !!state.currentDraftId && state.selectedGamePks.size === 0;
   host.innerHTML = state.slateGames
     .map((g) => {
-      const sel = state.selectedGamePks.has(g.gamePk) ? "selected" : "";
+      const explicitlySel = state.selectedGamePks.has(g.gamePk);
+      const sel = (explicitlySel || fullSlateInDraft) ? "selected" : "";
       const ap = g.away.probablePitcher?.name ?? "TBD";
       const hp = g.home.probablePitcher?.name ?? "TBD";
       return `
@@ -862,8 +868,19 @@ function renderGamePicker() {
   $$("#game-picker .game-card").forEach((el) => {
     el.addEventListener("click", async () => {
       const pk = Number(el.dataset.pk);
-      if (state.selectedGamePks.has(pk)) state.selectedGamePks.delete(pk);
-      else state.selectedGamePks.add(pk);
+      // If we're in draft-edit mode with no explicit selection (= full slate
+      // implicitly), clicking any card "promotes" the selection to explicit
+      // by adding every game except the clicked one. That way the user can
+      // exclude games from a full slate without first clicking 14 others.
+      if (fullSlateInDraft && state.selectedGamePks.size === 0) {
+        state.slateGames.forEach((g) => {
+          if (g.gamePk !== pk) state.selectedGamePks.add(g.gamePk);
+        });
+      } else if (state.selectedGamePks.has(pk)) {
+        state.selectedGamePks.delete(pk);
+      } else {
+        state.selectedGamePks.add(pk);
+      }
       renderGamePicker();
       // If a draft is loaded, persist the new selection to the server so
       // the pool / recommendations / scoring update live.
