@@ -572,6 +572,26 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 }
 .breakdown-tooltip .bk-empty { color: var(--muted); font-style: italic; }
 
+/* Mobile: tooltip as a fixed bottom-sheet so it doesn't render inline inside
+   the row and overflow horizontally. This rule lives AFTER the desktop default
+   so it actually wins the cascade — the earlier @media block at line ~388 was
+   being overridden by the later .breakdown-tooltip default. */
+@media (max-width: 700px) {
+  .breakdown-tooltip {
+    position: fixed !important;
+    top: auto; left: 8px; right: 8px; bottom: 8px;
+    width: auto; max-width: none; min-width: 0;
+    max-height: 60vh; overflow-y: auto;
+    font-size: 11px; padding: 10px 12px; z-index: 1000;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.85);
+  }
+  /* Backdrop tint when a tooltip is open so the user knows it's a modal-ish layer */
+  .player-cell.show-tooltip .breakdown-tooltip::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: -1;
+  }
+}
+
 .btn-pick { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
 .btn-pick:hover { filter: brightness(1.1); }
 .btn-danger { background: var(--bad); color: #fff; border-color: var(--bad); }
