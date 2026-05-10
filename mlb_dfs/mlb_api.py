@@ -166,14 +166,22 @@ def player_stats(
     group: str,  # "hitting" or "pitching"
     season: int,
     last_n_days: int | None = None,
+    as_of: Date | None = None,
 ) -> dict:
-    """Return season-to-date or last-N-days stats for a player."""
+    """Return season-to-date or last-N-days stats for a player.
+
+    `as_of` (optional) anchors the lookback window. Defaults to today, which
+    is correct for live projections — but calibration replays for past dates
+    MUST pass as_of=that_date or the L3/L7/L14 windows will leak today's
+    data into a backwards-looking projection. Bug fix 2026-05-10.
+    """
+    anchor = as_of or Date.today()
     if last_n_days:
         params = {
             "stats": "byDateRange",
             "group": group,
-            "startDate": (Date.today() - timedelta(days=last_n_days)).isoformat(),
-            "endDate": Date.today().isoformat(),
+            "startDate": (anchor - timedelta(days=last_n_days)).isoformat(),
+            "endDate": anchor.isoformat(),
         }
     else:
         params = {"stats": "season", "group": group, "season": season}

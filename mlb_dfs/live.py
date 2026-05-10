@@ -231,15 +231,34 @@ def _index_boxscores(d: Date, *, game_pks: set[int] | None = None) -> dict[int, 
     Without a filter, all games on the date are included; doubleheaders
     yield two entries that are summed by the scorer.
     """
-    out: dict[int, list[dict]] = {}
-    for game in mlb_api.schedule(d):
-        pk = game.get("gamePk")
-        if game_pks is not None and pk not in game_pks:
-            continue
-        state = (game.get("status") or {}).get("detailedState", "")
+    # Parallel boxscore fetch — was serial, blocking on every game. On a
+    # 15-game Saturday slate this could push the calibration endpoint past
+    # Fly's 60s gateway timeout. ThreadPoolExecutor turns 15s into ~2s.
+    games = list(mlb_api.schedule(d))
+    targets = [
+        (g.get("gamePk"), (g.get("status") or {}).get("detailedState", ""))
+        for g in games
+        if g.get("gamePk") and (game_pks is None or g.get("gamePk") in game_pks)
+    ]
+
+    from concurrent.futures import ThreadPoolExecutor
+    def _fetch(pk):
         try:
-            box = mlb_api.boxscore(pk)
+            return pk, mlb_api.boxscore(pk)
         except Exception:
+            return pk, None
+
+    boxes: dict[int, dict] = {}
+    if targets:
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            for pk, box in ex.map(_fetch, [t[0] for t in targets]):
+                if box is not None:
+                    boxes[pk] = box
+
+    out: dict[int, list[dict]] = {}
+    for pk, state in targets:
+        box = boxes.get(pk)
+        if box is None:
             continue
         for person, stats in mlb_api.iter_boxscore_batters(box):
             pid = person.get("id")
@@ -252,9 +271,7 @@ def _index_boxscores(d: Date, *, game_pks: set[int] | None = None) -> dict[int, 
             if pid and person.get("isStarter"):
                 # Two-way players (Ohtani) appear in BOTH iterators on a day they
                 # bat and start. Keep both lines — _score_player filters by the
-                # pick's role/slot so the right line is scored. (Previously we
-                # replaced the hitter line, which lost Ohtani's hitting actuals
-                # for accuracy / live scoring of his UTIL projection.)
+                # pick's role/slot so the right line is scored.
                 out.setdefault(pid, []).append(
                     {"role": "pitcher", "stats": stats, "state": state, "game_pk": pk}
                 )

@@ -199,11 +199,12 @@ def project_hitter(
     opp_abbr: str | None = None,
     opp_sp_name: str | None = None,
     is_home: bool | None = None,
+    as_of: Date | None = None,
 ) -> Projection:
-    last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3)
-    last7 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=7)
-    last14 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=14)
-    seasn = mlb_api.player_stats(pid, group="hitting", season=season)
+    last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3, as_of=as_of)
+    last7 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=7, as_of=as_of)
+    last14 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=14, as_of=as_of)
+    seasn = mlb_api.player_stats(pid, group="hitting", season=season, as_of=as_of)
 
     games_14 = _safe_float(last14.get("gamesPlayed"))
     games_7 = _safe_float(last7.get("gamesPlayed"))
@@ -261,7 +262,7 @@ def project_hitter(
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
     sp_factor = 1.0
     if opposing_sp_id:
-        sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season)
+        sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season, as_of=as_of)
         ip = _safe_float(sp_season.get("inningsPitched"))
         if ip >= 20:
             era = _safe_float(sp_season.get("era"), default=4.20)
@@ -338,12 +339,14 @@ def project_hitter(
     # If no Vegas, sp_factor stays as computed above and is the matchup signal.
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
-    # Magnitude small because it's already entangled with sp_factor.
+    # ONLY fires when Vegas is unavailable. Vegas implied total already prices
+    # in opposing bullpen quality alongside everything else; stacking
+    # bullpen_factor on top of vegas_factor is double-counting the same signal.
     bullpen_factor = 1.0
-    if opp_bullpen_era and opp_bullpen_era > 0:
+    if opp_bullpen_era and opp_bullpen_era > 0 and (not implied_team_total or implied_team_total <= 0):
         bullpen_factor = (opp_bullpen_era / 4.20) ** 0.30
         bullpen_factor = max(0.93, min(bullpen_factor, 1.08))
-        notes.append(f"opp bullpen ERA {opp_bullpen_era:.2f} x{bullpen_factor:.2f}")
+        notes.append(f"opp bullpen ERA {opp_bullpen_era:.2f} x{bullpen_factor:.2f} (no Vegas)")
 
     # Handedness platoon factor: opposite-hand matchup is +5% (well-documented
     # ~30 pt wOBA advantage); same-hand is -5%; switch hitters always opposite.
@@ -460,10 +463,11 @@ def project_pitcher(
     is_home: bool | None = None,
     ump_k_factor: float | None = None,
     opp_lineup_avg_pg: float | None = None,
+    as_of: Date | None = None,
 ) -> Projection:
-    last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7)
-    last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14)
-    seasn = mlb_api.player_stats(pid, group="pitching", season=season)
+    last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7, as_of=as_of)
+    last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14, as_of=as_of)
+    seasn = mlb_api.player_stats(pid, group="pitching", season=season, as_of=as_of)
 
     base = LEAGUE_AVG_SP_POINTS_PER_START
     notes: list[str] = []
@@ -954,7 +958,7 @@ def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_fa
     rate_mult = 1.0 + (counting_mult - 1.0) * 0.40   # damped
     proj = {}
     proj["R"]   = rates.get("R", 0)   * counting_mult
-    proj["HR"]  = rates.get("HR", 0)  * counting_mult * (park_factor / max(park_factor, 0.01)) ** 0  # no double-park
+    proj["HR"]  = rates.get("HR", 0)  * counting_mult  # park already in counting_mult; no double-application
     proj["RBI"] = rates.get("RBI", 0) * counting_mult
     proj["SB"]  = rates.get("SB", 0)  * counting_mult
     proj["OPS"] = rates.get("OPS", 0) * rate_mult
@@ -1098,6 +1102,13 @@ def _per_start_pitcher_points(stats: dict) -> float:
 _PROJ_CACHE: dict[tuple, tuple[float, list]] = {}
 _PROJ_TTL_SEC = 6 * 3600
 
+# Bump this whenever the projection MATH changes (any factor weight, any new
+# multiplier, any structural model change). Cached entries with a stale
+# MODEL_REV are ignored and recomputed. This is the only reliable way to
+# avoid 'calibration says HOT bias is X' when the cache was written under
+# an older code version.
+MODEL_REV = "2026-05-10-v3"   # L3 boost 2.5, statcast 0.40, lineup factor, ump factor, as_of date fix
+
 
 def _proj_disk_path(key: tuple) -> str:
     import hashlib
@@ -1144,8 +1155,13 @@ def project_slate_cached(
                 if os.path.exists(path) and (now - os.path.getmtime(path)) < _PROJ_TTL_SEC:
                     with open(path) as f:
                         raw = json.load(f)
-                    full = [_proj_from_dict(x) for x in raw]
-                    _PROJ_CACHE[key] = (os.path.getmtime(path), full)
+                    # Reject cache entries from older model versions —
+                    # calibration was getting bogus numbers because we'd
+                    # tune model_rev=v2 then read back projections written
+                    # under v1 from disk. Force a recompute on stale rev.
+                    if isinstance(raw, dict) and raw.get("model_rev") == MODEL_REV:
+                        full = [_proj_from_dict(x) for x in raw.get("projections", [])]
+                        _PROJ_CACHE[key] = (os.path.getmtime(path), full)
             except Exception:
                 full = None
     if full is None:
@@ -1156,8 +1172,12 @@ def project_slate_cached(
             os.makedirs(CACHE_DIR, exist_ok=True)
             path = _proj_disk_path(key)
             tmp = path + ".tmp"
+            payload = {
+                "model_rev": MODEL_REV,
+                "projections": [_proj_to_dict(p) for p in full],
+            }
             with open(tmp, "w") as f:
-                json.dump([_proj_to_dict(p) for p in full], f)
+                json.dump(payload, f)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, path)
@@ -1314,6 +1334,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_abbr=m.get("opp_abbr"),
             opp_sp_name=m.get("opp_sp_name"),
             is_home=m.get("is_home"),
+            as_of=d,
         ))
 
     # Compute opposing-lineup-quality per team from POSTED lineups.
@@ -1361,6 +1382,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             is_home=info.get("is_home"),
             ump_k_factor=info.get("ump_k_factor"),
             opp_lineup_avg_pg=lineup_avg_pg_by_team.get(info["opp_team_id"]),
+            as_of=d,
         ))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
