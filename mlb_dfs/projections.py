@@ -260,11 +260,13 @@ def project_hitter(
     # blend without override.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
         pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
-        # 0.80 weight after 17-day v5 audit showed residual HOT bias +1.83
-        # and COLD bias -1.31 at 0.70 weight — both pointing same direction
-        # (streaks persist more than 0.70 implies). Bumped one notch.
-        streak_base = 0.80 * pg_3_safe + 0.20 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.8*L3 + 0.2*weighted → {streak_base:.2f}")
+        # 0.85 weight after iterative audits on the bug-fixed pipeline:
+        #   v5 0.70 → HOT +1.83 / COLD -1.31 (still under/over)
+        #   v6 0.80 → HOT +1.31 / COLD -1.10 (still moving same direction)
+        # Each +0.10 weight closes ~28% / 16% of residual. v7 at 0.85 should
+        # bring HOT into ±0.7 range — getting close to single-day noise floor.
+        streak_base = 0.85 * pg_3_safe + 0.15 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.85*L3 + 0.15*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
@@ -1123,7 +1125,7 @@ _PROJ_TTL_SEC = 6 * 3600
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-10-v6"   # streak override 0.7 → 0.8 to close residual HOT/COLD bias
+MODEL_REV = "2026-05-10-v7"   # streak override 0.8 → 0.85 — closing residual HOT/COLD
 
 
 def _proj_disk_path(key: tuple) -> str:
