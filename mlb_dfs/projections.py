@@ -459,6 +459,7 @@ def project_pitcher(
     opp_abbr: str | None = None,
     is_home: bool | None = None,
     ump_k_factor: float | None = None,
+    opp_lineup_avg_pg: float | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7)
     last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14)
@@ -586,7 +587,20 @@ def project_pitcher(
         ump_factor = max(0.92, min(ump_factor, 1.10))
         notes.append(f"HP ump x{ump_factor:.2f} (k_factor {ump_k_factor:.2f})")
 
-    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor
+    # Opposing lineup quality — today's POSTED lineup avg pts/G vs league avg.
+    # Orthogonal to Vegas (Vegas often locks before lineups; this captures
+    # rest-day surprises), to opp_factor (season-long opp R/G), and to
+    # pitcher's own rolling form (his recent stuff vs THIS specific lineup).
+    # Heavily damped (** 0.30) to avoid overlap — max ~±8% effect even when
+    # a B-squad lineup posts.
+    lineup_factor = 1.0
+    if opp_lineup_avg_pg and opp_lineup_avg_pg > 0:
+        ratio = LEAGUE_AVG_HITTER_POINTS_PER_GAME / opp_lineup_avg_pg
+        lineup_factor = ratio ** 0.30
+        lineup_factor = max(0.90, min(lineup_factor, 1.12))
+        notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
+
+    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor
 
     # Pitcher single-start stdev empirically ~7 pts (single starts are
     # higher variance — quality starts vs blowups can swing 25 pts).
@@ -1265,29 +1279,9 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         rolling_batter, rolling_pitcher, season_batter, season_pitcher = {}, {}, {}, {}
 
     projections: list[Projection] = []
-
-    # Pitchers — only project the probable starters; relievers aren't draftable as SP
-    for sp_id, info in probable_sps.items():
-        if team_filter is not None and info["team_id"] not in team_filter:
-            continue
-        sp_throws = (handedness.get(sp_id) or {}).get("throws")
-        rolling_pitch_x = _safe_float((rolling_pitcher.get(sp_id) or {}).get("est_woba")) or None
-        season_pitch_x = _safe_float((season_pitcher.get(sp_id) or {}).get("est_woba")) or None
-        projections.append(project_pitcher(
-            sp_id, info["name"] or pool.get(sp_id, {}).get("name", "?"),
-            team_id=info["team_id"], season=season,
-            opponent_team_id=info["opp_team_id"],
-            park=info.get("park"),
-            opp_implied_total=team_totals.get(info["opp_team_id"]),
-            throws=sp_throws,
-            rolling_xwoba=rolling_pitch_x,
-            season_xwoba=season_pitch_x,
-            opp_abbr=info.get("opp_abbr"),
-            is_home=info.get("is_home"),
-            ump_k_factor=info.get("ump_k_factor"),
-        ))
-
-    # Hitters — everyone non-pitcher in the slate roster pool
+    # Hitters — everyone non-pitcher in the slate roster pool. Project hitters
+    # FIRST so we can compute opposing lineup quality from posted lineups
+    # before we project pitchers (the opp lineup factor needs hitter projs).
     for pid, meta in pool.items():
         if meta.get("positionType") == "Pitcher":
             continue
@@ -1318,6 +1312,46 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_abbr=m.get("opp_abbr"),
             opp_sp_name=m.get("opp_sp_name"),
             is_home=m.get("is_home"),
+        ))
+
+    # Compute opposing-lineup-quality per team from POSTED lineups + the
+    # hitter projections we just made. Only counts the 9 batters MLB has
+    # marked status='in' (lineup card posted). For unposted lineups, no
+    # adjustment fires — lineup_factor stays neutral.
+    posted_by_team: dict[int, list[float]] = {}
+    proj_by_pid = {p.player_id: p for p in projections}
+    for pid, ls in lineups.items():
+        if ls.get("status") != "in":
+            continue
+        team_id_ls = ls.get("team_id")
+        proj = proj_by_pid.get(pid)
+        if team_id_ls and proj and proj.role == "hitter" and proj.projected_points > 0:
+            posted_by_team.setdefault(team_id_ls, []).append(proj.projected_points)
+    lineup_avg_pg_by_team: dict[int, float] = {}
+    for tid, pts_list in posted_by_team.items():
+        if len(pts_list) >= 7:  # require near-full lineup posted; partial is noise
+            lineup_avg_pg_by_team[tid] = sum(pts_list) / len(pts_list)
+
+    # Pitchers — project AFTER hitters so we can attach opp lineup quality.
+    for sp_id, info in probable_sps.items():
+        if team_filter is not None and info["team_id"] not in team_filter:
+            continue
+        sp_throws = (handedness.get(sp_id) or {}).get("throws")
+        rolling_pitch_x = _safe_float((rolling_pitcher.get(sp_id) or {}).get("est_woba")) or None
+        season_pitch_x = _safe_float((season_pitcher.get(sp_id) or {}).get("est_woba")) or None
+        projections.append(project_pitcher(
+            sp_id, info["name"] or pool.get(sp_id, {}).get("name", "?"),
+            team_id=info["team_id"], season=season,
+            opponent_team_id=info["opp_team_id"],
+            park=info.get("park"),
+            opp_implied_total=team_totals.get(info["opp_team_id"]),
+            throws=sp_throws,
+            rolling_xwoba=rolling_pitch_x,
+            season_xwoba=season_pitch_x,
+            opp_abbr=info.get("opp_abbr"),
+            is_home=info.get("is_home"),
+            ump_k_factor=info.get("ump_k_factor"),
+            opp_lineup_avg_pg=lineup_avg_pg_by_team.get(info["opp_team_id"]),
         ))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
