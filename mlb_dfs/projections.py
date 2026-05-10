@@ -245,20 +245,24 @@ def project_hitter(
     if form_note:
         notes.append(form_note)
 
-    # Streak-trust override REMOVED.
-    # History: bumped 0.70 → 0.80 → 0.90 based on short calibration windows,
-    # then walked back to 0.70, then removed entirely after a 17-day audit
-    # (n=4,949 player-days, 4/22–5/9) showed the override consistently
-    # over-projects HOT and under-projects COLD at ALL weights tested:
-    #   weight 0.90: HOT bias -2.84 (6σ), COLD +1.80 (8σ)
-    #   weight 0.70: HOT bias -2.65 (8σ), COLD +2.06 (12σ)
-    # The override double-counts L3: the weighted base already gives L3 a
-    # 5.0× recency boost (vs 2.2× for L7, 1.2× for L14, 0.45× for season),
-    # so L3 is already ~40% of base_pg before any override is applied.
-    # Adding a second layer of L3 emphasis pushes projections further from
-    # true talent. The weighted base's recency structure handles streaks
-    # correctly on its own. Form_tag stays as a *signal* (still drives
-    # STATCAST_WEIGHT for HOT/COLD) but no longer reweights the base.
+    # Streak-trust override RESTORED.
+    # The whole "streak override is wrong" arc was based on a calibration
+    # endpoint that secretly used today's stats for past-date L3/L7/L14
+    # windows (mlb_api.player_stats date bug, fixed 2026-05-10). Once the
+    # date bug + cache-rev bug were fixed and projections recomputed, the
+    # 17-day audit (n=4,949) flipped sign:
+    #   HOT  bias +4.79 (14σ, n=703) — under-projecting HOT by ~5 pts
+    #   COLD bias -2.97 (27σ, n=1369) — over-projecting COLD by ~3 pts
+    # Streaks DO continue at much higher rates than the base bucket-weight
+    # mix implies. Restored at 0.70 weight (the original setting before all
+    # the noise-driven flailing). The L3 sample carries 70% of the base
+    # for HOT/COLD only; untagged players still get the natural bucket
+    # blend without override.
+    if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
+        pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
+        streak_base = 0.70 * pg_3_safe + 0.30 * base_pg
+        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
+        base_pg = streak_base
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
     sp_factor = 1.0
@@ -284,14 +288,14 @@ def project_hitter(
     # streak gets dragged toward his Statcast baseline.
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        # Statcast as a true-talent prior, weighted 0.40 for everyone. Earlier
-        # we had a HOT/COLD branch (0.15) leaning more on rolling form for
-        # streaking players — the 17-day audit showed that's the wrong
-        # direction. Streaking players need MORE pull toward Statcast, not
-        # less, because their rolling form is exactly what's mean-reverting.
-        # Unifying at 0.40 (up from 0.25 untagged) is a cleaner regression-to-
-        # mean step that pairs with the lower L3 recency boost.
-        STATCAST_WEIGHT = 0.40
+        # Adaptive Statcast weight. RESTORED after the great date-leak audit
+        # of 5/10. With clean data the picture flipped: HOT/COLD streaks
+        # PERSIST more than the base would imply, so anchoring streakers
+        # toward season-long Statcast pulls projections away from reality.
+        # 0.15 for HOT/COLD (let streak signal dominate after override).
+        # 0.40 for everyone else (anchor toward true talent — works great
+        # for untagged hitters, calibration shows bias +0.30 / 2.5σ on n=2,679).
+        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
@@ -1116,7 +1120,7 @@ _PROJ_TTL_SEC = 6 * 3600
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-10-v4"   # + temp-aware HR factor, hitter status='out' zero-out, bullpen guard
+MODEL_REV = "2026-05-10-v5"   # restored streak override 0.7 + adaptive STATCAST_WEIGHT 0.15/0.40
 
 
 def _proj_disk_path(key: tuple) -> str:
