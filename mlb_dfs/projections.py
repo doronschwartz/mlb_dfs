@@ -243,22 +243,20 @@ def project_hitter(
     if form_note:
         notes.append(form_note)
 
-    # Streak-trust override.
-    # IMPORTANT — this rule was iteratively bumped 0.70 → 0.80 → 0.90 based on
-    # short windows of calibration data, then walked back to 0.70 after a
-    # proper 9-day audit (n=2,647 player-days, 4/27–5/8) showed:
-    #   HOT  bias -2.84 (6.1σ, n=338) — i.e. over-projecting HOT by ~3 pts
-    #   COLD bias +1.80 (7.8σ, n=788) — i.e. under-projecting COLD by ~2 pts
-    # The aggressive 0.90 weight on L3 was noise-fitting to days when streaks
-    # happened to continue. Across the full record, the L3 sample over-shoots
-    # in both directions — hot players cool toward true talent more than 0.90
-    # implies, cold players bounce back more than 0.90 implies. Back to 0.70
-    # which gives the L3 streak signal real weight without letting it dominate.
-    if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
-        pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
-        streak_base = 0.70 * pg_3_safe + 0.30 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.7*L3 + 0.3*weighted → {streak_base:.2f}")
-        base_pg = streak_base
+    # Streak-trust override REMOVED.
+    # History: bumped 0.70 → 0.80 → 0.90 based on short calibration windows,
+    # then walked back to 0.70, then removed entirely after a 17-day audit
+    # (n=4,949 player-days, 4/22–5/9) showed the override consistently
+    # over-projects HOT and under-projects COLD at ALL weights tested:
+    #   weight 0.90: HOT bias -2.84 (6σ), COLD +1.80 (8σ)
+    #   weight 0.70: HOT bias -2.65 (8σ), COLD +2.06 (12σ)
+    # The override double-counts L3: the weighted base already gives L3 a
+    # 5.0× recency boost (vs 2.2× for L7, 1.2× for L14, 0.45× for season),
+    # so L3 is already ~40% of base_pg before any override is applied.
+    # Adding a second layer of L3 emphasis pushes projections further from
+    # true talent. The weighted base's recency structure handles streaks
+    # correctly on its own. Form_tag stays as a *signal* (still drives
+    # STATCAST_WEIGHT for HOT/COLD) but no longer reweights the base.
 
     # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
     sp_factor = 1.0
