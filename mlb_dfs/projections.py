@@ -588,16 +588,18 @@ def project_pitcher(
         notes.append(f"HP ump x{ump_factor:.2f} (k_factor {ump_k_factor:.2f})")
 
     # Opposing lineup quality — today's POSTED lineup avg pts/G vs league avg.
-    # Orthogonal to Vegas (Vegas often locks before lineups; this captures
-    # rest-day surprises), to opp_factor (season-long opp R/G), and to
-    # pitcher's own rolling form (his recent stuff vs THIS specific lineup).
-    # Heavily damped (** 0.30) to avoid overlap — max ~±8% effect even when
-    # a B-squad lineup posts.
+    # Captures rest-day / B-squad surprises that haven't been priced into Vegas
+    # yet. The biggest overlap risk in the projection chain is with vegas_factor:
+    # sharp books reprice within minutes of lineup posts. To avoid stacking on
+    # top of Vegas's own adjustment, this factor is HEAVILY damped (^0.18,
+    # clamped 0.94–1.07 → max ~±6%). If Vegas already captured the bulk of
+    # the lineup effect, our additive contribution stays in noise range; if
+    # Vegas hasn't moved, this contributes a meaningful but bounded signal.
     lineup_factor = 1.0
     if opp_lineup_avg_pg and opp_lineup_avg_pg > 0:
         ratio = LEAGUE_AVG_HITTER_POINTS_PER_GAME / opp_lineup_avg_pg
-        lineup_factor = ratio ** 0.30
-        lineup_factor = max(0.90, min(lineup_factor, 1.12))
+        lineup_factor = ratio ** 0.18
+        lineup_factor = max(0.94, min(lineup_factor, 1.07))
         notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
 
     proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor
