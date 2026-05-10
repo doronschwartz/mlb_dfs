@@ -868,14 +868,13 @@ function renderGamePicker() {
   $$("#game-picker .game-card").forEach((el) => {
     el.addEventListener("click", async () => {
       const pk = Number(el.dataset.pk);
-      // If we're in draft-edit mode with no explicit selection (= full slate
-      // implicitly), clicking any card "promotes" the selection to explicit
-      // by adding every game except the clicked one. That way the user can
-      // exclude games from a full slate without first clicking 14 others.
+      // From implicit-all (empty selectedGamePks shown as all-green), any
+      // click starts a NARROW explicit selection containing just that game.
+      // User clicks a few more to build their pool. (Previously this auto-
+      // added 14 games which made narrowing painful.) To go back to full-
+      // slate, click "Clear".
       if (fullSlateInDraft && state.selectedGamePks.size === 0) {
-        state.slateGames.forEach((g) => {
-          if (g.gamePk !== pk) state.selectedGamePks.add(g.gamePk);
-        });
+        state.selectedGamePks.add(pk);
       } else if (state.selectedGamePks.has(pk)) {
         state.selectedGamePks.delete(pk);
       } else {
