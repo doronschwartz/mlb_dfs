@@ -282,13 +282,14 @@ def project_hitter(
     # streak gets dragged toward his Statcast baseline.
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        # Adaptive blend: Statcast is a strong true-talent prior, but 5/5/2026
-        # calibration showed it over-projects ELITE-tier hitters (proj 7.08 →
-        # actual 6.0) and under-projects POOR-tier hitters (proj 4.73 → actual
-        # 6.4) — a regression-to-mean miss. Dropped non-streaking weight 0.35
-        # → 0.25 so projections lean a bit more on each player's own rolling
-        # form. HOT/COLD weight stays 0.15 (streak override already dominates).
-        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.25
+        # Statcast as a true-talent prior, weighted 0.40 for everyone. Earlier
+        # we had a HOT/COLD branch (0.15) leaning more on rolling form for
+        # streaking players — the 17-day audit showed that's the wrong
+        # direction. Streaking players need MORE pull toward Statcast, not
+        # less, because their rolling form is exactly what's mean-reverting.
+        # Unifying at 0.40 (up from 0.25 untagged) is a cleaner regression-to-
+        # mean step that pairs with the lower L3 recency boost.
+        STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
@@ -528,7 +529,11 @@ def project_pitcher(
     # rolling base to dampen single-start spikes and protect against streaks.
     statcast_ps = _statcast_implied_ps_pitcher(xera, xwoba_a, brl_a)
     if statcast_ps is not None:
-        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.35
+        # Unified Statcast weight for pitchers (same logic as hitters):
+        # streaking pitchers need MORE pull toward true-talent xERA/xwOBA, not
+        # less, because their rolling form is the volatile signal. Was 0.35/0.15
+        # split; now 0.40 across the board — same as hitters.
+        STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base + STATCAST_WEIGHT * statcast_ps
         notes.append(f"Statcast prior {statcast_ps:.2f} pts/start blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base = blended_base
@@ -659,11 +664,14 @@ def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14, pts_g_season=(None, 0)):
         buckets.append((pg, games, scaled))
 
     buckets: list[tuple[float, int, float]] = []
-    # Calibration round 2: HOT bias was still ~+5 after first tuning. The
-    # season bucket (50-80 games) was drowning the recent signal. Pushed L3
-    # recency to 5.0 and capped the season-prior bucket at ~14 game-equivalents
-    # so it acts as an anchor, not a tide.
-    _add(buckets, pg3, g3, 5.0)
+    # Recency weights, post-17-day audit (n=4,949):
+    # The earlier 5.0 boost on L3 was making L3 ~40% of base_pg from a 12-PA
+    # sample. That over-shoot was the root of the persistent HOT/COLD bias —
+    # streaks regress toward true talent harder than a 3-game window implies.
+    # Lowered to 2.5 so L3 sits closer to ~22% of base; the weighted mix is
+    # now: L3 ~22%, L7 ~22%, L14 ~28%, season ~28%. Balanced rather than
+    # recency-dominant.
+    _add(buckets, pg3, g3, 2.5)
     if pg7 is not None and g7 > 0:
         if pg3 is not None and g3 > 0 and g7 > g3:
             _add(buckets, (pg7 * g7 - pg3 * g3) / (g7 - g3), g7 - g3, 2.2)
@@ -671,15 +679,15 @@ def _weighted_pg_hitter(*, pts_g_3, pts_g_7, pts_g_14, pts_g_season=(None, 0)):
             _add(buckets, pg7, g7, 2.2)
     if pg14 is not None and g14 > 0:
         if pg7 is not None and g7 > 0 and g14 > g7:
-            _add(buckets, (pg14 * g14 - pg7 * g7) / (g14 - g7), g14 - g7, 1.2)
+            _add(buckets, (pg14 * g14 - pg7 * g7) / (g14 - g7), g14 - g7, 1.5)
         elif pg7 is None:
-            _add(buckets, pg14, g14, 1.2)
+            _add(buckets, pg14, g14, 1.5)
     if pgs is not None and gs > 0:
         if pg14 is not None and g14 > 0 and gs > g14:
             prior_g = min(gs - g14, 14)   # cap so season doesn't drown recency
-            _add(buckets, (pgs * gs - pg14 * g14) / (gs - g14), prior_g, 0.45)
+            _add(buckets, (pgs * gs - pg14 * g14) / (gs - g14), prior_g, 0.7)
         elif pg14 is None:
-            _add(buckets, pgs, min(gs, 14), 0.45)
+            _add(buckets, pgs, min(gs, 14), 0.7)
 
     # Dynamic league-average ghost prior. Only fills the gap when real sample
     # weight is small — well-sampled regulars are unaffected.
