@@ -458,6 +458,7 @@ def project_pitcher(
     season_xwoba: float | None = None,
     opp_abbr: str | None = None,
     is_home: bool | None = None,
+    ump_k_factor: float | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7)
     last14 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=14)
@@ -574,7 +575,18 @@ def project_pitcher(
         rolling_factor = max(0.92, min(rolling_factor, 1.10))
         notes.append(f"rolling xwOBA-agst {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
-    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor
+    # Home plate umpire factor — wider strike zone (positive 'favor' on
+    # UmpScorecards) inflates K rate and lowers walks. k_factor is computed
+    # upstream as 1.0 + favor/50 (clamped for sanity here). Damped to ~70%
+    # of raw effect because ump_k_factor is K-rate-only and the SP fantasy
+    # score is K-heavy but not exclusive.
+    ump_factor = 1.0
+    if ump_k_factor and 0.5 < ump_k_factor < 1.5:
+        ump_factor = 1.0 + (ump_k_factor - 1.0) * 0.7
+        ump_factor = max(0.92, min(ump_factor, 1.10))
+        notes.append(f"HP ump x{ump_factor:.2f} (k_factor {ump_k_factor:.2f})")
+
+    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor
 
     # Pitcher single-start stdev empirically ~7 pts (single starts are
     # higher variance — quality starts vs blowups can swing 25 pts).
@@ -1149,6 +1161,15 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     season = d.year
     games = mlb_api.schedule(d)
 
+    # Per-game HP umpire k_factor lookup (1.0 = neutral, >1 = wider zone /
+    # more Ks). Backed by UmpScorecards; missing data falls back to neutral.
+    try:
+        from . import umpires as umpires_mod
+        ump_rows = umpires_mod.umpires_for_date(d.isoformat()) or []
+        ump_k_by_pk = {u["game_pk"]: u.get("k_factor") for u in ump_rows if u.get("game_pk")}
+    except Exception:
+        ump_k_by_pk = {}
+
     # Build matchup map: team_id -> {opp, opp_sp, park (run_env, hr_factor)}
     matchups: dict[int, dict] = {}
     probable_sps: dict[int, dict] = {}  # sp_id -> {team_id, opp_team_id, park}
@@ -1190,17 +1211,20 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
                 "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
                 "is_home": False,
             }
+        ump_k = ump_k_by_pk.get(g.get("gamePk"))
         if home_sp:
             probable_sps[home_sp] = {
                 "team_id": home_team, "opp_team_id": away_team, "park": park,
                 "name": home_sp_name,
                 "opp_abbr": away_abbr, "is_home": True,
+                "ump_k_factor": ump_k,
             }
         if away_sp:
             probable_sps[away_sp] = {
                 "team_id": away_team, "opp_team_id": home_team, "park": park,
                 "name": away_sp_name,
                 "opp_abbr": home_abbr, "is_home": False,
+                "ump_k_factor": ump_k,
             }
 
     pool = mlb_api.players_in_slate(d)
@@ -1260,6 +1284,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             season_xwoba=season_pitch_x,
             opp_abbr=info.get("opp_abbr"),
             is_home=info.get("is_home"),
+            ump_k_factor=info.get("ump_k_factor"),
         ))
 
     # Hitters — everyone non-pitcher in the slate roster pool
