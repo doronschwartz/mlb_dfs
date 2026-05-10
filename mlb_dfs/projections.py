@@ -1316,10 +1316,15 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             is_home=m.get("is_home"),
         ))
 
-    # Compute opposing-lineup-quality per team from POSTED lineups + the
-    # hitter projections we just made. Only counts the 9 batters MLB has
-    # marked status='in' (lineup card posted). For unposted lineups, no
-    # adjustment fires — lineup_factor stays neutral.
+    # Compute opposing-lineup-quality per team from POSTED lineups.
+    # CRITICAL — use each hitter's base_pg (rolling form + Statcast prior,
+    # BEFORE any matchup factors), NOT their projected_points. The full
+    # projection includes vegas_factor + sp_factor which reflect the
+    # opposing pitcher's quality. If we used projected_points, that
+    # pitcher's quality would feed back into our own projection of him
+    # (good pitcher → suppresses hitter projs → high lineup_factor →
+    # boosts pitcher again). base_pg is the lineup's intrinsic quality,
+    # independent of who's pitching today — the only honest signal.
     posted_by_team: dict[int, list[float]] = {}
     proj_by_pid = {p.player_id: p for p in projections}
     for pid, ls in lineups.items():
@@ -1327,8 +1332,10 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             continue
         team_id_ls = ls.get("team_id")
         proj = proj_by_pid.get(pid)
-        if team_id_ls and proj and proj.role == "hitter" and proj.projected_points > 0:
-            posted_by_team.setdefault(team_id_ls, []).append(proj.projected_points)
+        if team_id_ls and proj and proj.role == "hitter":
+            base_pg = (proj.components or {}).get("base_pg")
+            if base_pg and base_pg > 0:
+                posted_by_team.setdefault(team_id_ls, []).append(base_pg)
     lineup_avg_pg_by_team: dict[int, float] = {}
     for tid, pts_list in posted_by_team.items():
         if len(pts_list) >= 7:  # require near-full lineup posted; partial is noise
