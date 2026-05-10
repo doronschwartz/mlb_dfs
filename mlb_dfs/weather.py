@@ -122,18 +122,26 @@ def _compass_to_deg(c: str) -> int | None:
     return pts.get((c or "").upper())
 
 
-def hr_factor(wind_mph: float, wind_from_deg: float, cf_heading_deg: float) -> float:
+def hr_factor(wind_mph: float, wind_from_deg: float, cf_heading_deg: float, temp_f: float | None = None) -> float:
     """Wind FROM south at park facing N-CF means tailwind = blow-out.
-    Convert wind_from to wind_to (180 + from)."""
-    if wind_mph is None or wind_mph < 5:
-        return 1.0
-    wind_to = (wind_from_deg + 180) % 360
-    diff = abs((wind_to - cf_heading_deg + 180) % 360 - 180)
-    if diff <= 60:    # blowing out
-        return 1.0 + min(wind_mph, 25) * 0.012   # +1.2% per mph, max ~+30%
-    if diff >= 120:   # blowing in
-        return 1.0 - min(wind_mph, 25) * 0.010   # max ~-25%
-    return 1.0
+    Temperature also matters — research consistently shows ball flies further
+    in warm air (~1-2% per 10°F above 60°F baseline; same penalty cold).
+    Combined wind × temp factor, both capped."""
+    factor = 1.0
+    if wind_mph is not None and wind_mph >= 5 and wind_from_deg is not None:
+        wind_to = (wind_from_deg + 180) % 360
+        diff = abs((wind_to - cf_heading_deg + 180) % 360 - 180)
+        if diff <= 60:    # blowing out
+            factor *= 1.0 + min(wind_mph, 25) * 0.012   # +1.2% per mph, max ~+30%
+        elif diff >= 120:   # blowing in
+            factor *= 1.0 - min(wind_mph, 25) * 0.010   # max ~-25%
+    if temp_f is not None and -20 < temp_f < 120:
+        # ±1.5% per 10°F off 60°F baseline, clamped ±10% so a 30°F night
+        # game caps at -7.5% rather than -7.5% × any wild reading.
+        temp_adj = (float(temp_f) - 60.0) * 0.0015
+        temp_adj = max(-0.10, min(temp_adj, 0.10))
+        factor *= (1.0 + temp_adj)
+    return factor
 
 
 def park_forecast(team_abbr: str, when_iso: str) -> dict | None:
@@ -169,11 +177,12 @@ def park_forecast(team_abbr: str, when_iso: str) -> dict | None:
     except Exception:
         pass
     wind_from = _compass_to_deg(p.get("windDirection") or "")
-    factor = hr_factor(wind_mph, wind_from, cf_heading) if wind_from is not None else 1.0
+    temp_f = p.get("temperature")
+    factor = hr_factor(wind_mph, wind_from, cf_heading, temp_f=temp_f)
     return {
         "wind_mph": wind_mph,
         "wind_dir": p.get("windDirection") or "—",
-        "temp_f": p.get("temperature"),
+        "temp_f": temp_f,
         "hr_factor": round(factor, 3),
         "dome": False,
     }
