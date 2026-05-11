@@ -233,6 +233,24 @@ def handedness_by_player(season: int) -> dict[int, dict]:
     return out
 
 
+def _load_manual_pool_adds(d: Date) -> list[dict]:
+    """Manual roster-adds for date d. Reads mlb_dfs/data/manual_pool_adds.json
+    of the form {"YYYY-MM-DD": [{"player_id": 605141, "team_id": 119,
+    "name": "Mookie Betts", "position": "SS"}, ...]}. Used to inject players
+    who've been activated off the IL but haven't propagated to MLB's
+    rosterType=active yet (timing lag is hours-to-day)."""
+    import json, os
+    path = os.path.join(os.path.dirname(__file__), "data", "manual_pool_adds.json")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return data.get(d.isoformat(), [])
+    except Exception:
+        return []
+
+
 def players_in_slate(d: Date) -> dict[int, dict]:
     """Map of player_id -> {name, primaryPosition, teamId} for everyone on a roster
     of a team playing today. This is the draft pool."""
@@ -259,6 +277,22 @@ def players_in_slate(d: Date) -> dict[int, dict]:
                 "positionType": (r.get("position") or {}).get("type"),
                 "teamId": tid,
             }
+    # Manual adds (e.g. just-activated players not yet in rosterType=active).
+    for add in _load_manual_pool_adds(d):
+        pid = add.get("player_id")
+        tid = add.get("team_id")
+        if not pid or tid not in team_ids:
+            continue  # only add if their team plays today
+        if pid in pool:
+            continue  # MLB API caught up — don't duplicate
+        pos = add.get("position")
+        pool[pid] = {
+            "id": pid,
+            "name": add.get("name", f"player_{pid}"),
+            "position": POSITION_OVERRIDES.get(pid, pos),
+            "positionType": "Pitcher" if pos in ("SP","RP","P") else "Hitter",
+            "teamId": tid,
+        }
     return pool
 
 

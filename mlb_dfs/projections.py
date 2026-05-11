@@ -1125,7 +1125,7 @@ _PROJ_TTL_SEC = 6 * 3600
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-10-v7"   # streak override 0.8 → 0.85 — closing residual HOT/COLD
+MODEL_REV = "2026-05-11-v7.1"   # manual pool injections (Mookie Betts IL activation)
 
 
 def _proj_disk_path(key: tuple) -> str:

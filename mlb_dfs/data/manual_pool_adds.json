@@ -1,0 +1,12 @@
+{
+  "_doc": "Manual roster injections for cases where MLB's rosterType=active hasn't reflected an IL activation, callup, or trade yet. Keyed by ISO date. player_id and team_id are MLB IDs. Player only appears in that date's slate AND only if their team plays that day. Once MLB API catches up, the manual entry is silently superseded.",
+  "2026-05-11": [
+    {
+      "player_id": 605141,
+      "team_id": 119,
+      "name": "Mookie Betts",
+      "position": "SS",
+      "note": "Activated off IL after rehab assignment"
+    }
+  ]
+}
