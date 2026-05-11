@@ -24,3 +24,10 @@ primary_region = "iad"
   method = "GET"
   path = "/api/health"
   timeout = "5s"
+
+# 1GB RAM — 512MB triggered OOM kills during concurrent cold-cache projection
+# computes (each project_slate holds ~400 projections + Statcast caches).
+# Observed process RSS spike to 395MB; 1024MB gives ~2.5x headroom.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
