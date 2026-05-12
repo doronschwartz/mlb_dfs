@@ -158,14 +158,171 @@ def _find(src_dir: str, year: int, name: str) -> str | None:
     return None
 
 
+# ---- 2023/2024 format adapters (different schema from 2026) ----
+# 2023 splits standings across two files:
+#   "Daily Standings" — Date,JL,Meech,Stock (rank 1/2/3 per drafter)
+#   "Total Points Sheet" — Date,JL,Meech,Stock totals, then totals (no min) on cols 5-7
+# Hitter/Pitcher sheets use stride 4 between drafter blocks (vs 5 in 2026).
+
+
+def parse_picks_2023(path: str, role: str, year: int) -> list[dict]:
+    """Stride-4 layout: Stock at col 0/1/2, Meech at 4/5/6, JL at 8/9/10."""
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        rows = list(csv.reader(f))
+    out = []
+    for row in rows[1:]:
+        row = row + [""] * max(0, 12 - len(row))
+        for offset, drafter in [(0, "Stock"), (4, "Meech"), (8, "JL")]:
+            date_iso = parse_date_label(row[offset], year)
+            player = (row[offset + 1] or "").strip()
+            score = _to_float(row[offset + 2])
+            if not date_iso or not player or score is None:
+                continue
+            clean = re.sub(r"\s*\(P\)\s*", "", player).strip()
+            out.append({
+                "date": date_iso, "season": year, "drafter": drafter,
+                "player_name": clean, "score": round(score, 2), "role": role,
+            })
+    out.sort(key=lambda x: (x["date"], x["drafter"]))
+    return out
+
+
+def parse_standings_2023(daily_path: str, totals_path: str, year: int) -> list[dict]:
+    """Merge two files: Daily Standings (ranks) + Total Points Sheet (scores)."""
+    ranks_by_date: dict[str, dict] = {}
+    totals_by_date: dict[str, dict] = {}
+    full_totals_by_date: dict[str, dict] = {}
+
+    if os.path.exists(daily_path):
+        with open(daily_path) as f:
+            rows = list(csv.reader(f))
+        # Header tells us drafter column order. Defensive against reorderings.
+        header = rows[0] if rows else []
+        drafter_cols = []
+        for i, col in enumerate(header):
+            name = col.strip()
+            if name in ("JL", "Meech", "Stock"):
+                drafter_cols.append((i, name))
+        for row in rows[1:]:
+            if not row or not row[0].strip():
+                continue
+            d_iso = parse_date_label(row[0], year)
+            if not d_iso:
+                continue
+            ranks_by_date[d_iso] = {}
+            for idx, name in drafter_cols:
+                v = _to_float(row[idx] if idx < len(row) else "")
+                if v is not None:
+                    ranks_by_date[d_iso][name] = int(v)
+
+    if os.path.exists(totals_path):
+        with open(totals_path) as f:
+            rows = list(csv.reader(f))
+        header = rows[0] if rows else []
+        # First block of (JL,Meech,Stock) is "Total (with min)" — the scoring total
+        # used to determine rank. Second block is "Total (No Min)" — full total.
+        # Find both blocks by scanning the header.
+        first_block: list[tuple[int, str]] = []
+        second_block: list[tuple[int, str]] = []
+        seen_names: set[str] = set()
+        for i, col in enumerate(header):
+            name = col.strip()
+            if name in ("JL", "Meech", "Stock"):
+                if name not in seen_names:
+                    first_block.append((i, name))
+                    seen_names.add(name)
+                elif len(second_block) < 3:
+                    second_block.append((i, name))
+        for row in rows[1:]:
+            if not row or not row[0].strip():
+                continue
+            d_iso = parse_date_label(row[0], year)
+            if not d_iso:
+                continue
+            tot = {}
+            for idx, name in first_block:
+                v = _to_float(row[idx] if idx < len(row) else "")
+                if v is not None:
+                    tot[name] = v
+            if tot:
+                totals_by_date[d_iso] = tot
+            full = {}
+            for idx, name in second_block:
+                v = _to_float(row[idx] if idx < len(row) else "")
+                if v is not None:
+                    full[name] = v
+            if full:
+                full_totals_by_date[d_iso] = full
+
+    out = []
+    names_order = ("Stock", "Meech", "JL")
+    for date_iso in sorted(set(ranks_by_date) | set(totals_by_date)):
+        ranks = ranks_by_date.get(date_iso, {})
+        totals = totals_by_date.get(date_iso, {})
+        fulls = full_totals_by_date.get(date_iso, {})
+        # Need at least totals to be meaningful
+        if not totals:
+            continue
+        standings = []
+        for n in names_order:
+            standings.append({
+                "drafter": n,
+                "rank": int(ranks.get(n, 0)),
+                "total": round(totals.get(n, 0.0), 2),
+                "full_total": round(fulls.get(n, totals.get(n, 0.0)), 2),
+            })
+        out.append({
+            "date": date_iso, "season": year,
+            "drafters": list(names_order),
+            "is_complete": True, "standings": standings,
+        })
+    out.sort(key=lambda x: x["date"])
+    return out
+
+
 def import_year(src_dir: str, year: int) -> dict:
+    # Filename schema differs between seasons. Try both variants.
     standings_path = _find(src_dir, year, "Standings_Points")
+    daily_standings_path = _find(src_dir, year, "Daily Standings")
+    totals_path = _find(src_dir, year, "Total Points Sheet")
     hitter_path = _find(src_dir, year, "Hitter Stat Sheets")
     pitcher_path = _find(src_dir, year, "Pitcher Stat Sheets")
-    teams_path = _find(src_dir, year, "Team How Often")
-    standings = parse_standings(standings_path, year) if standings_path else []
-    hitters = parse_picks(hitter_path, "hitter", year) if hitter_path else []
-    pitchers = parse_picks(pitcher_path, "pitcher", year) if pitcher_path else []
+    teams_path = (_find(src_dir, year, "Team How Often")
+                  or _find(src_dir, year, "How Often Each Team"))
+
+    # Detect picks format from the header row stride. 2026 uses stride 5; 2023 stride 4.
+    # Stride is the column offset between consecutive drafter blocks.
+    def _detect_picks_stride(path: str) -> int:
+        if not path or not os.path.exists(path):
+            return 5
+        try:
+            with open(path) as f:
+                header = next(csv.reader(f), [])
+            # Find indices of "Player ... Picked" cells
+            indices = [i for i, c in enumerate(header) if "Picked" in (c or "")]
+            if len(indices) >= 2:
+                return indices[1] - indices[0]
+        except Exception:
+            pass
+        return 5
+    stride = _detect_picks_stride(hitter_path or pitcher_path)
+
+    if stride == 4:
+        hitters = parse_picks_2023(hitter_path, "hitter", year) if hitter_path else []
+        pitchers = parse_picks_2023(pitcher_path, "pitcher", year) if pitcher_path else []
+    else:
+        hitters = parse_picks(hitter_path, "hitter", year) if hitter_path else []
+        pitchers = parse_picks(pitcher_path, "pitcher", year) if pitcher_path else []
+
+    if standings_path:
+        standings = parse_standings(standings_path, year)
+    elif daily_standings_path or totals_path:
+        standings = parse_standings_2023(daily_standings_path or "", totals_path or "", year)
+    else:
+        standings = []
+
     teams = parse_team_appearances(teams_path, year) if teams_path else {}
     return {
         "year": year,

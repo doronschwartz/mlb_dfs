@@ -1,5 +1,3365 @@
 [
   {
+    "date": "2023-04-03",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 98.0,
+        "full_total": 103.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 92.0,
+        "full_total": 94.0
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 104.0,
+        "full_total": 107.0
+      }
+    ]
+  },
+  {
+    "date": "2023-04-04",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 104.3,
+        "full_total": 109.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 52.05,
+        "full_total": 52.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 102.7,
+        "full_total": 102.7
+      }
+    ]
+  },
+  {
+    "date": "2023-04-05",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 101.6,
+        "full_total": 101.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 80.25,
+        "full_total": 80.25
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 151.0,
+        "full_total": 151.0
+      }
+    ]
+  },
+  {
+    "date": "2023-04-09",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 58.7,
+        "full_total": 61.7
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 105.5,
+        "full_total": 114.5
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 114.45,
+        "full_total": 118.45
+      }
+    ]
+  },
+  {
+    "date": "2023-04-10",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 112.2,
+        "full_total": 112.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 82.15,
+        "full_total": 82.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 96.4,
+        "full_total": 96.4
+      }
+    ]
+  },
+  {
+    "date": "2023-04-17",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 68.45,
+        "full_total": 68.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 98.1,
+        "full_total": 100.1
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 118.0,
+        "full_total": 118.0
+      }
+    ]
+  },
+  {
+    "date": "2023-04-18",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 145.55,
+        "full_total": 150.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 110.7,
+        "full_total": 115.7
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 77.85,
+        "full_total": 79.85
+      }
+    ]
+  },
+  {
+    "date": "2023-04-19",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 98.8,
+        "full_total": 98.8
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 78.85,
+        "full_total": 78.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 131.95,
+        "full_total": 131.95
+      }
+    ]
+  },
+  {
+    "date": "2023-04-20",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 102.4,
+        "full_total": 107.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 57.7,
+        "full_total": 57.7
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 86.85,
+        "full_total": 86.85
+      }
+    ]
+  },
+  {
+    "date": "2023-04-24",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 73.25,
+        "full_total": 73.25
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 82.95,
+        "full_total": 82.95
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 147.1,
+        "full_total": 147.1
+      }
+    ]
+  },
+  {
+    "date": "2023-04-25",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 82.2,
+        "full_total": 82.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 83.9,
+        "full_total": 83.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 52.5,
+        "full_total": 52.5
+      }
+    ]
+  },
+  {
+    "date": "2023-04-26",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 51.6,
+        "full_total": 51.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 111.2,
+        "full_total": 116.2
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 62.9,
+        "full_total": 62.9
+      }
+    ]
+  },
+  {
+    "date": "2023-04-27",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 80.7,
+        "full_total": 80.7
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 68.45,
+        "full_total": 68.45
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 129.1,
+        "full_total": 129.1
+      }
+    ]
+  },
+  {
+    "date": "2023-04-30",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 103.3,
+        "full_total": 103.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 108.35,
+        "full_total": 111.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 59.9,
+        "full_total": 62.9
+      }
+    ]
+  },
+  {
+    "date": "2023-05-01",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 128.55,
+        "full_total": 134.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 91.25,
+        "full_total": 91.25
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 127.8,
+        "full_total": 132.8
+      }
+    ]
+  },
+  {
+    "date": "2023-05-02",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 129.4,
+        "full_total": 129.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 87.85,
+        "full_total": 89.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 113.95,
+        "full_total": 113.95
+      }
+    ]
+  },
+  {
+    "date": "2023-05-03",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 121.6,
+        "full_total": 121.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 94.4,
+        "full_total": 99.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 123.95,
+        "full_total": 128.95
+      }
+    ]
+  },
+  {
+    "date": "2023-05-04",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 103.7,
+        "full_total": 108.7
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 74.85,
+        "full_total": 74.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 126.0,
+        "full_total": 128.0
+      }
+    ]
+  },
+  {
+    "date": "2023-05-07",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 97.6,
+        "full_total": 97.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 91.7,
+        "full_total": 95.7
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 98.05,
+        "full_total": 107.05
+      }
+    ]
+  },
+  {
+    "date": "2023-05-08",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 94.8,
+        "full_total": 94.8
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 85.0,
+        "full_total": 85.0
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 65.75,
+        "full_total": 67.75
+      }
+    ]
+  },
+  {
+    "date": "2023-05-09",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 132.85,
+        "full_total": 132.85
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 96.15,
+        "full_total": 100.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 80.65,
+        "full_total": 80.65
+      }
+    ]
+  },
+  {
+    "date": "2023-05-10",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 92.85,
+        "full_total": 92.85
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 129.25,
+        "full_total": 129.25
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 99.2,
+        "full_total": 102.2
+      }
+    ]
+  },
+  {
+    "date": "2023-05-11",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 113.2,
+        "full_total": 113.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 127.5,
+        "full_total": 129.5
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 87.45,
+        "full_total": 87.45
+      }
+    ]
+  },
+  {
+    "date": "2023-05-14",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 114.5,
+        "full_total": 118.5
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 113.05,
+        "full_total": 115.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 83.0,
+        "full_total": 83.0
+      }
+    ]
+  },
+  {
+    "date": "2023-05-15",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 141.75,
+        "full_total": 150.75
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 120.8,
+        "full_total": 122.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 70.05,
+        "full_total": 70.05
+      }
+    ]
+  },
+  {
+    "date": "2023-05-16",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 43.4,
+        "full_total": 43.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 143.45,
+        "full_total": 146.45
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 115.5,
+        "full_total": 118.5
+      }
+    ]
+  },
+  {
+    "date": "2023-05-17",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 105.1,
+        "full_total": 109.1
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 139.8,
+        "full_total": 139.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 107.15,
+        "full_total": 107.15
+      }
+    ]
+  },
+  {
+    "date": "2023-05-18",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 114.3,
+        "full_total": 114.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 88.35,
+        "full_total": 88.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 119.8,
+        "full_total": 119.8
+      }
+    ]
+  },
+  {
+    "date": "2023-05-22",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 127.4,
+        "full_total": 127.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 107.95,
+        "full_total": 109.95
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 68.5,
+        "full_total": 68.5
+      }
+    ]
+  },
+  {
+    "date": "2023-05-23",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 76.0,
+        "full_total": 76.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 74.05,
+        "full_total": 74.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 102.55,
+        "full_total": 102.55
+      }
+    ]
+  },
+  {
+    "date": "2023-05-24",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 110.0,
+        "full_total": 110.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 100.6,
+        "full_total": 105.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 98.55,
+        "full_total": 98.55
+      }
+    ]
+  },
+  {
+    "date": "2023-05-28",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 94.1,
+        "full_total": 94.1
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 114.75,
+        "full_total": 116.75
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 64.9,
+        "full_total": 64.9
+      }
+    ]
+  },
+  {
+    "date": "2023-05-29",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 74.95,
+        "full_total": 74.95
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 141.55,
+        "full_total": 141.55
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 73.85,
+        "full_total": 73.85
+      }
+    ]
+  },
+  {
+    "date": "2023-05-30",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 94.95,
+        "full_total": 97.95
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 101.6,
+        "full_total": 101.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 97.45,
+        "full_total": 97.45
+      }
+    ]
+  },
+  {
+    "date": "2023-05-31",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 77.45,
+        "full_total": 77.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 75.05,
+        "full_total": 75.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 48.15,
+        "full_total": 48.15
+      }
+    ]
+  },
+  {
+    "date": "2023-06-01",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 115.75,
+        "full_total": 115.75
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 113.4,
+        "full_total": 116.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 71.85,
+        "full_total": 71.85
+      }
+    ]
+  },
+  {
+    "date": "2023-06-04",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 84.3,
+        "full_total": 84.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 172.6,
+        "full_total": 172.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 76.05,
+        "full_total": 76.05
+      }
+    ]
+  },
+  {
+    "date": "2023-06-05",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 104.65,
+        "full_total": 104.65
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 146.85,
+        "full_total": 146.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 84.25,
+        "full_total": 86.25
+      }
+    ]
+  },
+  {
+    "date": "2023-06-06",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 124.3,
+        "full_total": 124.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 89.3,
+        "full_total": 89.3
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 85.15,
+        "full_total": 85.15
+      }
+    ]
+  },
+  {
+    "date": "2023-06-07",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 38.9,
+        "full_total": 38.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 123.15,
+        "full_total": 123.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 52.1,
+        "full_total": 52.1
+      }
+    ]
+  },
+  {
+    "date": "2023-06-08",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 64.2,
+        "full_total": 64.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 100.8,
+        "full_total": 100.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 77.55,
+        "full_total": 77.55
+      }
+    ]
+  },
+  {
+    "date": "2023-06-11",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 58.5,
+        "full_total": 60.5
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 67.9,
+        "full_total": 69.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 124.05,
+        "full_total": 124.05
+      }
+    ]
+  },
+  {
+    "date": "2023-06-12",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 100.55,
+        "full_total": 102.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 103.15,
+        "full_total": 103.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 111.85,
+        "full_total": 113.85
+      }
+    ]
+  },
+  {
+    "date": "2023-06-13",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 91.5,
+        "full_total": 91.5
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 58.05,
+        "full_total": 60.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 127.05,
+        "full_total": 129.05
+      }
+    ]
+  },
+  {
+    "date": "2023-06-14",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 105.45,
+        "full_total": 105.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 108.4,
+        "full_total": 108.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 109.85,
+        "full_total": 112.85
+      }
+    ]
+  },
+  {
+    "date": "2023-06-15",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 126.35,
+        "full_total": 137.35
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 123.9,
+        "full_total": 126.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 79.75,
+        "full_total": 79.75
+      }
+    ]
+  },
+  {
+    "date": "2023-06-18",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 108.55,
+        "full_total": 110.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 173.2,
+        "full_total": 179.2
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 77.4,
+        "full_total": 77.4
+      }
+    ]
+  },
+  {
+    "date": "2023-06-19",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 88.55,
+        "full_total": 94.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 65.15,
+        "full_total": 65.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 77.8,
+        "full_total": 80.8
+      }
+    ]
+  },
+  {
+    "date": "2023-06-20",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 79.7,
+        "full_total": 79.7
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 126.25,
+        "full_total": 126.25
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 88.9,
+        "full_total": 88.9
+      }
+    ]
+  },
+  {
+    "date": "2023-06-21",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 54.5,
+        "full_total": 54.5
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 114.85,
+        "full_total": 114.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 102.05,
+        "full_total": 104.05
+      }
+    ]
+  },
+  {
+    "date": "2023-06-22",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 79.25,
+        "full_total": 79.25
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 109.45,
+        "full_total": 109.45
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 95.35,
+        "full_total": 95.35
+      }
+    ]
+  },
+  {
+    "date": "2023-06-25",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 102.15,
+        "full_total": 102.15
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 99.6,
+        "full_total": 99.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 128.2,
+        "full_total": 128.2
+      }
+    ]
+  },
+  {
+    "date": "2023-06-26",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 100.3,
+        "full_total": 100.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 128.95,
+        "full_total": 128.95
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 127.6,
+        "full_total": 130.6
+      }
+    ]
+  },
+  {
+    "date": "2023-06-27",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 105.45,
+        "full_total": 107.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 87.5,
+        "full_total": 92.5
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 59.25,
+        "full_total": 59.25
+      }
+    ]
+  },
+  {
+    "date": "2023-06-28",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 106.8,
+        "full_total": 108.8
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 97.9,
+        "full_total": 102.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 131.85,
+        "full_total": 131.85
+      }
+    ]
+  },
+  {
+    "date": "2023-06-29",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 155.0,
+        "full_total": 155.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 110.8,
+        "full_total": 110.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 70.8,
+        "full_total": 72.8
+      }
+    ]
+  },
+  {
+    "date": "2023-07-02",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 100.9,
+        "full_total": 100.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 125.15,
+        "full_total": 125.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 91.8,
+        "full_total": 91.8
+      }
+    ]
+  },
+  {
+    "date": "2023-07-03",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 88.05,
+        "full_total": 91.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 77.35,
+        "full_total": 79.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 69.8,
+        "full_total": 69.8
+      }
+    ]
+  },
+  {
+    "date": "2023-07-04",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 153.65,
+        "full_total": 153.65
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 139.9,
+        "full_total": 139.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 108.0,
+        "full_total": 108.0
+      }
+    ]
+  },
+  {
+    "date": "2023-07-05",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 131.95,
+        "full_total": 134.95
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 99.6,
+        "full_total": 99.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 104.7,
+        "full_total": 107.7
+      }
+    ]
+  },
+  {
+    "date": "2023-07-06",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 132.0,
+        "full_total": 137.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 114.75,
+        "full_total": 122.75
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 132.95,
+        "full_total": 132.95
+      }
+    ]
+  },
+  {
+    "date": "2023-07-09",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 70.05,
+        "full_total": 70.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 82.55,
+        "full_total": 84.55
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 133.35,
+        "full_total": 135.35
+      }
+    ]
+  },
+  {
+    "date": "2023-07-16",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 158.45,
+        "full_total": 160.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 61.95,
+        "full_total": 61.95
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 99.8,
+        "full_total": 99.8
+      }
+    ]
+  },
+  {
+    "date": "2023-07-17",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 63.3,
+        "full_total": 63.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 57.4,
+        "full_total": 57.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 151.05,
+        "full_total": 156.05
+      }
+    ]
+  },
+  {
+    "date": "2023-07-18",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 89.45,
+        "full_total": 89.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 130.75,
+        "full_total": 130.75
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 138.65,
+        "full_total": 140.65
+      }
+    ]
+  },
+  {
+    "date": "2023-07-19",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 67.9,
+        "full_total": 67.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 61.85,
+        "full_total": 61.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 90.2,
+        "full_total": 90.2
+      }
+    ]
+  },
+  {
+    "date": "2023-07-20",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 95.05,
+        "full_total": 95.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 98.35,
+        "full_total": 100.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 103.65,
+        "full_total": 105.65
+      }
+    ]
+  },
+  {
+    "date": "2023-07-23",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 140.45,
+        "full_total": 142.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 88.05,
+        "full_total": 91.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 87.75,
+        "full_total": 89.75
+      }
+    ]
+  },
+  {
+    "date": "2023-07-24",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 111.95,
+        "full_total": 111.95
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 84.15,
+        "full_total": 84.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 88.4,
+        "full_total": 90.4
+      }
+    ]
+  },
+  {
+    "date": "2023-07-25",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 122.3,
+        "full_total": 122.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 107.55,
+        "full_total": 111.55
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 128.75,
+        "full_total": 128.75
+      }
+    ]
+  },
+  {
+    "date": "2023-07-26",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 40.3,
+        "full_total": 40.3
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 125.4,
+        "full_total": 125.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 84.8,
+        "full_total": 84.8
+      }
+    ]
+  },
+  {
+    "date": "2023-07-27",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 52.7,
+        "full_total": 52.7
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 102.4,
+        "full_total": 102.4
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 111.75,
+        "full_total": 116.75
+      }
+    ]
+  },
+  {
+    "date": "2023-07-30",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 130.1,
+        "full_total": 133.1
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 71.1,
+        "full_total": 71.1
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 98.7,
+        "full_total": 98.7
+      }
+    ]
+  },
+  {
+    "date": "2023-07-31",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 94.45,
+        "full_total": 94.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 100.0,
+        "full_total": 103.0
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 177.7,
+        "full_total": 177.7
+      }
+    ]
+  },
+  {
+    "date": "2023-08-01",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 86.8,
+        "full_total": 86.8
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 133.85,
+        "full_total": 133.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 109.3,
+        "full_total": 114.3
+      }
+    ]
+  },
+  {
+    "date": "2023-08-02",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 140.35,
+        "full_total": 147.35
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 94.25,
+        "full_total": 94.25
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 116.6,
+        "full_total": 121.6
+      }
+    ]
+  },
+  {
+    "date": "2023-08-03",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 118.85,
+        "full_total": 118.85
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 102.45,
+        "full_total": 102.45
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 132.05,
+        "full_total": 139.05
+      }
+    ]
+  },
+  {
+    "date": "2023-08-06",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 80.05,
+        "full_total": 80.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 155.6,
+        "full_total": 155.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 141.8,
+        "full_total": 141.8
+      }
+    ]
+  },
+  {
+    "date": "2023-08-07",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 129.9,
+        "full_total": 132.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 67.2,
+        "full_total": 67.2
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 84.65,
+        "full_total": 84.65
+      }
+    ]
+  },
+  {
+    "date": "2023-08-08",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 105.6,
+        "full_total": 109.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 161.8,
+        "full_total": 166.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 85.9,
+        "full_total": 91.9
+      }
+    ]
+  },
+  {
+    "date": "2023-08-09",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 97.05,
+        "full_total": 97.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 70.6,
+        "full_total": 72.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 75.75,
+        "full_total": 75.75
+      }
+    ]
+  },
+  {
+    "date": "2023-08-10",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 83.5,
+        "full_total": 88.5
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 101.5,
+        "full_total": 101.5
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 120.95,
+        "full_total": 122.95
+      }
+    ]
+  },
+  {
+    "date": "2023-08-13",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 68.05,
+        "full_total": 70.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 104.3,
+        "full_total": 104.3
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 64.35,
+        "full_total": 64.35
+      }
+    ]
+  },
+  {
+    "date": "2023-08-14",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 93.8,
+        "full_total": 102.8
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 150.65,
+        "full_total": 153.65
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 130.55,
+        "full_total": 130.55
+      }
+    ]
+  },
+  {
+    "date": "2023-08-15",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 117.6,
+        "full_total": 117.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 93.35,
+        "full_total": 95.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 29.7,
+        "full_total": 29.7
+      }
+    ]
+  },
+  {
+    "date": "2023-08-16",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 96.25,
+        "full_total": 96.25
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 55.05,
+        "full_total": 55.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 110.15,
+        "full_total": 110.15
+      }
+    ]
+  },
+  {
+    "date": "2023-08-20",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 86.2,
+        "full_total": 86.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 58.0,
+        "full_total": 60.0
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 121.5,
+        "full_total": 124.5
+      }
+    ]
+  },
+  {
+    "date": "2023-08-21",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 83.05,
+        "full_total": 83.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 86.05,
+        "full_total": 86.05
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 76.45,
+        "full_total": 76.45
+      }
+    ]
+  },
+  {
+    "date": "2023-08-22",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 69.05,
+        "full_total": 71.05
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 128.15,
+        "full_total": 128.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 89.8,
+        "full_total": 89.8
+      }
+    ]
+  },
+  {
+    "date": "2023-08-23",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 72.75,
+        "full_total": 72.75
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 104.15,
+        "full_total": 104.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 114.25,
+        "full_total": 117.25
+      }
+    ]
+  },
+  {
+    "date": "2023-08-24",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 80.15,
+        "full_total": 83.15
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 75.9,
+        "full_total": 75.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 106.95,
+        "full_total": 106.95
+      }
+    ]
+  },
+  {
+    "date": "2023-08-27",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 91.4,
+        "full_total": 91.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 84.15,
+        "full_total": 84.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 127.75,
+        "full_total": 129.75
+      }
+    ]
+  },
+  {
+    "date": "2023-08-28",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 111.9,
+        "full_total": 111.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 114.15,
+        "full_total": 114.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 116.95,
+        "full_total": 116.95
+      }
+    ]
+  },
+  {
+    "date": "2023-08-29",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 87.2,
+        "full_total": 87.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 95.9,
+        "full_total": 95.9
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 41.3,
+        "full_total": 41.3
+      }
+    ]
+  },
+  {
+    "date": "2023-08-30",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 59.4,
+        "full_total": 64.4
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 126.0,
+        "full_total": 128.0
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 127.3,
+        "full_total": 129.3
+      }
+    ]
+  },
+  {
+    "date": "2023-08-31",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 102.9,
+        "full_total": 104.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 74.65,
+        "full_total": 74.65
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 122.1,
+        "full_total": 124.1
+      }
+    ]
+  },
+  {
+    "date": "2023-09-03",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 93.25,
+        "full_total": 98.25
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 103.95,
+        "full_total": 103.95
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 102.25,
+        "full_total": 110.25
+      }
+    ]
+  },
+  {
+    "date": "2023-09-04",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 111.25,
+        "full_total": 117.25
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 108.2,
+        "full_total": 108.2
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 114.55,
+        "full_total": 119.55
+      }
+    ]
+  },
+  {
+    "date": "2023-09-05",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 120.55,
+        "full_total": 122.55
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 92.15,
+        "full_total": 102.15
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 116.0,
+        "full_total": 116.0
+      }
+    ]
+  },
+  {
+    "date": "2023-09-06",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 69.85,
+        "full_total": 74.85
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 94.7,
+        "full_total": 97.7
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 114.8,
+        "full_total": 116.8
+      }
+    ]
+  },
+  {
+    "date": "2023-09-07",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 83.6,
+        "full_total": 83.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 122.85,
+        "full_total": 125.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 75.05,
+        "full_total": 75.05
+      }
+    ]
+  },
+  {
+    "date": "2023-09-10",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 137.45,
+        "full_total": 144.45
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 87.85,
+        "full_total": 87.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 131.5,
+        "full_total": 131.5
+      }
+    ]
+  },
+  {
+    "date": "2023-09-11",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 88.0,
+        "full_total": 88.0
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 64.3,
+        "full_total": 64.3
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 131.15,
+        "full_total": 131.15
+      }
+    ]
+  },
+  {
+    "date": "2023-09-12",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 113.9,
+        "full_total": 113.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 3,
+        "total": 72.85,
+        "full_total": 72.85
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 110.7,
+        "full_total": 110.7
+      }
+    ]
+  },
+  {
+    "date": "2023-09-13",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 118.2,
+        "full_total": 118.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 130.35,
+        "full_total": 134.35
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 98.45,
+        "full_total": 98.45
+      }
+    ]
+  },
+  {
+    "date": "2023-09-18",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 67.9,
+        "full_total": 69.9
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 100.8,
+        "full_total": 100.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 1,
+        "total": 102.55,
+        "full_total": 102.55
+      }
+    ]
+  },
+  {
+    "date": "2023-09-19",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 161.2,
+        "full_total": 161.2
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 136.6,
+        "full_total": 139.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 105.25,
+        "full_total": 107.25
+      }
+    ]
+  },
+  {
+    "date": "2023-09-20",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 55.1,
+        "full_total": 57.1
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 156.75,
+        "full_total": 156.75
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 89.05,
+        "full_total": 91.05
+      }
+    ]
+  },
+  {
+    "date": "2023-09-21",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 3,
+        "total": 104.1,
+        "full_total": 104.1
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 157.6,
+        "full_total": 161.6
+      },
+      {
+        "drafter": "JL",
+        "rank": 2,
+        "total": 130.25,
+        "full_total": 130.25
+      }
+    ]
+  },
+  {
+    "date": "2023-09-26",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 100.15,
+        "full_total": 100.15
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 108.75,
+        "full_total": 110.75
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 81.0,
+        "full_total": 83.0
+      }
+    ]
+  },
+  {
+    "date": "2023-09-27",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 1,
+        "total": 103.85,
+        "full_total": 109.85
+      },
+      {
+        "drafter": "Meech",
+        "rank": 2,
+        "total": 88.8,
+        "full_total": 88.8
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 75.05,
+        "full_total": 80.05
+      }
+    ]
+  },
+  {
+    "date": "2023-09-28",
+    "season": 2023,
+    "drafters": [
+      "Stock",
+      "Meech",
+      "JL"
+    ],
+    "is_complete": true,
+    "standings": [
+      {
+        "drafter": "Stock",
+        "rank": 2,
+        "total": 114.6,
+        "full_total": 114.6
+      },
+      {
+        "drafter": "Meech",
+        "rank": 1,
+        "total": 120.7,
+        "full_total": 122.7
+      },
+      {
+        "drafter": "JL",
+        "rank": 3,
+        "total": 73.85,
+        "full_total": 73.85
+      }
+    ]
+  },
+  {
     "date": "2026-03-26",
     "drafters": [
       "Stock",
