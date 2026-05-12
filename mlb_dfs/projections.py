@@ -222,6 +222,132 @@ def _bullpen_era_by_team(season: int) -> dict[int, float]:
     return out
 
 
+# -------- v9.3 advanced factors --------
+
+def _team_defense_factor(team_id: int | None, season: int) -> tuple[float, str | None]:
+    """Team defense impact on pitcher BABIP. Returns (factor, note).
+    Better defense → fewer hits allowed → higher pitcher projection.
+    Uses team fielding percentage as a coarse proxy for DRS/OAA (which MLB
+    Stats API doesn't expose). Capped ±3%. Cached implicitly via mlb_api._get.
+    """
+    if not team_id:
+        return 1.0, None
+    try:
+        data = mlb_api._get(
+            f"/teams/{team_id}/stats",
+            params={"stats": "season", "group": "fielding", "season": season},
+        )
+        splits = []
+        for s in data.get("stats", []):
+            splits.extend(s.get("splits", []))
+        if not splits:
+            return 1.0, None
+        fpct = _safe_float(splits[0].get("stat", {}).get("fielding"))
+        if fpct <= 0:
+            return 1.0, None
+        # League avg fielding pct ~0.984. Each 0.005 → ~1 unit of impact.
+        delta_units = (fpct - 0.984) / 0.005
+        factor = 1.0 + delta_units * 0.015  # ±1.5% per 0.005 deviation
+        factor = max(0.97, min(factor, 1.03))
+        return factor, f"team D fpct {fpct:.3f} x{factor:.2f}"
+    except Exception as e:
+        logging.debug("team_defense_factor failed for team %s: %s", team_id, e)
+        return 1.0, None
+
+
+def _pitcher_tto_factor(ip: float, gs: int) -> tuple[float, str | None]:
+    """Times-through-order penalty. Well-documented ~30-point wOBA jump on
+    3rd time through the lineup. Estimated by avg IP/start:
+       <4.5 IP/start → doesn't reach TTO3, no penalty
+       4.5–5.5     → light penalty (×0.99)
+       >5.5         → deeper penalty (×0.975) — most starters who routinely
+                      face the order 3x get hit harder on the late turn
+    """
+    if gs <= 0 or ip <= 0:
+        return 1.0, None
+    ip_per = ip / gs
+    if ip_per >= 5.5:
+        return 0.975, f"TTO3 penalty x0.975 ({ip_per:.1f} IP/start)"
+    if ip_per >= 4.5:
+        return 0.99, f"TTO2 penalty x0.99 ({ip_per:.1f} IP/start)"
+    return 1.0, None
+
+
+def _pitcher_opener_check(ip: float, gs: int) -> tuple[bool, str | None]:
+    """If rolling avg IP/start <2.5, this pitcher is an opener. Their pts/start
+    naturally caps at ~6-8 pts and shouldn't be projected like a real starter.
+    Returns (is_opener, note). Caller can flag it and clamp the projection ceiling.
+    """
+    if gs <= 0 or ip <= 0:
+        return False, None
+    ip_per = ip / gs
+    if ip_per < 2.5:
+        return True, f"OPENER role ({ip_per:.1f} IP/start avg)"
+    return False, None
+
+
+def _hitter_iso_form(stats_l14: dict, stats_season: dict) -> tuple[float, str | None]:
+    """Recent ISO (SLG−AVG) vs season ISO. ISO is a pure power signal —
+    separates HR-streak hot from BIP-luck hot. A hitter pacing well above
+    season ISO has real HR upside that smoothed pts/G under-weights, since
+    HRs are 10 DK pts each (large variance contributor).
+    Capped ±4%.
+    """
+    def _iso(d: dict) -> float | None:
+        slg = _safe_float(d.get("slg"))
+        avg = _safe_float(d.get("avg"))
+        if slg <= 0 or avg <= 0:
+            return None
+        return slg - avg
+    iso_14 = _iso(stats_l14)
+    iso_sz = _iso(stats_season)
+    if not iso_14 or not iso_sz or iso_sz < 0.080:
+        return 1.0, None
+    if _safe_float(stats_l14.get("gamesPlayed")) < 7:
+        return 1.0, None
+    ratio = iso_14 / iso_sz
+    if ratio >= 1.20:
+        factor = 1.0 + min((ratio - 1.0) * 0.10, 0.04)
+        return factor, f"ISO surge {iso_14:.3f} vs szn {iso_sz:.3f} x{factor:.2f}"
+    if ratio <= 0.80:
+        factor = max(1.0 + (ratio - 1.0) * 0.10, 0.96)
+        return factor, f"ISO slump {iso_14:.3f} vs szn {iso_sz:.3f} x{factor:.2f}"
+    return 1.0, None
+
+
+def _hitter_sb_bonus(stats_l14: dict, stats_season: dict, opposing_sp: dict | None) -> tuple[float, str | None]:
+    """SB modeling — coarse v1. Hitters with established SB threat (>10 SB
+    per 100G pace) get a small bonus, amplified vs poor-pickoff pitchers
+    (high SB-allowed rate). SBs are 2 DK pts each.
+
+    TODO: incorporate sprint_speed from Savant + catcher pop time for
+    higher-fidelity modeling. For now we proxy via rolling SB rates.
+    """
+    sb_14 = _safe_float(stats_l14.get("stolenBases"))
+    g14 = _safe_float(stats_l14.get("gamesPlayed"))
+    sb_szn = _safe_float(stats_season.get("stolenBases"))
+    g_szn = _safe_float(stats_season.get("gamesPlayed"))
+    sb_rate = 0.0
+    if g14 >= 5:
+        sb_rate = sb_14 / g14
+    elif g_szn >= 20:
+        sb_rate = sb_szn / g_szn
+    if sb_rate < 0.10:  # <10 SB per 100G — not a threat
+        return 1.0, None
+    bonus = sb_rate * 0.035  # ~3.5% per SB/G
+    if opposing_sp:
+        sb_allowed = _safe_float(opposing_sp.get("stolenBases"))
+        ip_pitcher = _safe_float(opposing_sp.get("inningsPitched"))
+        if ip_pitcher >= 20:
+            sb_per_9 = (sb_allowed / ip_pitcher) * 9
+            if sb_per_9 > 0.8:   # weak battery (league avg ~0.5)
+                bonus *= 1.5
+            elif sb_per_9 < 0.3: # tight battery
+                bonus *= 0.5
+    factor = 1.0 + min(bonus, 0.04)
+    return factor, f"SB threat {sb_rate*100:.0f}/100G x{factor:.2f}"
+
+
 def project_hitter(
     pid: int,
     name: str,
@@ -311,18 +437,25 @@ def project_hitter(
         notes.append(f"streak override ({form_tag}): 0.85*L3 + 0.15*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
-    # Opposing SP adjustment: scale by opponent SP's allowed rate vs league avg.
+    # Opposing SP adjustment: ERA + WHIP + K/9. K/9 added in v9.3 because K is the
+    # single biggest fantasy event for hitters (a K is -1 pt vs +3 for a single).
+    # ERA/WHIP alone underweighted strikeout pitchers like Skubal/Skenes who
+    # have moderate ERA but elite K rates — they suppress hitter projections
+    # more than ERA implies. Weighted 0.45/0.25/0.30.
     sp_factor = 1.0
+    opposing_sp_stats: dict | None = None
     if opposing_sp_id:
         sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season, as_of=as_of)
+        opposing_sp_stats = sp_season
         ip = _safe_float(sp_season.get("inningsPitched"))
         if ip >= 20:
             era = _safe_float(sp_season.get("era"), default=4.20)
             whip = _safe_float(sp_season.get("whip"), default=1.30)
-            # league baselines: 4.20 ERA / 1.30 WHIP
-            sp_factor = (era / 4.20) * 0.6 + (whip / 1.30) * 0.4
+            k9 = _safe_float(sp_season.get("strikeoutsPer9Inn"), default=8.5)
+            k9_part = 8.5 / max(k9, 4.0)   # inverse: high K/9 → low hitter factor
+            sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
             sp_factor = max(0.6, min(sp_factor, 1.45))
-            notes.append(f"opposing SP adj x{sp_factor:.2f} (ERA {era:.2f} WHIP {whip:.2f})")
+            notes.append(f"opposing SP adj x{sp_factor:.2f} (ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f})")
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
     brl = _safe_float((qoc or {}).get("brl_percent"))
@@ -432,7 +565,19 @@ def project_hitter(
         rolling_factor = max(0.92, min(rolling_factor, 1.10))
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
-    proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
+    # ISO form: separate HR-power signal from pts/G. Recent ISO surge or slump
+    # captures HR variance that smoothed pts/G under-weights. Capped ±4%.
+    iso_factor, iso_note = _hitter_iso_form(last14, seasn)
+    if iso_note:
+        notes.append(iso_note)
+
+    # SB threat bonus: hitters with established SB pace get a boost vs poor-
+    # pickoff pitchers. SBs are 2 DK pts each. Capped +4%.
+    sb_factor, sb_note = _hitter_sb_bonus(last14, seasn, opposing_sp_stats)
+    if sb_note:
+        notes.append(sb_note)
+
+    proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor
     # Post-matchup HOT/COLD residual correction. Bayesian day-level audit
     # (18 days, n=5,102) revealed two highly-significant biases that the
     # streak override at 0.85 weight COULD NOT close because the Statcast
@@ -527,6 +672,8 @@ def project_hitter(
             "rolling_factor": round(rolling_factor, 3),
             "rolling_xwoba": rolling_xwoba,
             "season_xwoba": season_xwoba,
+            "iso_factor": round(iso_factor, 3),
+            "sb_factor": round(sb_factor, 3),
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
@@ -683,6 +830,29 @@ def project_pitcher(
         ump_factor = max(0.92, min(ump_factor, 1.10))
         notes.append(f"HP ump x{ump_factor:.2f} (k_factor {ump_k_factor:.2f})")
 
+    # TTO penalty (v9.3): pitchers who routinely go 5.5+ IP get hit harder on
+    # the 3rd turn through the lineup. ~30-point wOBA jump documented for TTO3.
+    # Penalty scales with avg IP/start. Bypassed for openers (their rolling
+    # base already reflects short outings).
+    ip_total_l14 = _safe_float(last14.get("inningsPitched"))
+    tto_factor, tto_note = _pitcher_tto_factor(ip_total_l14, int(starts_14))
+    if tto_note:
+        notes.append(tto_note)
+
+    # Opener detection (v9.3): pitchers averaging <2.5 IP/start are openers
+    # and project very differently from real starters. Flag for UI clarity;
+    # the rolling pts/start already reflects their actual role.
+    is_opener, opener_note = _pitcher_opener_check(ip_total_l14, int(starts_14))
+    if opener_note:
+        notes.append(opener_note)
+
+    # Team defense factor (v9.3): better team fielding → fewer BABIP hits →
+    # higher pitcher projection. Coarse proxy via team fielding pct (DRS/OAA
+    # not in MLB Stats API). Capped ±3%.
+    defense_factor, defense_note = _team_defense_factor(team_id, season)
+    if defense_note:
+        notes.append(defense_note)
+
     # Opposing lineup quality — today's POSTED lineup avg pts/G vs league avg.
     # Captures rest-day / B-squad surprises that haven't been priced into Vegas
     # yet. The biggest overlap risk in the projection chain is with vegas_factor:
@@ -698,7 +868,14 @@ def project_pitcher(
         lineup_factor = max(0.94, min(lineup_factor, 1.07))
         notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
 
-    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor
+    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor
+
+    # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
+    # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
+    # outing). Project no higher than 9 pts even if rolling form says more.
+    if is_opener and proj > 9.0:
+        notes.append(f"opener clamp: capping projection at 9.0 (was {proj:.1f})")
+        proj = 9.0
 
     # Pitcher single-start stdev empirically ~7 pts (single starts are
     # higher variance — quality starts vs blowups can swing 25 pts).
@@ -754,6 +931,11 @@ def project_pitcher(
             "rolling_factor": round(rolling_factor, 3),
             "rolling_xwoba": rolling_xwoba,
             "season_xwoba": season_xwoba,
+            "tto_factor": round(tto_factor, 3),
+            "defense_factor": round(defense_factor, 3),
+            "ip_per_start": round(ip_total_l14 / max(int(starts_14), 1), 2) if starts_14 else None,
+            "is_opener": is_opener,
+            "k9_season": round(_safe_float(seasn.get("strikeoutsPer9Inn")), 1) or None,
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
@@ -1235,7 +1417,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-12-v9.2" # dynamic league baselines from Statcast (24h cache)
+MODEL_REV = "2026-05-12-v9.3" # +K/9 in sp_factor, TTO penalty, team defense, opener detect, ISO form, SB modeling
 
 
 def _proj_disk_path(key: tuple) -> str:

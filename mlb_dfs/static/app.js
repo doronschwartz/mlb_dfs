@@ -174,6 +174,35 @@ $("#refresh").addEventListener("click", async () => {
   await refresh();
 });
 
+// Changelog modal — fetches /api/changelog and renders it in a modal overlay.
+async function openChangelog() {
+  const modal = $("#changelog-modal");
+  const body = $("#changelog-body");
+  body.innerHTML = '<div class="muted">Loading…</div>';
+  modal.style.display = "flex";
+  try {
+    const data = await api("/api/changelog");
+    const current = data.current || "";
+    const html = (data.entries || []).map((e, i) => {
+      const isCurrent = i === 0;
+      const items = (e.changes || []).map(c => `<li>${c}</li>`).join("");
+      return `<div class="changelog-entry${isCurrent ? " current" : ""}">
+        <h3>${e.version}${isCurrent ? ' <span class="bench-tag" style="background:rgba(52,211,153,0.25);color:var(--accent-2);">CURRENT</span>' : ""}</h3>
+        <div class="changelog-title">${e.title || ""}</div>
+        <ul>${items}</ul>
+      </div>`;
+    }).join("");
+    body.innerHTML = `<p class="muted" style="margin-top:0;">Live model version: <code>${current}</code></p>${html}`;
+  } catch (err) {
+    body.innerHTML = `<div class="muted">Failed to load: ${err.message || err}</div>`;
+  }
+}
+$("#changelog-btn")?.addEventListener("click", openChangelog);
+$("#changelog-close")?.addEventListener("click", () => { $("#changelog-modal").style.display = "none"; });
+$("#changelog-modal")?.addEventListener("click", (e) => {
+  if (e.target.id === "changelog-modal") $("#changelog-modal").style.display = "none";
+});
+
 // Decide the action label given current Fantrax slot vs recommendation.
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.
 const _BENCH_SLOTS = new Set(["BN", "Res", "Reserve", "IR", "InjRes", "Inj Res", ""]);
@@ -978,15 +1007,21 @@ function projTooltip(p) {
     rows.push(factorRow2("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : ""));
     rows.push(factorRow2("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : ""));
     rows.push(factorRow2("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
+    rows.push(factorRow2("ISO form", c.iso_factor, ""));
+    rows.push(factorRow2("SB threat", c.sb_factor, ""));
     if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct ?? 8.8).toFixed(1)})</span></span></div>`);
     if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg ${(c.lg_hardhit_pct ?? 40).toFixed(0)})</span></span></div>`);
   } else {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
+    if (c.is_opener) rows.push(`<div class="bk-row"><span class="bk-label">Role</span><span class="bk-total" style="color:var(--warn,#f59e0b);">OPENER (${c.ip_per_start ?? "?"} IP/start)</span></div>`);
     if (c.opp_factor != null) rows.push(factorRow2("Opp run-env", c.opp_factor));
     if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
     rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
     rows.push(factorRow2("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : ""));
     rows.push(factorRow2("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
+    rows.push(factorRow2("TTO penalty", c.tto_factor, c.ip_per_start ? `${c.ip_per_start} IP/start` : ""));
+    rows.push(factorRow2("Team defense", c.defense_factor, ""));
+    if (c.k9_season != null) rows.push(`<div class="bk-row"><span class="bk-label">K/9 (season)</span><span class="bk-total">${c.k9_season.toFixed(1)}</span></div>`);
     if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
     if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
     if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct_allowed ?? 8.0).toFixed(1)})</span></span></div>`);

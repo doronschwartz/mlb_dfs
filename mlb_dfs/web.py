@@ -104,6 +104,66 @@ def health():
     return {"ok": True}
 
 
+@app.get("/api/changelog")
+def get_changelog():
+    """Model changelog — surfaces improvements to the projection engine so users
+    know what changed between versions. Read by the in-app Changelog button."""
+    return {
+        "current": projections.MODEL_REV,
+        "entries": [
+            {
+                "version": "v9.3 (2026-05-12)",
+                "title": "Advanced factors",
+                "changes": [
+                    "K/9 added to opposing-SP factor for hitters — strikeout pitchers now suppress hitter projections more accurately (K is the biggest single fantasy event)",
+                    "TTO penalty for starting pitchers — pitchers averaging 5.5+ IP/start get a 2.5% penalty for the 3rd time through the order (well-documented ~30-pt wOBA bump)",
+                    "Team defense bonus — pitcher projections adjust ±3% for team fielding quality (DRS/OAA proxy via team fielding%)",
+                    "Opener detection — pitchers averaging <2.5 IP/start are flagged as openers and clamped to a 9-pt ceiling",
+                    "ISO/HR form signal — recent SLG-AVG surge or slump vs season adds ±4% to hitter projection (catches HR-streak variance that pts/G smooths)",
+                    "Stolen base modeling v1 — established SB threats get up to +4% vs poor-pickoff pitchers (sprint speed + catcher pop time pending v9.4)",
+                ],
+            },
+            {
+                "version": "v9.2 (2026-05-12)",
+                "title": "Dynamic league baselines",
+                "changes": [
+                    "League averages (barrel%, hard-hit%, xERA, etc.) now pulled live from Statcast leaderboards with 24h disk cache instead of hardcoded constants — projections always anchor to current league baseline",
+                    "Tooltip displays now read live league averages (was showing stale `lg 6.5` / `lg 38`)",
+                ],
+            },
+            {
+                "version": "v9.1 (2026-05-11)",
+                "title": "Operational hardening",
+                "changes": [
+                    "Cache-stampede protection via per-key threading.Lock — prevents concurrent OOM kills on cold-cache projects",
+                    "App memory bumped 512MB→1GB on Fly",
+                    "Startup prewarm of today's projections",
+                    "LRU-style eviction for the in-memory projection cache",
+                ],
+            },
+            {
+                "version": "v9.0 (2026-05-10)",
+                "title": "Bayesian-justified streak overrides",
+                "changes": [
+                    "HOT post-matchup ×1.07, COLD ×0.85 — closes residuals identified by 18-day Bayesian audit (HOT under-projecting by +1.11±0.35; COLD over-projecting by -1.08±0.10)",
+                    "Streak override restored at 0.85 weight (0.85*L3 + 0.15*base) after date-leak fix made calibration data trustworthy",
+                    "Per-tier Statcast weight: HOT/COLD=0.15, ELITE/POOR=0.30, others=0.40 — softens over-correction at extremes",
+                ],
+            },
+            {
+                "version": "v8.x (2026-05-08 — 2026-05-09)",
+                "title": "Foundation fixes",
+                "changes": [
+                    "Fixed mlb_api.player_stats date-leak bug — `as_of` parameter prevents past-date queries from using today's stats (was corrupting all backward calibration)",
+                    "MODEL_REV stamp added to projection cache — stale cached projections from prior model versions are now rejected automatically",
+                    "HP umpire k-factor signal wired into pitcher projection (UmpScorecards favor → K-rate boost)",
+                    "Opposing-lineup-quality signal for pitcher projection (posted-lineup avg pts/G vs league avg, heavily damped to avoid Vegas overlap)",
+                ],
+            },
+        ],
+    }
+
+
 @app.get("/api/slate")
 def get_slate(date: str | None = None):
     d = Date.fromisoformat(date) if date else Date.today()

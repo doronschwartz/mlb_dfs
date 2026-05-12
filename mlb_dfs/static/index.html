@@ -24,8 +24,19 @@
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
       <button id="refresh">Refresh</button>
+      <button id="changelog-btn" title="What's new in the projection model">📋 Changelog</button>
     </div>
   </header>
+
+  <div id="changelog-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Model Changelog</h2>
+        <button id="changelog-close" class="modal-close">×</button>
+      </div>
+      <div id="changelog-body" class="modal-body"></div>
+    </div>
+  </div>
 
   <main>
     <section id="tab-slate" class="tab active">
