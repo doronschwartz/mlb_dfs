@@ -208,7 +208,15 @@ $("#changelog-modal")?.addEventListener("click", (e) => {
 // ---------- Daily trivia ----------
 // Tied to today's slate. Each drafter on the draft answers 3 quick questions.
 // Score saved to backend; season-long leaderboard via "🏆 Season" button.
-let triviaState = { date: null, data: null, picked: {}, submitted: false };
+//
+// Spoiler-safe flow:
+//   1. Panel opens with ONLY a "Who are you?" picker — no questions visible.
+//   2. User picks themselves → if they've already answered today, fetch
+//      their stored result (with full reveal). Otherwise, render fresh
+//      questions ready to answer. Either way, other drafters' answers /
+//      explainers are NEVER shown.
+//   3. Submit → reveal with hints + explainers shown for their picks.
+let triviaState = { date: null, data: null, picked: {}, submitted: false, drafterSelected: null };
 
 async function loadTrivia() {
   const panel = $("#trivia-panel");
@@ -218,7 +226,7 @@ async function loadTrivia() {
   let data;
   try { data = await api(`/api/trivia/${date}`); } catch (e) { panel.hidden = true; return; }
   if (!data || !data.questions || data.questions.length === 0) { panel.hidden = true; return; }
-  triviaState = { date, data, picked: {}, submitted: false };
+  triviaState = { date, data, picked: {}, submitted: false, drafterSelected: null, lastResult: null };
   panel.hidden = false;
   populateTriviaDrafters();
   renderTrivia();
@@ -235,27 +243,62 @@ function populateTriviaDrafters() {
   const draftDrafters = (state.lastDraftState && state.lastDraftState.drafters) || [];
   const opts = draftDrafters.length ? draftDrafters : DEFAULT_TRIVIA_DRAFTERS.slice();
   const submissions = (triviaState.data && triviaState.data.submissions) || [];
-  const submittedMap = new Map(submissions.map(s => [s.drafter, s.score]));
-  sel.innerHTML = opts.map(d => {
-    const sc = submittedMap.has(d) ? ` (${submittedMap.get(d)}/${triviaState.data.questions.length})` : "";
-    return `<option value="${d}">${d}${sc}</option>`;
+  const submittedSet = new Set(submissions.map(s => s.drafter));
+  // First option is the "who are you?" placeholder. Real drafters follow. We
+  // mark ✓ next to anyone who's already answered (no spoilers — just shows
+  // they've played), but we DO NOT show their score until they re-select
+  // themselves (then we fetch their result endpoint).
+  const placeholder = `<option value="" selected>— Who are you? —</option>`;
+  const drafterOpts = opts.map(d => {
+    const marker = submittedSet.has(d) ? " ✓" : "";
+    return `<option value="${d}">${d}${marker}</option>`;
   }).join("");
-  const saved = localStorage.getItem("trivia_drafter");
-  if (saved && opts.includes(saved)) sel.value = saved;
-  sel.onchange = () => {
-    localStorage.setItem("trivia_drafter", sel.value);
+  sel.innerHTML = placeholder + drafterOpts;
+  sel.value = "";  // Always start unselected — never auto-pick from localStorage
+                   // because that would leak the previously-answered state to
+                   // whoever opens the page next.
+  sel.onchange = async () => {
+    const drafter = sel.value;
+    triviaState.drafterSelected = drafter || null;
     triviaState.picked = {};
     triviaState.submitted = false;
+    triviaState.lastResult = null;
+    if (!drafter) { renderTrivia(); return; }
+    // If this drafter has already submitted, fetch their stored result so
+    // they can review their own answers. The reveal stays private to them
+    // because the dropdown resets to the placeholder on next page load.
+    if (submittedSet.has(drafter)) {
+      try {
+        const r = await api(`/api/trivia/${triviaState.date}/result/${encodeURIComponent(drafter)}`);
+        // If the question set was regenerated since they answered
+        // (from_gen_version stamped), their per-question picks are no longer
+        // valid against the current questions. Let them play the new set
+        // fresh — the old score still counts for the season leaderboard.
+        if (r && r.score != null && !r.from_gen_version && Object.keys(r.answers || {}).length) {
+          triviaState.lastResult = r;
+          triviaState.submitted = true;
+          triviaState.picked = r.answers || {};
+        }
+      } catch {}
+    }
     renderTrivia();
   };
 }
 
 function renderTrivia() {
   const out = $("#trivia-questions");
+  const subOut = $("#trivia-submissions");
   if (!out || !triviaState.data) return;
   const qs = triviaState.data.questions;
-  const drafter = $("#trivia-drafter")?.value;
+  const drafter = triviaState.drafterSelected;
   const submissions = (triviaState.data && triviaState.data.submissions) || [];
+  // Pre-selection: hide everything except the picker. No question prompts,
+  // no submissions list, no answers — nothing that could spoil even passively.
+  if (!drafter) {
+    out.innerHTML = `<div class="trivia-q-prompt muted" style="text-align:center;padding:14px 0;">Pick yourself from the dropdown above to start today's trivia (${qs.length} questions about tonight's slate).</div>`;
+    if (subOut) subOut.innerHTML = "";
+    return;
+  }
   const subMap = new Map(submissions.map(s => [s.drafter, s.score]));
   const alreadySubmitted = drafter && subMap.has(drafter);
   out.innerHTML = qs.map((q, i) => {
@@ -288,9 +331,7 @@ function renderTrivia() {
   const scoreLine = document.createElement("div");
   scoreLine.className = "trivia-submit";
   if (triviaState.submitted && triviaState.lastResult) {
-    scoreLine.innerHTML = `<div class="trivia-score">You scored ${triviaState.lastResult.score}/${triviaState.lastResult.total}</div>`;
-  } else if (alreadySubmitted) {
-    scoreLine.innerHTML = `<div class="trivia-score muted">${drafter} already answered today (${subMap.get(drafter)}/${qs.length}). Pick a different drafter to play.</div>`;
+    scoreLine.innerHTML = `<div class="trivia-score">${drafter} scored ${triviaState.lastResult.score}/${triviaState.lastResult.total}</div>`;
   } else {
     const allPicked = qs.every(q => triviaState.picked[q.id] != null);
     scoreLine.innerHTML = `<button id="trivia-submit-btn" class="btn-pick" ${allPicked ? "" : "disabled"}>Submit answers</button>`;
@@ -308,11 +349,13 @@ function renderTrivia() {
   // Wire submit
   const sub = $("#trivia-submit-btn");
   if (sub) sub.addEventListener("click", submitTrivia);
-  // Show submissions list
-  const subOut = $("#trivia-submissions");
+  // Show only that other drafters have played (not their scores). Showing
+  // scores here would be a mild spoiler signal — if "Stock got 3/3" appears
+  // and you're playing now, that nudges you toward second-guessing your picks.
   if (subOut) {
-    if (submissions.length) {
-      subOut.innerHTML = `Already answered: ${submissions.map(s => `${s.drafter} ${s.score}/${qs.length}`).join(" · ")}`;
+    const others = submissions.filter(s => s.drafter !== drafter);
+    if (others.length) {
+      subOut.innerHTML = `Already played today: ${others.map(s => s.drafter).join(", ")}`;
     } else {
       subOut.innerHTML = "";
     }

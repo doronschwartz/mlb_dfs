@@ -354,6 +354,32 @@ def submit_answer(date_str: str, drafter: str, answers: dict[str, int]) -> dict:
     }
 
 
+def result_for(date_str: str, drafter: str) -> dict | None:
+    """Return a drafter's submitted answers + the full reveal (correct indices,
+    explainers, hints). Used by the UI to re-show a past session to the same
+    drafter — but ONLY for that drafter, so other people opening the page can't
+    peek by selecting another name.
+    Returns None if this drafter hasn't submitted.
+    """
+    data = _load(date_str)
+    if not data:
+        return None
+    rec = (data.get("answers") or {}).get(drafter)
+    if not rec:
+        return None
+    questions = data.get("questions") or []
+    return {
+        "drafter": drafter,
+        "score": int(rec.get("score") or 0),
+        "total": len(questions),
+        "answers": rec.get("answers") or {},
+        "correct": {q["id"]: q["correct_index"] for q in questions},
+        "explainers": {q["id"]: q.get("explainer") for q in questions},
+        "hints": {q["id"]: [o.get("hint") for o in (q.get("options") or [])] for q in questions},
+        "from_gen_version": rec.get("from_gen_version"),  # set if answers were carried over from an older question set
+    }
+
+
 def leaderboard(season_year: int | None = None) -> list[dict]:
     """Aggregate per-drafter score across all stored trivia days. Returns
     list sorted by score desc."""

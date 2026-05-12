@@ -112,6 +112,18 @@ def get_trivia(date: str):
     return trivia_mod.public_view(date)
 
 
+@app.get("/api/trivia/{date}/result/{drafter}")
+def get_trivia_result(date: str, drafter: str):
+    """A drafter's own past submission (with full reveal). Only intended for
+    the drafter themselves to view after submitting — there's no auth, so
+    anyone could request another drafter's result, but the UI never does."""
+    from . import trivia as trivia_mod
+    result = trivia_mod.result_for(date, drafter)
+    if not result:
+        raise HTTPException(404, "no submission for this drafter on this date")
+    return result
+
+
 class TriviaSubmission(BaseModel):
     drafter: str
     answers: dict[str, int]   # {"q1": 0, "q2": 2, ...}
