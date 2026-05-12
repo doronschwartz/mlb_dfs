@@ -134,6 +134,9 @@ $$("nav button").forEach((b) => {
       }
       // Lazy-load today's trivia panel. Failure is silent (panel stays hidden).
       loadTrivia().catch(() => {});
+    }
+    if (b.dataset.tab === "hof") {
+      loadHallOfFame().catch(() => {});
       const sel = $("#draft-id");
       const opts = sel ? Array.from(sel.options).map((o) => o.value).filter(Boolean) : [];
       let pick = null;
@@ -406,6 +409,214 @@ async function showTriviaLeaderboard() {
   }
 }
 $("#trivia-leaderboard-btn")?.addEventListener("click", showTriviaLeaderboard);
+
+// ---------- Hall of Fame ----------
+// All-time records, per-drafter aggregates, head-to-head, season titles.
+// Loads on first entry to the tab; refresh button bursts the local cache.
+let hofCache = { season: null, data: null };
+
+async function loadHallOfFame(forceSeason = undefined) {
+  const out = $("#hof-out");
+  if (!out) return;
+  const sel = $("#hof-season-filter");
+  const seasonRaw = forceSeason !== undefined ? forceSeason : (sel ? sel.value : "");
+  const season = seasonRaw ? parseInt(seasonRaw, 10) : null;
+  if (hofCache.season === seasonRaw && hofCache.data && forceSeason === undefined) {
+    renderHallOfFame(hofCache.data, season);
+    return;
+  }
+  out.innerHTML = '<div class="muted">Loading…</div>';
+  try {
+    const url = season ? `/api/records?season=${season}&top_n=10` : `/api/records?top_n=10`;
+    const data = await api(url);
+    hofCache = { season: seasonRaw, data };
+    // Populate season filter dropdown on first load
+    if (sel && sel.options.length <= 1 && data.seasons) {
+      sel.innerHTML = '<option value="">All seasons</option>' +
+        data.seasons.map(s => `<option value="${s}">${s}</option>`).join("");
+    }
+    renderHallOfFame(data, season);
+  } catch (e) {
+    out.innerHTML = `<div class="muted">Failed: ${e.message || e}</div>`;
+  }
+}
+
+function renderHallOfFame(d, season) {
+  const out = $("#hof-out");
+  if (!out) return;
+  const parts = [];
+
+  // 1. Record board — MLB-style headline records
+  if (d.league_records && d.league_records.length) {
+    parts.push(`<div class="hof-record-board">
+      <h3>📜 The Record Book ${season ? `<span class="muted">${season}</span>` : `<span class="muted">all seasons</span>`}</h3>
+      <table class="hof-table">
+        <thead><tr><th>Stat</th><th>Name</th><th class="value">Value</th><th>Date</th><th>Notes</th></tr></thead>
+        <tbody>
+          ${d.league_records.map(r => `
+            <tr>
+              <td><b>${r.stat}</b></td>
+              <td class="drafter-cell">${r.name}</td>
+              <td class="value">${typeof r.value === "number" ? r.value.toFixed(2).replace(/\.00$/, "") : r.value}</td>
+              <td class="date">${r.date}</td>
+              <td class="extra">${r.extra || ""}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>`);
+  }
+
+  // 2. Drafter all-time + Season titles, side by side
+  const drafterTable = !d.drafter_alltime || !d.drafter_alltime.length ? `<div class="hof-empty">No drafter data yet.</div>` :
+    `<table class="hof-table">
+      <thead><tr><th>#</th><th>Drafter</th><th class="value">Wins</th><th>Days</th><th class="value">Win %</th><th class="value">Total Pts</th><th class="value">Avg/day</th><th>Best Day</th><th>Streak</th></tr></thead>
+      <tbody>${d.drafter_alltime.map((r, i) => `
+        <tr>
+          <td class="rank">${i+1}</td><td class="drafter-cell">${r.drafter}</td>
+          <td class="value">${r.wins}</td><td>${r.days_played}</td>
+          <td class="value">${(r.win_pct*100).toFixed(1)}%</td>
+          <td class="value">${r.total_points.toFixed(1)}</td>
+          <td class="value">${r.avg_points.toFixed(1)}</td>
+          <td>${r.best_day ? `${r.best_day.total.toFixed(1)} <span class="date">(${r.best_day.date})</span>` : "—"}</td>
+          <td class="value">${r.longest_win_streak}</td>
+        </tr>`).join("")}</tbody></table>`;
+
+  const titlesTable = !d.season_titles || !d.season_titles.length ? `<div class="hof-empty">No champions yet.</div>` :
+    `<table class="hof-table">
+      <thead><tr><th>Season</th><th>Champion</th><th class="value">Total Pts</th><th>Runner-up</th></tr></thead>
+      <tbody>${d.season_titles.map(t => `
+        <tr>
+          <td><b>${t.season}</b></td>
+          <td class="drafter-cell">🏆 ${t.champion}</td>
+          <td class="value">${t.winner_total.toFixed(1)}</td>
+          <td>${t.standings[1] ? `${t.standings[1].drafter} (${t.standings[1].total.toFixed(1)})` : "—"}</td>
+        </tr>`).join("")}</tbody></table>`;
+
+  parts.push(`<div class="hof-section">
+    <h3>👑 Drafter All-Time</h3>
+    ${drafterTable}
+  </div>`);
+
+  parts.push(`<div class="hof-section">
+    <h3>🥇 Season Champions</h3>
+    ${titlesTable}
+  </div>`);
+
+  // 3. Head-to-head
+  const h2h = d.head_to_head || {};
+  const drafters = Object.keys(h2h).sort();
+  if (drafters.length >= 2) {
+    parts.push(`<div class="hof-section">
+      <h3>🥊 Head-to-Head <span class="muted">wins-losses-ties on shared days</span></h3>
+      <table class="hof-table hof-h2h">
+        <thead><tr><th></th>${drafters.map(d => `<th>vs ${d}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${drafters.map(a => `<tr>
+            <td class="drafter-cell">${a}</td>
+            ${drafters.map(b => {
+              if (a === b) return `<td class="muted">—</td>`;
+              const r = h2h[a][b] || {wins:0,losses:0,ties:0};
+              return `<td class="h2h-cell"><span class="w">${r.wins}</span>-<span class="l">${r.losses}</span>${r.ties ? `-${r.ties}` : ""}</td>`;
+            }).join("")}
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`);
+  }
+
+  // 4. Top single-game records (hitter / pitcher side by side)
+  parts.push(`<div class="hof-grid">
+    <div class="hof-section">
+      <h3>💣 Best Hitter Games</h3>
+      ${_hofGameTable(d.top_hitter_games)}
+    </div>
+    <div class="hof-section">
+      <h3>🔥 Best Pitcher Games</h3>
+      ${_hofGameTable(d.top_pitcher_games)}
+    </div>
+  </div>`);
+
+  // 5. Biggest blowouts + slate totals
+  parts.push(`<div class="hof-grid">
+    <div class="hof-section">
+      <h3>💥 Biggest Blowouts <span class="muted">largest 1-day margins</span></h3>
+      ${!d.biggest_blowouts || !d.biggest_blowouts.length ? '<div class="hof-empty">—</div>' :
+        `<table class="hof-table">
+          <thead><tr><th>#</th><th>Winner</th><th class="value">Margin</th><th>Score</th><th>Date</th></tr></thead>
+          <tbody>${d.biggest_blowouts.map(r => `
+            <tr><td class="rank">${r.rank}</td><td class="drafter-cell">${r.winner} over ${r.runnerup}</td>
+            <td class="value">${r.margin.toFixed(1)}</td>
+            <td>${r.winner_total.toFixed(1)} – ${r.runnerup_total.toFixed(1)}</td>
+            <td class="date">${r.date}</td></tr>`).join("")}</tbody>
+        </table>`}
+    </div>
+    <div class="hof-section">
+      <h3>📈 Highest Team Days <span class="muted">single-day team total</span></h3>
+      ${!d.highest_team_totals || !d.highest_team_totals.length ? '<div class="hof-empty">—</div>' :
+        `<table class="hof-table">
+          <thead><tr><th>#</th><th>Drafter</th><th class="value">Total</th><th>Date</th></tr></thead>
+          <tbody>${d.highest_team_totals.map(r => `
+            <tr><td class="rank">${r.rank}</td><td class="drafter-cell">${r.drafter}</td>
+            <td class="value">${r.total.toFixed(1)}</td><td class="date">${r.date}</td></tr>`).join("")}</tbody>
+        </table>`}
+    </div>
+  </div>`);
+
+  // 6. Most picked + worst picks
+  parts.push(`<div class="hof-grid">
+    <div class="hof-section">
+      <h3>📌 Most-Picked Hitters</h3>
+      ${_hofMostPickedTable(d.most_picked_hitters)}
+    </div>
+    <div class="hof-section">
+      <h3>📌 Most-Picked Pitchers</h3>
+      ${_hofMostPickedTable(d.most_picked_pitchers)}
+    </div>
+  </div>`);
+
+  parts.push(`<div class="hof-section">
+    <h3>💀 Worst Single Picks <span class="muted">the bad beats</span></h3>
+    ${!d.worst_picks || !d.worst_picks.length ? '<div class="hof-empty">—</div>' :
+      `<table class="hof-table">
+        <thead><tr><th>#</th><th>Player</th><th class="value">Score</th><th>Drafter</th><th>Role</th><th>Date</th></tr></thead>
+        <tbody>${d.worst_picks.map(r => `
+          <tr><td class="rank">${r.rank}</td><td><b>${r.player}</b></td>
+          <td class="value" style="color:var(--bad);">${r.score.toFixed(2)}</td>
+          <td class="drafter-cell">${r.drafter}</td><td class="muted">${r.role}</td>
+          <td class="date">${r.date}</td></tr>`).join("")}</tbody>
+      </table>`}
+  </div>`);
+
+  out.innerHTML = parts.join("");
+}
+
+function _hofGameTable(rows) {
+  if (!rows || !rows.length) return '<div class="hof-empty">No games on record yet.</div>';
+  return `<table class="hof-table">
+    <thead><tr><th>#</th><th>Player</th><th class="value">Score</th><th>Drafter</th><th>Date</th></tr></thead>
+    <tbody>${rows.map(r => `
+      <tr><td class="rank">${r.rank}</td><td><b>${r.player}</b></td>
+      <td class="value">${r.score.toFixed(2)}</td>
+      <td class="drafter-cell">${r.drafter}</td>
+      <td class="date">${r.date}</td></tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function _hofMostPickedTable(rows) {
+  if (!rows || !rows.length) return '<div class="hof-empty">No data yet.</div>';
+  return `<table class="hof-table">
+    <thead><tr><th>#</th><th>Player</th><th class="value">Times</th><th class="value">Avg</th><th class="value">Best</th></tr></thead>
+    <tbody>${rows.slice(0, 12).map((r, i) => `
+      <tr><td class="rank">${i+1}</td><td><b>${r.player}</b></td>
+      <td class="value">${r.times_picked}</td>
+      <td class="value">${r.avg_score.toFixed(1)}</td>
+      <td class="value">${r.best_score.toFixed(1)}</td></tr>`).join("")}</tbody>
+  </table>`;
+}
+
+$("#hof-refresh")?.addEventListener("click", () => loadHallOfFame());
+$("#hof-season-filter")?.addEventListener("change", () => loadHallOfFame());
 
 // Decide the action label given current Fantrax slot vs recommendation.
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.

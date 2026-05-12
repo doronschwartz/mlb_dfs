@@ -20,6 +20,7 @@
       <button data-tab="kprops">K Props</button>
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
+      <button data-tab="hof">🏆 Hall of Fame</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -309,6 +310,15 @@
         <button id="score-load">Score it</button>
       </div>
       <div id="score-out"></div>
+    </section>
+
+    <section id="tab-hof" class="tab">
+      <h2>🏆 Hall of Fame <span class="muted" style="font-size:13px;font-weight:400;">— all-time records & history</span></h2>
+      <div class="hof-controls">
+        <label>Filter: <select id="hof-season-filter"><option value="">All seasons</option></select></label>
+        <button id="hof-refresh" type="button">↻ Refresh</button>
+      </div>
+      <div id="hof-out"><div class="muted">Loading…</div></div>
     </section>
   </main>
 

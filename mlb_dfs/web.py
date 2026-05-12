@@ -143,6 +143,33 @@ def get_trivia_leaderboard(season: int | None = None):
     return {"leaderboard": trivia_mod.leaderboard(season)}
 
 
+# ---------- Hall of Fame (all-time records across imported seasons) ----------
+
+@app.get("/api/records")
+def get_records(top_n: int = 10, season: int | None = None):
+    """Aggregate all-time records & history. Pass ?season=2024 to filter to
+    a single season, otherwise returns combined across all imported seasons."""
+    from . import records as records_mod
+    if season:
+        return {
+            "seasons": records_mod.seasons(),
+            "season_filter": season,
+            "league_records": records_mod.league_records()["records"],
+            "top_hitter_games": records_mod.top_hitter_games(top_n, season),
+            "top_pitcher_games": records_mod.top_pitcher_games(top_n, season),
+            "worst_picks": records_mod.worst_picks(top_n, season),
+            "highest_team_totals": records_mod.highest_team_totals(top_n, season),
+            "highest_slate_totals": records_mod.highest_slate_totals(top_n, season),
+            "biggest_blowouts": records_mod.biggest_blowouts(top_n, season),
+            "most_picked_hitters": records_mod.most_picked_hitters(20, season),
+            "most_picked_pitchers": records_mod.most_picked_pitchers(20, season),
+            "drafter_alltime": records_mod.drafter_alltime(season),
+            "season_titles": records_mod.season_titles(),
+            "head_to_head": records_mod.head_to_head(),
+        }
+    return records_mod.all_records(top_n=top_n)
+
+
 @app.get("/api/changelog")
 def get_changelog():
     """Model + product changelog — surfaces improvements to the projection
