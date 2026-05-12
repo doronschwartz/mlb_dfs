@@ -59,19 +59,46 @@ LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
 # League-median Statcast benchmarks for the multiplier (rough 2024-25 medians).
-# 2026 Statcast league averages, computed from min=q leaderboards
-# (n=269 qualified batters, n=366 qualified pitchers, n=595 pitcher xERA pool).
-# Auto-deriving these on startup is overkill; refresh annually.
-LG_BARREL_PCT_HITTER = 8.75     # % — was 6.5 (stale); 2026 mean=8.75 median=8.4
-LG_HARDHIT_PCT_HITTER = 40.5    # % — was 38; 2026 mean=40.6 median=41.3
-LG_BARREL_PCT_ALLOWED = 8.0     # % — was 6.5; 2026 pitcher pool mean=7.97 median=7.9
-LG_HARDHIT_PCT_ALLOWED = 39.0   # % — new constant; 2026 mean=38.98 median=39.7
-LG_XERA = 4.20                  # SP-tier xERA (qualified pool spans starters + relievers;
-                                # median 4.12, but starter-only is closer to 4.20)
-LG_XWOBA_HITTER = 0.310         # right (2026 mean 0.31)
-LG_XWOBA_AGAINST = 0.320        # was implicit 0.310; 2026 pitcher pool mean 0.33 median 0.32
-LG_SWEETSPOT_PCT = 33.5         # was 33; 2026 mean 33.52 median 33.6 (basically right)
-LG_XWOBA_AGAINST = 0.310
+# League baselines are now COMPUTED dynamically from current Statcast
+# leaderboards via savant.league_averages(season), 24h disk-cached. Avoids
+# hardcoded values going stale through the season. The constants below are
+# accessor functions wrapping the cached dict — call with the season int.
+# If Statcast is unreachable, savant uses a 2026 mid-season fallback.
+
+def _lg(season: int) -> dict:
+    return savant.league_averages(season)
+
+def LG_BARREL_PCT_HITTER(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["brl_pct_hitter"]
+
+def LG_HARDHIT_PCT_HITTER(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["hh_pct_hitter"]
+
+def LG_BARREL_PCT_ALLOWED(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["brl_pct_allowed"]
+
+def LG_HARDHIT_PCT_ALLOWED(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["hh_pct_allowed"]
+
+def LG_XERA(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["xera"]
+
+def LG_XWOBA_HITTER(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["xwoba_hitter"]
+
+def LG_XWOBA_AGAINST(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["xwoba_against"]
+
+def LG_SWEETSPOT_PCT(season: int = None) -> float:
+    s = season or Date.today().year
+    return _lg(s)["sweetspot_pct"]
 
 
 def _statcast_implied_pg_hitter(brl: float, hh: float) -> float | None:
@@ -83,7 +110,7 @@ def _statcast_implied_pg_hitter(brl: float, hh: float) -> float | None:
     ~1.3 pts. Compressed the upper end: lower cap and slope on barrel%."""
     if not brl and not hh:
         return None
-    val = 2.0 + (brl or LG_BARREL_PCT_HITTER) * 0.42 + (hh or LG_HARDHIT_PCT_HITTER) * 0.040
+    val = 2.0 + (brl or LG_BARREL_PCT_HITTER()) * 0.42 + (hh or LG_HARDHIT_PCT_HITTER()) * 0.040
     return max(3.5, min(val, 9.5))
 
 
@@ -99,7 +126,7 @@ def _statcast_implied_ps_pitcher(xera, xwoba, brl_a) -> float | None:
     if xwoba is not None:
         base += (0.310 - xwoba) * 30    # 0.030 xwOBA edge → +0.9 pts/start
     if brl_a is not None:
-        base += (LG_BARREL_PCT_ALLOWED - brl_a) * 0.4
+        base += (LG_BARREL_PCT_ALLOWED() - brl_a) * 0.4
     return max(5.0, min(base, 22.0))
 
 
@@ -142,7 +169,8 @@ def _qoc_residual_pitcher(qoc: dict | None, expected: dict | None) -> tuple[floa
     if qoc:
         hh_a = _safe_float(qoc.get("ev95percent"))
         if hh_a:
-            delta = (hh_a - LG_HARDHIT_PCT_HITTER) / LG_HARDHIT_PCT_HITTER
+            lg_hh = LG_HARDHIT_PCT_ALLOWED()   # pitcher-side context, was using hitter constant
+            delta = (hh_a - lg_hh) / lg_hh
             factor *= 1.0 - max(-0.04, min(delta * 0.08, 0.04))
             notes.append(f"hh-allowed {hh_a:.0f}%")
     return max(0.95, min(factor, 1.05)), notes
@@ -450,13 +478,14 @@ def project_hitter(
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
     if sp_factor < 0.85:
         pitfalls.append("Tough opposing SP (high K%, low ERA)")
-    # 2026 league averages (computed from min=q Statcast leaderboard):
-    #   barrel %  : mean 8.75, median 8.4, p25 5.2  (was hardcoded 6.5 — stale)
-    #   hard-hit% : mean 40.6, median 41.3, p25 35.7 (was hardcoded 38 — slightly stale)
-    if brl and brl < 5.2:   # bottom-quartile barrel rate
-        pitfalls.append(f"Below-avg barrel rate ({brl:.1f}% vs lg ~8.8%)")
-    if hh and hh < 35.7:    # bottom-quartile hard-hit
-        pitfalls.append(f"Low hard-hit% ({hh:.0f}% vs lg ~41%) — quality of contact lagging")
+    # Compare against LIVE league averages (24h-cached from Statcast leaderboard).
+    # Threshold = 2/3 of league avg ≈ "meaningfully below" — softer than p25 but
+    # avoids stale-percentile drift through the season.
+    lg_brl, lg_hh = LG_BARREL_PCT_HITTER(), LG_HARDHIT_PCT_HITTER()
+    if brl and brl < lg_brl * 0.60:
+        pitfalls.append(f"Below-avg barrel rate ({brl:.1f}% vs lg {lg_brl:.1f}%)")
+    if hh and hh < lg_hh * 0.88:
+        pitfalls.append(f"Low hard-hit% ({hh:.0f}% vs lg {lg_hh:.0f}%) — quality of contact lagging")
     qoc_tier = _qoc_tier_hitter(brl, hh)
     return Projection(
         player_id=pid,
@@ -682,8 +711,9 @@ def project_pitcher(
         pitfalls.append(f"Tiny sample — {int(starts_14)} 14d GS, {int(_safe_float(seasn.get('gamesStarted')))} season")
     if opp_factor > 1.15:
         pitfalls.append("Hot offensive opponent (high R/G)")
-    if brl_a and brl_a > 10.2:   # 2026 pitcher p75 = 10.2 (bottom-quartile contact suppression)
-        pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}% vs lg ~8%)")
+    lg_brl_allowed = LG_BARREL_PCT_ALLOWED()
+    if brl_a and brl_a > lg_brl_allowed * 1.25:   # >25% above league avg = vulnerable
+        pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}% vs lg {lg_brl_allowed:.1f}%)")
     if xera and xera > 4.75:
         pitfalls.append(f"Underlying xERA {xera:.2f} — luck-adjusted line is rough")
     qoc_tier = _qoc_tier_pitcher(brl_a or 0, xera or 0)
@@ -1201,7 +1231,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-12-v9.1" # + 2026 league baselines (brl, hh, brl-allowed)
+MODEL_REV = "2026-05-12-v9.2" # dynamic league baselines from Statcast (24h cache)
 
 
 def _proj_disk_path(key: tuple) -> str:
