@@ -997,6 +997,18 @@ function projTooltip(p) {
     const det = detail ? ` <span class="muted">${detail}</span>` : "";
     return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${factor.toFixed(2)}${det}</span></div>`;
   };
+  // Same but always renders the row, with muted "neutral" badge when factor is 1.0.
+  // Use this for v9.3 factors so users can see the model considered them even when
+  // there's no signal to apply (e.g. SB threat for a non-runner, TTO for short starters).
+  const factorRow2Always = (label, factor, detail = "", neutralLabel = "no signal") => {
+    if (factor == null) return "";
+    if (Math.abs(factor - 1.0) < 0.005) {
+      return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total muted">×1.00 <span style="font-size:11px;">(${neutralLabel})</span></span></div>`;
+    }
+    const cls = factor > 1.0 ? "pos" : "neg";
+    const det = detail ? ` <span class="muted">${detail}</span>` : "";
+    return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${factor.toFixed(2)}${det}</span></div>`;
+  };
   if (p.role === "hitter") {
     if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
     if (c.sp_factor != null) rows.push(factorRow2("Opp SP", c.sp_factor));
@@ -1007,20 +1019,21 @@ function projTooltip(p) {
     rows.push(factorRow2("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : ""));
     rows.push(factorRow2("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : ""));
     rows.push(factorRow2("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
-    rows.push(factorRow2("ISO form", c.iso_factor, ""));
-    rows.push(factorRow2("SB threat", c.sb_factor, ""));
+    rows.push(factorRow2Always("ISO form (v9.3)", c.iso_factor, "", "no power surge/slump"));
+    rows.push(factorRow2Always("SB threat (v9.3)", c.sb_factor, "", "not an SB threat"));
     if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct ?? 8.8).toFixed(1)})</span></span></div>`);
     if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg ${(c.lg_hardhit_pct ?? 40).toFixed(0)})</span></span></div>`);
   } else {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
-    if (c.is_opener) rows.push(`<div class="bk-row"><span class="bk-label">Role</span><span class="bk-total" style="color:var(--warn,#f59e0b);">OPENER (${c.ip_per_start ?? "?"} IP/start)</span></div>`);
+    if (c.is_opener) rows.push(`<div class="bk-row"><span class="bk-label">Role</span><span class="bk-total neg">OPENER (${c.ip_per_start ?? "?"} IP/start)</span></div>`);
+    else if (c.ip_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Avg IP/start</span><span class="bk-total muted">${c.ip_per_start.toFixed(1)}</span></div>`);
     if (c.opp_factor != null) rows.push(factorRow2("Opp run-env", c.opp_factor));
     if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
     rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
     rows.push(factorRow2("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : ""));
     rows.push(factorRow2("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
-    rows.push(factorRow2("TTO penalty", c.tto_factor, c.ip_per_start ? `${c.ip_per_start} IP/start` : ""));
-    rows.push(factorRow2("Team defense", c.defense_factor, ""));
+    rows.push(factorRow2Always("TTO penalty (v9.3)", c.tto_factor, c.ip_per_start ? `${c.ip_per_start} IP/start` : "", "short starter — no TTO3"));
+    rows.push(factorRow2Always("Team defense (v9.3)", c.defense_factor, "", "league-avg fielding"));
     if (c.k9_season != null) rows.push(`<div class="bk-row"><span class="bk-label">K/9 (season)</span><span class="bk-total">${c.k9_season.toFixed(1)}</span></div>`);
     if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
     if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
