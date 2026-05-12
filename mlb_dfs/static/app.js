@@ -224,14 +224,18 @@ async function loadTrivia() {
   renderTrivia();
 }
 
+// Default drafter pool when no draft is loaded — the regular crew.
+const DEFAULT_TRIVIA_DRAFTERS = ["Meech", "Stock", "JL"];
+
 function populateTriviaDrafters() {
   const sel = $("#trivia-drafter");
   if (!sel) return;
-  // Pull drafters from current draft state if any; fallback to a "Guest" option.
-  const drafters = (state.lastDraftState && state.lastDraftState.drafters) || [];
+  // Prefer drafters from the current draft state; fall back to the regular
+  // crew (Meech / Stock / JL) so trivia is playable even with no draft loaded.
+  const draftDrafters = (state.lastDraftState && state.lastDraftState.drafters) || [];
+  const opts = draftDrafters.length ? draftDrafters : DEFAULT_TRIVIA_DRAFTERS.slice();
   const submissions = (triviaState.data && triviaState.data.submissions) || [];
   const submittedMap = new Map(submissions.map(s => [s.drafter, s.score]));
-  const opts = drafters.length ? drafters : ["Guest"];
   sel.innerHTML = opts.map(d => {
     const sc = submittedMap.has(d) ? ` (${submittedMap.get(d)}/${triviaState.data.questions.length})` : "";
     return `<option value="${d}">${d}${sc}</option>`;
@@ -267,8 +271,13 @@ function renderTrivia() {
             if (idx === correct) cls += " correct";
             else if (idx === picked) cls += " wrong";
           } else if (idx === picked) cls += " picked";
+          // Reveal the per-option hint (e.g. '15 HR') only AFTER submission.
+          // Pre-submit, hints would give away the answer (leader = correct).
+          const revealedHint = triviaState.submitted && triviaState.lastResult && triviaState.lastResult.hints
+            ? (triviaState.lastResult.hints[q.id] || [])[idx] : null;
+          const hintHtml = revealedHint ? `<span class="hint">${revealedHint}</span>` : "";
           return `<button class="${cls}" data-qid="${q.id}" data-idx="${idx}" ${triviaState.submitted ? "disabled" : ""}>
-            <strong>${opt.label}</strong>${opt.hint ? `<span class="hint">${opt.hint}</span>` : ""}
+            <strong>${opt.label}</strong>${hintHtml}
           </button>`;
         }).join("")}
       </div>

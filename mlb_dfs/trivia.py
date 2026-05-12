@@ -101,10 +101,11 @@ def _slate_players(d: Date) -> tuple[list[dict], list[dict]]:
 
 
 def _q_hr_leader(hitters: list[dict], season: int, rng: random.Random) -> dict | None:
-    """Q: among tonight's slate hitters, who has the most 2026 HRs?"""
-    # Pull HR counts from MLB API. Sample to keep this fast — top 40 by alphabetic
-    # name selection (random sample of slate is enough to find a meaningful answer).
-    sample = rng.sample(hitters, min(len(hitters), 40)) if hitters else []
+    """Q: among tonight's slate hitters, who has the most 2026 HRs?
+    Difficulty: distractors are the next-closest 3 HR totals so all 4 options
+    are within striking distance — the leader isn't obvious by name."""
+    # Sample wider so we catch deep slate hitters too; min 60 for tough mode.
+    sample = rng.sample(hitters, min(len(hitters), 60)) if hitters else []
     scored: list[tuple[dict, int]] = []
     for h in sample:
         try:
@@ -117,11 +118,11 @@ def _q_hr_leader(hitters: list[dict], season: int, rng: random.Random) -> dict |
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: -x[1])
-    leader = scored[0]
-    # Pick 3 distractors: random from positions 4..15 (mid-pack so the leader
-    # is the obvious correct answer for someone who pays attention to stats).
-    pool = scored[3:15] if len(scored) >= 5 else scored[1:]
-    distractors = rng.sample(pool, min(3, len(pool)))
+    # Take top 6 by HR, pick leader + 3 random distractors from positions 1-5.
+    # This keeps all 4 options as legitimate HR threats (top 6 of the slate).
+    top = scored[:6]
+    leader = top[0]
+    distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
     rng.shuffle(options)
     correct = options.index(leader)
@@ -155,10 +156,11 @@ def _q_lowest_era(pitchers: list[dict], season: int, rng: random.Random) -> dict
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: x[1])  # lowest ERA first
-    leader = scored[0]
-    pool = scored[1:]
-    rng.shuffle(pool)
-    distractors = pool[:3]
+    # Take top 5 (lowest ERAs), leader + 3 close-competitor distractors.
+    # All options are sub-4 ERA territory — has to actually know who's been ace.
+    top = scored[:5]
+    leader = top[0]
+    distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
     rng.shuffle(options)
     correct = options.index(leader)
@@ -185,10 +187,11 @@ def _q_top_team_total(d: Date, rng: random.Random) -> dict | None:
     if len(entries) < 4:
         return None
     entries.sort(key=lambda x: -x[1])
-    leader = entries[0]
-    pool = entries[1:]
-    rng.shuffle(pool)
-    distractors = pool[:3]
+    # Take top 5 (highest implied totals), leader + 3 close-competitor distractors.
+    # All options are high-total teams — won't be obvious which is #1.
+    top = entries[:5]
+    leader = top[0]
+    distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
     rng.shuffle(options)
     correct = options.index(leader)
@@ -220,9 +223,11 @@ def _q_barrel_king(hitters: list[dict], season: int, rng: random.Random) -> dict
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: -x[1])
-    leader = scored[0]
-    pool = scored[2:12] if len(scored) >= 5 else scored[1:]
-    distractors = rng.sample(pool, min(3, len(pool)))
+    # Take top 6 by barrel%, leader + 3 close-competitor distractors.
+    # All options are elite barrel-rate guys, ~3-5 point spread from #1 to #6.
+    top = scored[:6]
+    leader = top[0]
+    distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
     rng.shuffle(options)
     correct = options.index(leader)
@@ -309,7 +314,19 @@ def submit_answer(date_str: str, drafter: str, answers: dict[str, int]) -> dict:
     record = {"answers": {q["id"]: int(answers.get(q["id"], -1)) for q in questions}, "score": score, "submitted_at": datetime.utcnow().isoformat()}
     data.setdefault("answers", {})[drafter] = record
     _save(date_str, data)
-    return {"score": score, "total": len(questions), "correct": correct_map, "explainers": {q["id"]: q.get("explainer") for q in questions}}
+    # Reveal the hidden hints on submission so the post-answer view can show
+    # each option's actual metric value (e.g. '15 HR') alongside the ✓/✗.
+    hints_map = {
+        q["id"]: [o.get("hint") for o in (q.get("options") or [])]
+        for q in questions
+    }
+    return {
+        "score": score,
+        "total": len(questions),
+        "correct": correct_map,
+        "explainers": {q["id"]: q.get("explainer") for q in questions},
+        "hints": hints_map,
+    }
 
 
 def leaderboard(season_year: int | None = None) -> list[dict]:
@@ -335,13 +352,19 @@ def leaderboard(season_year: int | None = None) -> list[dict]:
 
 
 def public_view(date_str: str) -> dict:
-    """View safe to send to clients BEFORE they answer: strips correct_index
-    and explainer. Submitted answers are still listed (so the leaderboard
-    is visible) but only includes drafter + score."""
+    """View safe to send to clients BEFORE they answer.
+
+    Strips: correct_index, explainer (obvious giveaways), AND option `hint`
+    fields like '15 HR' / '1.83 ERA' / '5.8 R' — these trivially reveal the
+    answer since the correct option is the leader on the metric. Hints are
+    only revealed in the submit response (alongside the explainer).
+    """
     data = for_date(date_str)
     questions = []
     for q in data.get("questions") or []:
-        questions.append({k: v for k, v in q.items() if k not in ("correct_index", "explainer")})
+        clean_q = {k: v for k, v in q.items() if k not in ("correct_index", "explainer")}
+        clean_q["options"] = [{"label": o.get("label")} for o in (q.get("options") or [])]
+        questions.append(clean_q)
     drafter_scores = [
         {"drafter": k, "score": int(v.get("score") or 0), "answered": True}
         for k, v in (data.get("answers") or {}).items()
