@@ -59,9 +59,18 @@ LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
 # League-median Statcast benchmarks for the multiplier (rough 2024-25 medians).
-LG_BARREL_PCT_HITTER = 6.5      # %
-LG_HARDHIT_PCT_HITTER = 38.0
-LG_BARREL_PCT_ALLOWED = 6.5
+# 2026 Statcast league averages, computed from min=q leaderboards
+# (n=269 qualified batters, n=366 qualified pitchers, n=595 pitcher xERA pool).
+# Auto-deriving these on startup is overkill; refresh annually.
+LG_BARREL_PCT_HITTER = 8.75     # % — was 6.5 (stale); 2026 mean=8.75 median=8.4
+LG_HARDHIT_PCT_HITTER = 40.5    # % — was 38; 2026 mean=40.6 median=41.3
+LG_BARREL_PCT_ALLOWED = 8.0     # % — was 6.5; 2026 pitcher pool mean=7.97 median=7.9
+LG_HARDHIT_PCT_ALLOWED = 39.0   # % — new constant; 2026 mean=38.98 median=39.7
+LG_XERA = 4.20                  # SP-tier xERA (qualified pool spans starters + relievers;
+                                # median 4.12, but starter-only is closer to 4.20)
+LG_XWOBA_HITTER = 0.310         # right (2026 mean 0.31)
+LG_XWOBA_AGAINST = 0.320        # was implicit 0.310; 2026 pitcher pool mean 0.33 median 0.32
+LG_SWEETSPOT_PCT = 33.5         # was 33; 2026 mean 33.52 median 33.6 (basically right)
 LG_XWOBA_AGAINST = 0.310
 
 
@@ -441,10 +450,13 @@ def project_hitter(
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
     if sp_factor < 0.85:
         pitfalls.append("Tough opposing SP (high K%, low ERA)")
-    if brl and brl < 4.5:
-        pitfalls.append(f"Below-avg barrel rate ({brl:.1f}% vs lg ~6.5%)")
-    if hh and hh < 32:
-        pitfalls.append(f"Low hard-hit% ({hh:.0f}% vs lg ~38%) — quality of contact lagging")
+    # 2026 league averages (computed from min=q Statcast leaderboard):
+    #   barrel %  : mean 8.75, median 8.4, p25 5.2  (was hardcoded 6.5 — stale)
+    #   hard-hit% : mean 40.6, median 41.3, p25 35.7 (was hardcoded 38 — slightly stale)
+    if brl and brl < 5.2:   # bottom-quartile barrel rate
+        pitfalls.append(f"Below-avg barrel rate ({brl:.1f}% vs lg ~8.8%)")
+    if hh and hh < 35.7:    # bottom-quartile hard-hit
+        pitfalls.append(f"Low hard-hit% ({hh:.0f}% vs lg ~41%) — quality of contact lagging")
     qoc_tier = _qoc_tier_hitter(brl, hh)
     return Projection(
         player_id=pid,
@@ -670,8 +682,8 @@ def project_pitcher(
         pitfalls.append(f"Tiny sample — {int(starts_14)} 14d GS, {int(_safe_float(seasn.get('gamesStarted')))} season")
     if opp_factor > 1.15:
         pitfalls.append("Hot offensive opponent (high R/G)")
-    if brl_a and brl_a > 8:
-        pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}%)")
+    if brl_a and brl_a > 10.2:   # 2026 pitcher p75 = 10.2 (bottom-quartile contact suppression)
+        pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}% vs lg ~8%)")
     if xera and xera > 4.75:
         pitfalls.append(f"Underlying xERA {xera:.2f} — luck-adjusted line is rough")
     qoc_tier = _qoc_tier_pitcher(brl_a or 0, xera or 0)
@@ -1189,7 +1201,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-12-v9"   # + per-tier STATCAST_WEIGHT, LEAGUE_AVG 6.5→7.0, stampede lock
+MODEL_REV = "2026-05-12-v9.1" # + 2026 league baselines (brl, hh, brl-allowed)
 
 
 def _proj_disk_path(key: tuple) -> str:
