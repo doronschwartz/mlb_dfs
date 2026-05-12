@@ -28,6 +28,23 @@ from . import fantrax, mlb_api, notify, odds_api, projections, umpires, weather 
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
+
+@app.on_event("startup")
+async def _prewarm_projections():
+    """Compute today's projections in a background thread on startup so the
+    first user request doesn't pay the ~30-60s cold-cache cost. If it fails,
+    log and move on — the on-demand computation will still work."""
+    import threading, logging as _log
+    def _warm():
+        try:
+            from . import projections as _p
+            d = Date.today()
+            _p.project_slate_cached(d)
+            _log.info("projection pre-warm complete for %s", d.isoformat())
+        except Exception as e:
+            _log.warning("projection pre-warm failed: %s", e)
+    threading.Thread(target=_warm, daemon=True).start()
+
 STATIC_DIR = Path(__file__).parent / "static"
 
 

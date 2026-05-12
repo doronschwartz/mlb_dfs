@@ -18,6 +18,7 @@ draft assistant can show *why* it likes a player.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass, field
@@ -50,7 +51,11 @@ _TEAM_FULLNAME = {
     146: "Miami Marlins", 147: "New York Yankees", 158: "Milwaukee Brewers",
 }
 
-LEAGUE_AVG_HITTER_POINTS_PER_GAME = 6.5
+LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (no Statcast
+                                            # sample, mostly callups) showed posterior bias
+                                            # +0.74 ± 0.11 (P=100% under-projecting) across
+                                            # 18 days. Most affected by this constant via
+                                            # the ghost prior in the bucket-weighted base.
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
 # League-median Statcast benchmarks for the multiplier (rough 2024-25 medians).
@@ -291,16 +296,26 @@ def project_hitter(
     # base moves), but a Judge-tier batter on a 3-game cold streak doesn't get
     # punished as hard, and a backup catcher who happened to be on a hot 1-game
     # streak gets dragged toward his Statcast baseline.
+    qoc_tier_pre = _qoc_tier_hitter(brl, hh) if (brl or hh) else "—"
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        # Adaptive Statcast weight. RESTORED after the great date-leak audit
-        # of 5/10. With clean data the picture flipped: HOT/COLD streaks
-        # PERSIST more than the base would imply, so anchoring streakers
-        # toward season-long Statcast pulls projections away from reality.
-        # 0.15 for HOT/COLD (let streak signal dominate after override).
-        # 0.40 for everyone else (anchor toward true talent — works great
-        # for untagged hitters, calibration shows bias +0.30 / 2.5σ on n=2,679).
-        STATCAST_WEIGHT = 0.15 if form_tag in ("HOT", "COLD") else 0.40
+        # Per-tier adaptive Statcast weight (v9 calibration update):
+        #   HOT/COLD form_tag: 0.15 — let streak signal carry, override anchors
+        #   ELITE/POOR qoc tier: 0.30 — Bayesian audit (n=18 days) showed
+        #     ELITE bias -0.77 (P=99.9% over-projecting) and POOR bias +0.57
+        #     (P=99.5% under-projecting). The 0.40 Statcast pull was too
+        #     aggressive at the extremes; the formula assumes more talent
+        #     persistence than reality. Dropping to 0.30 for those tiers
+        #     softens both biases symmetrically.
+        #   SOLID/AVERAGE qoc tier: 0.40 — calibration shows P~10-15% for
+        #     non-zero bias on these (SOLID -0.24 ± 0.20, AVG +0.28 ± 0.20).
+        #     Within noise; keep default.
+        if form_tag in ("HOT", "COLD"):
+            STATCAST_WEIGHT = 0.15
+        elif qoc_tier_pre in ("ELITE", "POOR"):
+            STATCAST_WEIGHT = 0.30
+        else:
+            STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
@@ -555,8 +570,8 @@ def project_pitcher(
                 opp_factor = (4.5 / max(rpg, 2.5)) ** 0.7
                 opp_factor = max(0.7, min(opp_factor, 1.35))
                 notes.append(f"opponent adj x{opp_factor:.2f} ({rpg:.2f} R/G)")
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("opp_factor lookup failed for team %s: %s", opponent_team_id, e)
 
     qoc = savant.lookup_pitcher_qoc(pid, season) or None
     expected = savant.lookup_pitcher(pid, season) or None
@@ -1006,6 +1021,19 @@ def category_value_hitter(p, vegas_factor: float, park_factor: float, platoon_fa
 
 _RP_CACHE: dict[tuple, tuple[float, dict | None]] = {}
 _RP_TTL = 6 * 3600
+_RP_CACHE_MAX = 5000  # cap so a long-running web process doesn't accumulate
+                      # entries for every reliever ever projected — when we
+                      # hit the cap, evict the oldest 20% by timestamp.
+
+
+def _rp_cache_maybe_evict():
+    if len(_RP_CACHE) <= _RP_CACHE_MAX:
+        return
+    # Sort keys by insertion time, drop the 20% oldest.
+    items = sorted(_RP_CACHE.items(), key=lambda kv: kv[1][0])
+    drop_n = max(1, _RP_CACHE_MAX // 5)
+    for k, _ in items[:drop_n]:
+        _RP_CACHE.pop(k, None)
 
 
 def project_reliever_cats(pid: int, season: int) -> dict | None:
@@ -1064,6 +1092,7 @@ def project_reliever_cats(pid: int, season: int) -> dict | None:
         "_ip_per_app": ip_per_app,
     }
     _RP_CACHE[key] = (now, out)
+    _rp_cache_maybe_evict()
     return out
 
 
@@ -1136,12 +1165,31 @@ def _per_start_pitcher_points(stats: dict) -> float:
 _PROJ_CACHE: dict[tuple, tuple[float, list]] = {}
 _PROJ_TTL_SEC = 6 * 3600
 
+# Per-key lock to prevent cache stampedes — when N concurrent refresh requests
+# land for the same date, only ONE actually does the project_slate compute;
+# the rest wait on the lock and read the freshly-cached result. Without this,
+# 5 concurrent /api/projections?refresh=true calls each spun up their own
+# 30s compute, each loading ~200MB of player stats, OOMing the 512MB box
+# (now 1GB, but the fix prevents the stampede from recurring at any size).
+import threading
+_PROJ_LOCKS: dict[tuple, threading.Lock] = {}
+_PROJ_LOCKS_GUARD = threading.Lock()
+
+def _proj_lock(key: tuple) -> threading.Lock:
+    """Get/create the per-key compute lock atomically."""
+    with _PROJ_LOCKS_GUARD:
+        lock = _PROJ_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _PROJ_LOCKS[key] = lock
+        return lock
+
 # Bump this whenever the projection MATH changes (any factor weight, any new
 # multiplier, any structural model change). Cached entries with a stale
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-12-v8"   # HOT x1.07 + COLD x0.85 post-matchup, Bayesian-justified
+MODEL_REV = "2026-05-12-v9"   # + per-tier STATCAST_WEIGHT, LEAGUE_AVG 6.5→7.0, stampede lock
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -1199,24 +1247,37 @@ def project_slate_cached(
             except Exception:
                 full = None
     if full is None:
-        full = project_slate(d, team_filter=None)
-        _PROJ_CACHE[key] = (now, full)
-        try:
-            from .disk_cache import CACHE_DIR
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            path = _proj_disk_path(key)
-            tmp = path + ".tmp"
-            payload = {
-                "model_rev": MODEL_REV,
-                "projections": [_proj_to_dict(p) for p in full],
-            }
-            with open(tmp, "w") as f:
-                json.dump(payload, f)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, path)
-        except Exception:
-            pass
+        # Stampede protection — N concurrent refreshes for the same date
+        # all try to compute. Each project_slate holds ~200MB. The first
+        # one wins the lock; the rest wait and read the cached result it
+        # produces. Prevents the OOM cascade we hit during the 5/12 v8
+        # refresh storm.
+        lock = _proj_lock(key)
+        with lock:
+            # Re-check the cache after acquiring — a peer compute may
+            # have finished while we waited.
+            cached = _PROJ_CACHE.get(key)
+            if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC and not force_refresh:
+                full = cached[1]
+            else:
+                full = project_slate(d, team_filter=None)
+                _PROJ_CACHE[key] = (now, full)
+                try:
+                    from .disk_cache import CACHE_DIR
+                    os.makedirs(CACHE_DIR, exist_ok=True)
+                    path = _proj_disk_path(key)
+                    tmp = path + ".tmp"
+                    payload = {
+                        "model_rev": MODEL_REV,
+                        "projections": [_proj_to_dict(p) for p in full],
+                    }
+                    with open(tmp, "w") as f:
+                        json.dump(payload, f)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    os.replace(tmp, path)
+                except Exception as e:
+                    logging.warning("projection cache write failed for %s: %s", d.isoformat(), e)
     if team_filter:
         return [p for p in full if p.team_id in team_filter]
     return full
@@ -1237,7 +1298,8 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         from . import umpires as umpires_mod
         ump_rows = umpires_mod.umpires_for_date(d.isoformat()) or []
         ump_k_by_pk = {u["game_pk"]: u.get("k_factor") for u in ump_rows if u.get("game_pk")}
-    except Exception:
+    except Exception as e:
+        logging.warning("ump data unavailable for %s: %s", d.isoformat(), e)
         ump_k_by_pk = {}
 
     # Build matchup map: team_id -> {opp, opp_sp, park (run_env, hr_factor)}
@@ -1331,7 +1393,10 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         rolling_pitcher = savant.pitcher_expected_range(season, rolling_start, rolling_end)
         season_batter = savant.batter_expected(season)
         season_pitcher = savant.pitcher_expected(season)
-    except Exception:
+    except Exception as e:
+        # Savant CSV format has changed before — silent failure here used to
+        # silently kill the rolling-xwOBA signal across every player.
+        logging.warning("savant rolling/season fetch failed for %s: %s", d.isoformat(), e)
         rolling_batter, rolling_pitcher, season_batter, season_pitcher = {}, {}, {}, {}
 
     projections: list[Projection] = []
