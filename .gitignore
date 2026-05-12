@@ -10,3 +10,4 @@ build/
 .DS_Store
 data/drafts/*.json
 !data/drafts/.gitkeep
+data/cache/
