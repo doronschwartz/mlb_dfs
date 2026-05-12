@@ -37,6 +37,10 @@ from . import mlb_api, odds_api, savant
 _DATA_DIR = Path(os.environ.get("MLB_DFS_DRAFT_DIR", "data/drafts")).parent / "trivia"
 _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+# Bump when generator logic changes so previously-cached easy questions get
+# regenerated under the new (harder) rules. Drafter answers are preserved.
+_GEN_VERSION = 2
+
 
 def _path(date: str) -> Path:
     return _DATA_DIR / f"{date}.json"
@@ -282,6 +286,7 @@ def _generate(date_str: str) -> dict:
         q["id"] = f"q{i}"
     return {
         "date": date_str,
+        "generator_version": _GEN_VERSION,
         "generated_at": datetime.utcnow().isoformat(),
         "questions": questions,
         "answers": {},
@@ -290,10 +295,30 @@ def _generate(date_str: str) -> dict:
 
 def for_date(date_str: str, force: bool = False) -> dict:
     """Return today's trivia. Generates + persists on first call. Idempotent
-    after that (subsequent answers update the same record)."""
+    after that (subsequent answers update the same record).
+
+    Auto-regenerates if the cached file's generator_version is missing or older
+    than the current _GEN_VERSION. Drafter answers from the old file are
+    preserved so the leaderboard isn't lost."""
     existing = _load(date_str) if not force else None
     if existing and existing.get("questions"):
-        return existing
+        if int(existing.get("generator_version") or 1) >= _GEN_VERSION:
+            return existing
+        # Stale generator — regenerate questions but keep prior answers.
+        old_answers = existing.get("answers") or {}
+        data = _generate(date_str)
+        # Old answers are against the old question set, so we have to discard
+        # the per-question answer choices but keep the total score for the
+        # season leaderboard (they answered that day).
+        for drafter, rec in old_answers.items():
+            data.setdefault("answers", {})[drafter] = {
+                "answers": {},
+                "score": int(rec.get("score") or 0),
+                "submitted_at": rec.get("submitted_at"),
+                "from_gen_version": int(existing.get("generator_version") or 1),
+            }
+        _save(date_str, data)
+        return data
     data = _generate(date_str)
     _save(date_str, data)
     return data
