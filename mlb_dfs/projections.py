@@ -381,6 +381,22 @@ def project_hitter(
         notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
 
     proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor
+    # Post-matchup HOT/COLD residual correction. Bayesian day-level audit
+    # (18 days, n=5,102) revealed two highly-significant biases that the
+    # streak override at 0.85 weight COULD NOT close because the Statcast
+    # blend afterward (w=0.15 for HOT/COLD) pulls projections back toward
+    # season-long true talent:
+    #   HOT  posterior bias +1.11 ± 0.35 (P=99.9%)  — under-projecting
+    #   COLD posterior bias -1.08 ± 0.10 (P=100%)   — over-projecting
+    # Symmetric multipliers close roughly half of each residual without
+    # overshooting. If a HOT/COLD player has bias still > 0.7 σ from zero
+    # in a future audit, ratchet these further (1.07→1.10 / 0.85→0.80).
+    if form_tag == "HOT":
+        proj *= 1.07
+        notes.append("HOT post-matchup boost x1.07 (close +1.11 residual)")
+    elif form_tag == "COLD":
+        proj *= 0.85
+        notes.append("COLD post-matchup shrink x0.85 (close -1.08 residual)")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1125,7 +1141,7 @@ _PROJ_TTL_SEC = 6 * 3600
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-11-v7.1"   # manual pool injections (Mookie Betts IL activation)
+MODEL_REV = "2026-05-12-v8"   # HOT x1.07 + COLD x0.85 post-matchup, Bayesian-justified
 
 
 def _proj_disk_path(key: tuple) -> str:
