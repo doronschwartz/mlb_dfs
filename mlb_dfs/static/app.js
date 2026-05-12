@@ -132,6 +132,8 @@ $$("nav button").forEach((b) => {
         state._slateDate = null;
         state.slateGames = [];
       }
+      // Lazy-load today's trivia panel. Failure is silent (panel stays hidden).
+      loadTrivia().catch(() => {});
       const sel = $("#draft-id");
       const opts = sel ? Array.from(sel.options).map((o) => o.value).filter(Boolean) : [];
       let pick = null;
@@ -202,6 +204,156 @@ $("#changelog-close")?.addEventListener("click", () => { $("#changelog-modal").s
 $("#changelog-modal")?.addEventListener("click", (e) => {
   if (e.target.id === "changelog-modal") $("#changelog-modal").style.display = "none";
 });
+
+// ---------- Daily trivia ----------
+// Tied to today's slate. Each drafter on the draft answers 3 quick questions.
+// Score saved to backend; season-long leaderboard via "🏆 Season" button.
+let triviaState = { date: null, data: null, picked: {}, submitted: false };
+
+async function loadTrivia() {
+  const panel = $("#trivia-panel");
+  if (!panel) return;
+  const date = $("#date").value;
+  if (!date) { panel.hidden = true; return; }
+  let data;
+  try { data = await api(`/api/trivia/${date}`); } catch (e) { panel.hidden = true; return; }
+  if (!data || !data.questions || data.questions.length === 0) { panel.hidden = true; return; }
+  triviaState = { date, data, picked: {}, submitted: false };
+  panel.hidden = false;
+  populateTriviaDrafters();
+  renderTrivia();
+}
+
+function populateTriviaDrafters() {
+  const sel = $("#trivia-drafter");
+  if (!sel) return;
+  // Pull drafters from current draft state if any; fallback to a "Guest" option.
+  const drafters = (state.lastDraftState && state.lastDraftState.drafters) || [];
+  const submissions = (triviaState.data && triviaState.data.submissions) || [];
+  const submittedMap = new Map(submissions.map(s => [s.drafter, s.score]));
+  const opts = drafters.length ? drafters : ["Guest"];
+  sel.innerHTML = opts.map(d => {
+    const sc = submittedMap.has(d) ? ` (${submittedMap.get(d)}/${triviaState.data.questions.length})` : "";
+    return `<option value="${d}">${d}${sc}</option>`;
+  }).join("");
+  const saved = localStorage.getItem("trivia_drafter");
+  if (saved && opts.includes(saved)) sel.value = saved;
+  sel.onchange = () => {
+    localStorage.setItem("trivia_drafter", sel.value);
+    triviaState.picked = {};
+    triviaState.submitted = false;
+    renderTrivia();
+  };
+}
+
+function renderTrivia() {
+  const out = $("#trivia-questions");
+  if (!out || !triviaState.data) return;
+  const qs = triviaState.data.questions;
+  const drafter = $("#trivia-drafter")?.value;
+  const submissions = (triviaState.data && triviaState.data.submissions) || [];
+  const subMap = new Map(submissions.map(s => [s.drafter, s.score]));
+  const alreadySubmitted = drafter && subMap.has(drafter);
+  out.innerHTML = qs.map((q, i) => {
+    const picked = triviaState.picked[q.id];
+    const correct = triviaState.lastResult && triviaState.lastResult.correct ? triviaState.lastResult.correct[q.id] : null;
+    const explainer = triviaState.lastResult && triviaState.lastResult.explainers ? triviaState.lastResult.explainers[q.id] : null;
+    return `<div class="trivia-q">
+      <div class="trivia-q-prompt">${i+1}. ${q.prompt}</div>
+      <div class="trivia-options">
+        ${q.options.map((opt, idx) => {
+          let cls = "trivia-option";
+          if (triviaState.submitted) {
+            if (idx === correct) cls += " correct";
+            else if (idx === picked) cls += " wrong";
+          } else if (idx === picked) cls += " picked";
+          return `<button class="${cls}" data-qid="${q.id}" data-idx="${idx}" ${triviaState.submitted ? "disabled" : ""}>
+            <strong>${opt.label}</strong>${opt.hint ? `<span class="hint">${opt.hint}</span>` : ""}
+          </button>`;
+        }).join("")}
+      </div>
+      ${explainer ? `<div class="trivia-explainer">${explainer}</div>` : ""}
+    </div>`;
+  }).join("");
+  // Submit button or already-submitted notice
+  const scoreLine = document.createElement("div");
+  scoreLine.className = "trivia-submit";
+  if (triviaState.submitted && triviaState.lastResult) {
+    scoreLine.innerHTML = `<div class="trivia-score">You scored ${triviaState.lastResult.score}/${triviaState.lastResult.total}</div>`;
+  } else if (alreadySubmitted) {
+    scoreLine.innerHTML = `<div class="trivia-score muted">${drafter} already answered today (${subMap.get(drafter)}/${qs.length}). Pick a different drafter to play.</div>`;
+  } else {
+    const allPicked = qs.every(q => triviaState.picked[q.id] != null);
+    scoreLine.innerHTML = `<button id="trivia-submit-btn" class="btn-pick" ${allPicked ? "" : "disabled"}>Submit answers</button>`;
+  }
+  out.appendChild(scoreLine);
+  // Wire option clicks
+  out.querySelectorAll(".trivia-option").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (triviaState.submitted) return;
+      const qid = btn.dataset.qid, idx = parseInt(btn.dataset.idx, 10);
+      triviaState.picked[qid] = idx;
+      renderTrivia();
+    });
+  });
+  // Wire submit
+  const sub = $("#trivia-submit-btn");
+  if (sub) sub.addEventListener("click", submitTrivia);
+  // Show submissions list
+  const subOut = $("#trivia-submissions");
+  if (subOut) {
+    if (submissions.length) {
+      subOut.innerHTML = `Already answered: ${submissions.map(s => `${s.drafter} ${s.score}/${qs.length}`).join(" · ")}`;
+    } else {
+      subOut.innerHTML = "";
+    }
+  }
+}
+
+async function submitTrivia() {
+  const drafter = $("#trivia-drafter")?.value;
+  if (!drafter) { alert("Pick a drafter first"); return; }
+  try {
+    const result = await api(`/api/trivia/${triviaState.date}/answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ drafter, answers: triviaState.picked }),
+    });
+    triviaState.lastResult = result;
+    triviaState.submitted = true;
+    renderTrivia();
+    // Refresh the submission list
+    try { triviaState.data = await api(`/api/trivia/${triviaState.date}`); } catch {}
+  } catch (e) {
+    alert("Submit failed: " + (e.message || e));
+  }
+}
+
+async function showTriviaLeaderboard() {
+  const modal = $("#changelog-modal");
+  const body = $("#changelog-body");
+  $("#changelog-modal .modal-header h2").textContent = "🏆 Trivia Leaderboard";
+  body.innerHTML = '<div class="muted">Loading…</div>';
+  modal.style.display = "flex";
+  try {
+    const data = await api("/api/trivia/leaderboard/season");
+    const rows = data.leaderboard || [];
+    if (!rows.length) {
+      body.innerHTML = '<div class="muted">No trivia answers yet this season — be the first.</div>';
+      return;
+    }
+    body.innerHTML = `
+      <table class="recs-table">
+        <thead><tr><th>#</th><th>Drafter</th><th>Total</th><th>Days</th><th>Perfect days</th></tr></thead>
+        <tbody>${rows.map((r, i) => `
+          <tr><td>${i+1}</td><td>${r.drafter}</td><td><b>${r.score}</b></td><td>${r.answered_days}</td><td>${r.perfect_days}</td></tr>
+        `).join("")}</tbody>
+      </table>`;
+  } catch (e) {
+    body.innerHTML = `<div class="muted">Failed: ${e.message || e}</div>`;
+  }
+}
+$("#trivia-leaderboard-btn")?.addEventListener("click", showTriviaLeaderboard);
 
 // Decide the action label given current Fantrax slot vs recommendation.
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.

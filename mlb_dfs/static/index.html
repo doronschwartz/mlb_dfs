@@ -68,6 +68,18 @@
     <section id="tab-draft" class="tab">
       <h2>Draft</h2>
 
+      <div id="trivia-panel" class="trivia-panel" hidden>
+        <div class="trivia-header">
+          <h3>🎯 Today's Trivia <span class="muted" style="font-weight:400;font-size:12px;">— 3 quick questions about the slate</span></h3>
+          <div class="trivia-controls">
+            <select id="trivia-drafter" title="Who's playing"></select>
+            <button id="trivia-leaderboard-btn" type="button" title="Season leaderboard">🏆 Season</button>
+          </div>
+        </div>
+        <div id="trivia-questions"></div>
+        <div id="trivia-submissions" class="muted" style="font-size:12px;margin-top:8px;"></div>
+      </div>
+
       <div id="draft-setup">
         <h3>Start a new draft</h3>
         <div class="setup-row">

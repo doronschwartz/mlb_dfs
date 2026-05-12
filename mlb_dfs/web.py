@@ -104,6 +104,33 @@ def health():
     return {"ok": True}
 
 
+# ---------- Daily MLB trivia ----------
+
+@app.get("/api/trivia/{date}")
+def get_trivia(date: str):
+    from . import trivia as trivia_mod
+    return trivia_mod.public_view(date)
+
+
+class TriviaSubmission(BaseModel):
+    drafter: str
+    answers: dict[str, int]   # {"q1": 0, "q2": 2, ...}
+
+
+@app.post("/api/trivia/{date}/answer")
+def post_trivia_answer(date: str, req: TriviaSubmission):
+    from . import trivia as trivia_mod
+    if not req.drafter:
+        raise HTTPException(400, "drafter required")
+    return trivia_mod.submit_answer(date, req.drafter, req.answers)
+
+
+@app.get("/api/trivia/leaderboard/season")
+def get_trivia_leaderboard(season: int | None = None):
+    from . import trivia as trivia_mod
+    return {"leaderboard": trivia_mod.leaderboard(season)}
+
+
 @app.get("/api/changelog")
 def get_changelog():
     """Model + product changelog — surfaces improvements to the projection
