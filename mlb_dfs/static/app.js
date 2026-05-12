@@ -978,8 +978,8 @@ function projTooltip(p) {
     rows.push(factorRow2("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : ""));
     rows.push(factorRow2("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : ""));
     rows.push(factorRow2("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
-    if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
-    if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg 38)</span></span></div>`);
+    if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct ?? 8.8).toFixed(1)})</span></span></div>`);
+    if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg ${(c.lg_hardhit_pct ?? 40).toFixed(0)})</span></span></div>`);
   } else {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
     if (c.opp_factor != null) rows.push(factorRow2("Opp run-env", c.opp_factor));
@@ -989,7 +989,7 @@ function projTooltip(p) {
     rows.push(factorRow2("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
     if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
     if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
-    if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg 6.5)</span></span></div>`);
+    if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct_allowed ?? 8.0).toFixed(1)})</span></span></div>`);
   }
   // Drop empty strings (factors at 1.0).
   for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === "") rows.splice(i, 1);
