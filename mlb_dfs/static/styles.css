@@ -769,3 +769,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .lg-baselines .stale { color: var(--bad); }
 .lg-baselines .fresh { color: var(--accent-2); }
 .lg-baselines a { color: var(--accent); cursor: pointer; }
+
+/* Stats tab: clickable, sortable column headers on player tables */
+.stats-player-table th.stats-sortable {
+  cursor: pointer; user-select: none;
+  white-space: nowrap;
+}
+.stats-player-table th.stats-sortable:hover { color: var(--accent); }
+.stats-player-table .stats-sort-arrow {
+  display: inline-block; margin-left: 3px; font-size: 10px;
+}
+.stats-player-table .stats-sort-arrow.active { color: var(--accent-2); }

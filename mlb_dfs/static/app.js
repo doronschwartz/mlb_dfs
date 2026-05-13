@@ -3156,7 +3156,37 @@ async function loadStats() {
   }
 }
 
+// Per-table sort state for the Stats tab. Keyed by table id ("hitters" / "pitchers").
+// Each entry is {col: <sort_key>, dir: "asc"|"desc"}.
+const statsSort = {
+  hitters:  { col: "total_picks", dir: "desc" },
+  pitchers: { col: "total_picks", dir: "desc" },
+};
+
+function _statsPlayerSortValue(p, col, drafters) {
+  switch (col) {
+    case "name":         return (p.name || "").toLowerCase();
+    case "position":     return (p.position || "").toLowerCase();
+    case "total_picks":  return p.total_picks || 0;
+    case "avg_per_pick": return p.avg_per_pick == null ? -Infinity : p.avg_per_pick;
+    default:
+      // pick_<drafter> / avg_<drafter> columns
+      if (col.startsWith("pick_")) {
+        const d = col.slice(5);
+        return p.picks_by_drafter?.[d] || 0;
+      }
+      if (col.startsWith("avg_")) {
+        const d = col.slice(4);
+        const v = p.avg_per_drafter?.[d];
+        return v == null ? -Infinity : v;
+      }
+      return 0;
+  }
+}
+
 function renderStats(stand, players) {
+  // Stash for re-render after sort clicks
+  window._statsData = { stand, players };
   const recHeader = `<tr><th>Drafter</th><th>1st</th><th>2nd</th><th>3rd</th><th>Days</th><th>Total Pts</th><th>Avg/d</th><th>Max</th><th>Min</th></tr>`;
   const recRows = stand.records
     .map(
@@ -3209,14 +3239,33 @@ function renderStats(stand, players) {
       <table><thead>${dayHeader}</thead><tbody>${dayRows}</tbody></table>
     </div>`;
 
-  function renderPlayerTbl(title, list) {
+  function renderPlayerTbl(title, list, tableKey) {
     const cols = drafters;
-    const head = `<tr><th>${title}</th><th>Pos</th>` +
-      cols.map((d) => `<th>${d}</th>`).join("") +
-      `<th>Total</th><th>Avg</th>` +
-      cols.map((d) => `<th>${d} Avg</th>`).join("") +
-      `</tr>`;
-    const body = list
+    const sortState = statsSort[tableKey];
+    // Apply current sort
+    const sorted = list.slice().sort((a, b) => {
+      const av = _statsPlayerSortValue(a, sortState.col, cols);
+      const bv = _statsPlayerSortValue(b, sortState.col, cols);
+      const cmp = (av < bv) ? -1 : (av > bv) ? 1 : 0;
+      return sortState.dir === "asc" ? cmp : -cmp;
+    });
+    // Build header with sort indicators
+    const arrow = (col) => {
+      if (sortState.col !== col) return `<span class="stats-sort-arrow muted">↕</span>`;
+      return `<span class="stats-sort-arrow active">${sortState.dir === "asc" ? "▲" : "▼"}</span>`;
+    };
+    const th = (col, label) =>
+      `<th class="stats-sortable" data-stats-sort="${col}" data-stats-table="${tableKey}">${label} ${arrow(col)}</th>`;
+
+    const head = `<tr>
+      ${th("name", title)}
+      ${th("position", "Pos")}
+      ${cols.map((d) => th(`pick_${d}`, d)).join("")}
+      ${th("total_picks", "Total")}
+      ${th("avg_per_pick", "Avg")}
+      ${cols.map((d) => th(`avg_${d}`, `${d} Avg`)).join("")}
+    </tr>`;
+    const body = sorted
       .map(
         (p) => `<tr>
           <td>${p.name}</td>
@@ -3231,18 +3280,40 @@ function renderStats(stand, players) {
         </tr>`,
       )
       .join("");
-    return `<h3 style="margin-top:24px;">${title} — top ${list.length} by pick volume</h3>
+    return `<h3 style="margin-top:24px;">${title} — top ${list.length} by pick volume <span class="muted" style="font-weight:400;font-size:12px;">(click any column header to sort)</span></h3>
       <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
-        <table><thead>${head}</thead><tbody>${body}</tbody></table>
+        <table class="stats-player-table"><thead>${head}</thead><tbody>${body}</tbody></table>
       </div>`;
   }
 
   $("#stats-out").innerHTML =
     recordsTbl +
     perDayTbl +
-    renderPlayerTbl("Hitters", players.hitters) +
-    renderPlayerTbl("Pitchers", players.pitchers);
+    renderPlayerTbl("Hitters", players.hitters, "hitters") +
+    renderPlayerTbl("Pitchers", players.pitchers, "pitchers");
 }
+
+// Delegated click handler for sortable headers on the Stats tab player tables.
+// Clicking the same column toggles asc/desc; clicking a new column resets to
+// desc (highest first — what you usually want for points/picks/averages).
+document.addEventListener("click", (e) => {
+  const th = e.target.closest && e.target.closest(".stats-sortable");
+  if (!th) return;
+  const tableKey = th.dataset.statsTable;
+  const col = th.dataset.statsSort;
+  if (!tableKey || !col) return;
+  const cur = statsSort[tableKey];
+  if (cur.col === col) {
+    cur.dir = cur.dir === "asc" ? "desc" : "asc";
+  } else {
+    cur.col = col;
+    cur.dir = "desc";
+  }
+  // Re-render with the cached data
+  if (window._statsData) {
+    renderStats(window._statsData.stand, window._statsData.players);
+  }
+});
 
 // ---------- Schedule tab ----------
 
