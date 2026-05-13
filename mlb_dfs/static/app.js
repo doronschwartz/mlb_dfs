@@ -1854,8 +1854,17 @@ $("#draft-id").addEventListener("change", async () => {
 
 $("#undo").addEventListener("click", async () => {
   if (!state.currentDraftId) return;
-  await api(`/api/drafts/${state.currentDraftId}/last_pick`, { method: "DELETE" });
-  await renderDraft();
+  // Pass our drafter name so the backend rejects the call if the last pick
+  // belongs to someone else — protects against one user accidentally undoing
+  // another user's pick during a live draft.
+  const url = `/api/drafts/${state.currentDraftId}/last_pick${state.identity ? `?drafter=${encodeURIComponent(state.identity)}` : ""}`;
+  try {
+    await api(url, { method: "DELETE" });
+    await renderDraft();
+  } catch (e) {
+    // Backend returns 403 with a helpful message when it's not your pick.
+    alert(e.message || "Could not undo: " + e);
+  }
 });
 
 $("#reset").addEventListener("click", async () => {
@@ -1900,6 +1909,27 @@ async function renderDraft(prefetchedData) {
   // a phantom flip every 4s and re-renders, which looks like flashing.
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
   renderIdentityBar(data);
+  // Enable the Undo button only when the most recent pick belongs to the
+  // current user — protects the rest of the league from accidentally undoing
+  // someone else's pick. If no identity is set we permit it (backwards-compat;
+  // anyone managing the draft can still admin-undo).
+  const undoBtn = $("#undo");
+  if (undoBtn) {
+    const lastPick = (data.picks || [])[((data.picks || []).length - 1)];
+    if (!lastPick) {
+      undoBtn.disabled = true;
+      undoBtn.title = "No picks yet";
+      undoBtn.textContent = "Undo last pick";
+    } else if (!state.identity || lastPick.drafter === state.identity) {
+      undoBtn.disabled = false;
+      undoBtn.title = `Undo your pick of ${lastPick.name}`;
+      undoBtn.textContent = state.identity ? `↩️ Undo my pick (${lastPick.name})` : "Undo last pick";
+    } else {
+      undoBtn.disabled = true;
+      undoBtn.title = `Last pick was ${lastPick.drafter}'s (${lastPick.name}). Only they can undo it.`;
+      undoBtn.textContent = `Undo (${lastPick.drafter}'s pick — locked)`;
+    }
+  }
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
   const html = [];
   html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b>`}</div>`);

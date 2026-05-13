@@ -1642,13 +1642,20 @@ def get_lineups(date: str | None = None):
 
 
 @app.delete("/api/drafts/{draft_id}/last_pick")
-def undo_last_pick(draft_id: str):
+def undo_last_pick(draft_id: str, drafter: str | None = None):
+    """Pop the most recent pick. If `drafter` is provided, refuse unless that
+    drafter actually made the last pick — prevents one user accidentally undoing
+    another user's pick during a live draft. Without `drafter`, behavior is
+    unrestricted (admin / legacy callers)."""
     try:
         dr = draft_mod.load_draft(draft_id)
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
     if not dr.picks:
         raise HTTPException(400, "no picks to undo")
+    last = dr.picks[-1]
+    if drafter and last.drafter != drafter:
+        raise HTTPException(403, f"the last pick was by {last.drafter}, not you ({drafter}). Only the drafter who made the pick can undo it.")
     dr.picks.pop()
     draft_mod.save_draft(dr)
     return _draft_state(dr)
