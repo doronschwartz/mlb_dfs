@@ -750,7 +750,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   display: inline-block; padding: 6px 4px; min-width: 60px; text-align: right;
 }
 .ask-table .player-cell .breakdown-tooltip {
-  left: auto; right: 0; top: 100%;
-  /* Keep tooltip inside the viewport — the table sits near the right edge */
+  /* Viewport-aware fixed positioning. JS sets --tt-top / --tt-left on
+     mouseenter so the tooltip flips above the row when there's no room
+     below — fixes the case where rows near the bottom got the tooltip
+     clipped off-screen. position: fixed escapes the table overflow. */
+  position: fixed;
+  top: var(--tt-top, 50%);
+  left: var(--tt-left, 50%);
+  right: auto; bottom: auto;
   max-width: min(420px, calc(100vw - 32px));
+  z-index: 100;
 }

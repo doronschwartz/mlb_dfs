@@ -117,8 +117,13 @@ def ask_algo(req: AskAlgoRequest):
     insensitive substring, accent-insensitive, common-suffix-stripped.
     """
     d = Date.fromisoformat(req.date) if req.date else Date.today()
+    # Use the cached slate — /api/projections already pre-warmed this on startup
+    # and the cache is per-day + per-MODEL_REV with stampede protection. Calling
+    # the uncached project_slate would recompute ~400 projections every time
+    # (~10s) instead of returning the cached version (<10ms). Same data, vastly
+    # faster.
     try:
-        projections_today = projections.project_slate(d)
+        projections_today = projections.project_slate_cached(d, team_filter=None)
     except Exception as e:
         raise HTTPException(500, f"projection slate failed: {e}")
 

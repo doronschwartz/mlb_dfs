@@ -735,6 +735,40 @@ $("#ask-go")?.addEventListener("click", runAskAlgo);
 $("#ask-names")?.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.key === "Enter") runAskAlgo();
 });
+
+// Viewport-aware tooltip positioner for the Ask Algo proj cells.
+// Computes whether there's more room above or below the trigger and pins
+// the tooltip's --tt-top / --tt-left CSS vars accordingly. Delegated handler
+// so it works for rows added after the initial render.
+document.addEventListener("mouseenter", (e) => {
+  const tt = e.target && e.target.closest && e.target.closest(".ask-table .player-cell .name-trigger");
+  if (!tt) return;
+  const cell = tt.closest(".player-cell");
+  const tooltip = cell && cell.querySelector(".breakdown-tooltip");
+  if (!tooltip) return;
+  const rect = tt.getBoundingClientRect();
+  // Measure tooltip's natural size by temporarily showing it offscreen.
+  tooltip.style.visibility = "hidden";
+  tooltip.style.display = "block";
+  const ttRect = tooltip.getBoundingClientRect();
+  tooltip.style.display = "";
+  tooltip.style.visibility = "";
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const margin = 8;
+  // Prefer below the trigger; flip above if there's not enough room
+  let top = rect.bottom + 4;
+  if (top + ttRect.height > vh - margin) {
+    top = Math.max(margin, rect.top - ttRect.height - 4);
+  }
+  // Anchor right edge of tooltip to right edge of trigger (proj is right-aligned)
+  let left = rect.right - ttRect.width;
+  if (left < margin) left = margin;
+  if (left + ttRect.width > vw - margin) left = vw - margin - ttRect.width;
+  tooltip.style.setProperty("--tt-top", top + "px");
+  tooltip.style.setProperty("--tt-left", left + "px");
+}, true);
+
 // Default date to today
 (function initAskDate() {
   const el = $("#ask-date");
