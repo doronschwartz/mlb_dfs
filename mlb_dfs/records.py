@@ -321,10 +321,11 @@ def head_to_head() -> dict[str, dict[str, dict]]:
 
 # ---------- league records ----------
 
-def league_records() -> dict:
-    """Headline single-stat records across all data, MLB-record-board style."""
-    picks = _picks()
-    standings_list = _standings()
+def league_records(season: int | None = None) -> dict:
+    """Headline single-stat records, MLB-record-board style.
+    Pass `season` to limit records to that season; otherwise spans all data."""
+    picks = _filter_season(_picks(), season)
+    standings_list = _filter_season(_standings(), season)
     hitter_picks = [p for p in picks if p.get("role") == "hitter"]
     pitcher_picks = [p for p in picks if p.get("role") == "pitcher"]
 
@@ -392,7 +393,7 @@ def league_records() -> dict:
             "extra": f"{top['season']}",
         })
     # Biggest blowout
-    bb = biggest_blowouts(top_n=1)
+    bb = biggest_blowouts(top_n=1, season=season)
     if bb:
         b = bb[0]
         rec.append({
@@ -434,7 +435,7 @@ def league_records() -> dict:
             "extra": f"times drafted across all seasons",
         })
     # Most all-time wins
-    drafter_all = drafter_alltime()
+    drafter_all = drafter_alltime(season=season)
     if drafter_all:
         top_d = max(drafter_all, key=lambda x: x["wins"])
         rec.append({
@@ -460,20 +461,47 @@ def league_records() -> dict:
 
 # ---------- aggregate API ----------
 
-def all_records(top_n: int = 10) -> dict:
-    """One-shot bundle for the UI to consume."""
+def all_records(top_n: int = 10, season: int | None = None) -> dict:
+    """One-shot bundle for the UI to consume. Pass season to scope every
+    record to a single year (head_to_head and season_titles still span all
+    seasons since those are explicitly multi-season views)."""
     return {
         "seasons": seasons(),
-        "league_records": league_records()["records"],
-        "top_hitter_games": top_hitter_games(top_n),
-        "top_pitcher_games": top_pitcher_games(top_n),
-        "worst_picks": worst_picks(top_n),
-        "highest_team_totals": highest_team_totals(top_n),
-        "highest_slate_totals": highest_slate_totals(top_n),
-        "biggest_blowouts": biggest_blowouts(top_n),
-        "most_picked_hitters": most_picked_hitters(20),
-        "most_picked_pitchers": most_picked_pitchers(20),
-        "drafter_alltime": drafter_alltime(),
+        "season_filter": season,
+        "league_records": league_records(season)["records"],
+        "top_hitter_games": top_hitter_games(top_n, season),
+        "top_pitcher_games": top_pitcher_games(top_n, season),
+        "worst_picks": worst_picks(top_n, season),
+        "highest_team_totals": highest_team_totals(top_n, season),
+        "highest_slate_totals": highest_slate_totals(top_n, season),
+        "biggest_blowouts": biggest_blowouts(top_n, season),
+        "most_picked_hitters": most_picked_hitters(20, season),
+        "most_picked_pitchers": most_picked_pitchers(20, season),
+        "drafter_alltime": drafter_alltime(season),
         "season_titles": season_titles(),
-        "head_to_head": head_to_head(),
+        "head_to_head": head_to_head() if season is None else _head_to_head_season(season),
     }
+
+
+def _head_to_head_season(season: int) -> dict:
+    """Head-to-head limited to a single season."""
+    s_recs = _filter_season(_standings(), season)
+    drafters: set[str] = set()
+    for s in s_recs:
+        for d in s.get("standings", []):
+            drafters.add(d["drafter"])
+    drafters_list = sorted(drafters)
+    h2h = {a: {b: {"wins": 0, "losses": 0, "ties": 0} for b in drafters_list if b != a} for a in drafters_list}
+    for s in s_recs:
+        by_name = {d["drafter"]: d["total"] for d in s.get("standings", [])}
+        for a in drafters_list:
+            for b in drafters_list:
+                if a >= b or a not in by_name or b not in by_name:
+                    continue
+                if by_name[a] > by_name[b]:
+                    h2h[a][b]["wins"] += 1; h2h[b][a]["losses"] += 1
+                elif by_name[a] < by_name[b]:
+                    h2h[a][b]["losses"] += 1; h2h[b][a]["wins"] += 1
+                else:
+                    h2h[a][b]["ties"] += 1; h2h[b][a]["ties"] += 1
+    return h2h

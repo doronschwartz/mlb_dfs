@@ -159,24 +159,7 @@ def get_records(top_n: int = 10, season: int | None = None):
     """Aggregate all-time records & history. Pass ?season=2024 to filter to
     a single season, otherwise returns combined across all imported seasons."""
     from . import records as records_mod
-    if season:
-        return {
-            "seasons": records_mod.seasons(),
-            "season_filter": season,
-            "league_records": records_mod.league_records()["records"],
-            "top_hitter_games": records_mod.top_hitter_games(top_n, season),
-            "top_pitcher_games": records_mod.top_pitcher_games(top_n, season),
-            "worst_picks": records_mod.worst_picks(top_n, season),
-            "highest_team_totals": records_mod.highest_team_totals(top_n, season),
-            "highest_slate_totals": records_mod.highest_slate_totals(top_n, season),
-            "biggest_blowouts": records_mod.biggest_blowouts(top_n, season),
-            "most_picked_hitters": records_mod.most_picked_hitters(20, season),
-            "most_picked_pitchers": records_mod.most_picked_pitchers(20, season),
-            "drafter_alltime": records_mod.drafter_alltime(season),
-            "season_titles": records_mod.season_titles(),
-            "head_to_head": records_mod.head_to_head(),
-        }
-    return records_mod.all_records(top_n=top_n)
+    return records_mod.all_records(top_n=top_n, season=season)
 
 
 @app.get("/api/changelog")
@@ -1256,7 +1239,7 @@ def apply_schedule(req: ApplyScheduleRequest):
 
 
 @app.get("/api/stats/standings")
-def stats_standings():
+def stats_standings(season: int | None = None):
     """All-time standings + per-day breakdown.
 
     Combines two sources:
@@ -1268,6 +1251,13 @@ def stats_standings():
     Per-day rows are unioned by date; a date present in both prefers the
     live computation (fresher).
     """
+    # Default to current season — the Stats tab is for tracking the live season,
+    # not for cross-season comparisons (that's what the 🏆 Hall of Fame tab is for).
+    # Pass ?season=YYYY to scope to a specific year, or ?season=0 for all-time.
+    current_year = Date.today().year
+    if season is None:
+        season = current_year
+
     drafts_data = []
     seen_dates: set[str] = set()
     for did in draft_mod.list_drafts():
@@ -1276,6 +1266,9 @@ def stats_standings():
         except Exception:
             continue
         if not dr.picks:
+            continue
+        # Filter by season unless season=0 (show all)
+        if season and not dr.date.startswith(f"{season}-"):
             continue
         try:
             standings = live_mod.score_draft(dr)
@@ -1301,6 +1294,8 @@ def stats_standings():
     # Merge in historic days that aren't superseded by a live draft.
     for entry in historic.standings():
         if entry.get("date") in seen_dates:
+            continue
+        if season and entry.get("season") != season:
             continue
         drafts_data.append({**entry, "source": "historic"})
 
@@ -1340,7 +1335,7 @@ def stats_standings():
 
 
 @app.get("/api/stats/players")
-def stats_players(top_n: int = 50):
+def stats_players(top_n: int = 50, season: int | None = None):
     """Player aggregate stats across all saved drafts AND historic picks:
     pick counts per drafter, average points per pick (overall + per drafter).
 
@@ -1348,6 +1343,12 @@ def stats_players(top_n: int = 50):
     drafted both in the historic CSV and in a current saved draft will be
     correctly aggregated as long as the names match.
     """
+    # Default to current season so the Stats tab tracks the live year.
+    # Pass ?season=0 to span all-time (matches /api/stats/standings behavior).
+    current_year = Date.today().year
+    if season is None:
+        season = current_year
+
     by_name: dict[str, dict] = {}
     for did in draft_mod.list_drafts():
         try:
@@ -1355,6 +1356,8 @@ def stats_players(top_n: int = 50):
         except Exception:
             continue
         if not dr.picks:
+            continue
+        if season and not dr.date.startswith(f"{season}-"):
             continue
         try:
             standings = live_mod.score_draft(dr)
@@ -1380,6 +1383,8 @@ def stats_players(top_n: int = 50):
 
     # Historic picks: each is one (date, drafter, player, score, role).
     for h in historic.picks():
+        if season and h.get("season") != season:
+            continue
         name = h.get("player_name") or "?"
         entry = by_name.setdefault(name, {
             "name": name,
