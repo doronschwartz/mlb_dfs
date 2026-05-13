@@ -693,19 +693,25 @@ function renderAskAlgo(r) {
       if (c.opp_abbr && c.opp_sp_name) bits.push(`vs ${c.opp_sp_name}`);
       context = bits.join(" · ");
     }
-    // Build inline breakdown tooltip using the existing helper
+    // Use the same .player-cell + .name-trigger pattern the rest of the app
+    // uses so the existing CSS (`.name-trigger:hover ~ .breakdown-tooltip`)
+    // and mobile tap-to-toggle handler both apply. Hovering the projection
+    // number shows the full multi-row breakdown (factors + pitfalls + range).
     const tooltipHTML = projTooltip({
       name: p.name,
       projected_points: proj,
       role,
       components: c,
     });
+    const projCell = proj != null ?
+      `<td class="proj player-cell"><span class="name-trigger" style="cursor:help;">${proj.toFixed(2)}</span>${tooltipHTML}</td>` :
+      `<td class="proj">—</td>`;
     return `<tr>
       <td class="rank">${i+1}</td>
-      <td class="player has-tooltip" data-tooltip-text="${(tooltipHTML || "").replace(/"/g,"&quot;")}">${p.name}<div class="meta">${role || ""} ${p.position ? "· " + p.position : ""}</div></td>
+      <td class="player">${p.name}<div class="meta">${role || ""} ${p.position ? "· " + p.position : ""}</div></td>
       <td class="meta">${context || "—"}</td>
       <td><span class="ask-rec-${rec}" title="${recHint}">${rec}</span></td>
-      <td class="proj">${proj != null ? proj.toFixed(2) : "—"}</td>
+      ${projCell}
     </tr>`;
   }).join("");
   let html = `<div class="ask-results">
