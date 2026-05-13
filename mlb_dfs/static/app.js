@@ -2510,7 +2510,7 @@ function drawPool() {
     const big = 9999;
     const rankOf = (p) => {
       if (!dynasty) return big;
-      return dynasty.map.get(dynasty.norm(p.name)) ?? big;
+      return dynasty.lookup(p.name) ?? big;
     };
     rows.sort((a, b) => {
       const ra = rankOf(a), rb = rankOf(b);
@@ -2526,7 +2526,7 @@ function drawPool() {
   }
   const rankOf = (p) => {
     if (!dynasty) return null;
-    return dynasty.map.get(dynasty.norm(p.name)) ?? null;
+    return dynasty.lookup(p.name) ?? null;
   };
   const html = `
     <table>
@@ -2617,20 +2617,53 @@ async function _loadDynasty() {
     const r = await fetch("/api/dynasty_rankings");
     if (!r.ok) return;
     const data = await r.json();
+    // Aggressive normalization to maximize matches against the 500-name CSV.
+    // Strips: accents, punctuation, suffixes (Jr/Sr/II/III/IV), middle
+    // initials, lowercases, collapses whitespace. Two players with the same
+    // first+last (rare) keep the higher-ranked entry.
     const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
     const norm = (s) => {
-      const tokens = (s || "").toLowerCase().normalize("NFKD")
-        .replace(/[^\w\s]/g, "")
-        .trim().split(/\s+/)
-        .filter((t) => t && !SUFFIXES.has(t));
-      return tokens.join(" ");
+      // Decompose accents (Acuña → Acuna), strip combining marks, lowercase,
+      // strip everything except letters/digits/spaces (drops .'`/-_ etc.).
+      const cleaned = (s || "")
+        .normalize("NFKD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ");
+      const tokens = cleaned.trim().split(/\s+/).filter(Boolean);
+      // Drop suffix tokens (Jr/II) and lone-letter middle initials ('a')
+      const kept = tokens.filter(t => !SUFFIXES.has(t) && t.length > 1);
+      return kept.join(" ");
+    };
+    // Secondary key: just last name. Lets us catch 'Witt' alone matching
+    // 'Bobby Witt Jr.' when one source omits the first name.
+    const lastNameOnly = (s) => {
+      const n = norm(s);
+      if (!n) return "";
+      const parts = n.split(/\s+/);
+      return parts[parts.length - 1];
     };
     const map = new Map();
+    const lastMap = new Map();
     (data.rankings || []).forEach((name, i) => {
+      const rank = i + 1;
       const k = norm(name);
-      if (k && !map.has(k)) map.set(k, i + 1);
+      if (k && !map.has(k)) map.set(k, rank);
+      const lk = lastNameOnly(name);
+      if (lk && !lastMap.has(lk)) lastMap.set(lk, rank);
     });
-    state._dynastyMap = { map, norm };
+    // Final lookup function: try full normalized name first, then fall back
+    // to last-name-only. This catches MLB-API names like 'Vladimir Guerrero
+    // Jr.' against CSV 'Vladimir Guerrero Jr', and 'Luis Robert Jr.' against
+    // CSV 'Luis Robert', without false positives at the top of the list.
+    const lookup = (name) => {
+      const k = norm(name);
+      if (k && map.has(k)) return map.get(k);
+      const lk = lastNameOnly(name);
+      if (lk && lastMap.has(lk)) return lastMap.get(lk);
+      return null;
+    };
+    state._dynastyMap = { map, norm, lookup, n: (data.rankings || []).length };
   } catch {}
 }
 _loadDynasty();

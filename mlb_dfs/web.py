@@ -83,20 +83,63 @@ class UpdateGamesRequest(BaseModel):
 
 @app.get("/api/dynasty_rankings")
 def dynasty_rankings():
-    """Static internal Top-500-style dynasty list, ordered top to bottom.
-    Loaded from mlb_dfs/data/dynasty_top500.txt — edit that file to update."""
-    import os
-    path = os.path.join(os.path.dirname(__file__), "data", "dynasty_top500.txt")
+    """Top-500 dynasty rankings. Prefers data/dynasty_top500.csv (the real
+    FantraxHQ export, 500 names with positions, teams, ages); falls back to
+    the legacy hand-curated data/dynasty_top500.txt if the CSV is missing.
+
+    Returns {"rankings": [name, ...]} for backwards-compat with the existing
+    frontend, plus {"meta": [...]} with the per-player metadata (pos, team,
+    age) for any future UI that wants to surface it. Rank is the Roto column
+    (2nd col), which is the consensus FantraxHQ rank — the Points column
+    (1st col) is points-league-skewed and ranks pitchers far higher than
+    most leagues actually do.
+    """
+    import csv, os
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    csv_path = os.path.join(data_dir, "dynasty_top500.csv")
+    txt_path = os.path.join(data_dir, "dynasty_top500.txt")
+
     rankings: list[str] = []
-    try:
-        with open(path) as f:
-            for line in f:
-                s = line.strip()
-                if s and not s.startswith("#"):
-                    rankings.append(s)
-    except FileNotFoundError:
-        pass
-    return {"rankings": rankings, "n": len(rankings)}
+    meta: list[dict] = []
+
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, newline="") as f:
+                rdr = csv.DictReader(f)
+                for row in rdr:
+                    name = (row.get("Player") or "").strip()
+                    if not name:
+                        continue
+                    try:
+                        roto_rank = int(row.get("Roto", "").strip() or 0)
+                    except (TypeError, ValueError):
+                        roto_rank = 0
+                    if not roto_rank:
+                        continue
+                    meta.append({
+                        "rank": roto_rank,
+                        "name": name,
+                        "pos": (row.get("Pos.") or "").strip(),
+                        "team": (row.get("Team") or "").strip(),
+                        "age": (row.get("Age") or "").strip(),
+                    })
+            meta.sort(key=lambda x: x["rank"])
+            rankings = [m["name"] for m in meta]
+        except Exception:
+            rankings = []
+            meta = []
+
+    if not rankings and os.path.exists(txt_path):
+        try:
+            with open(txt_path) as f:
+                for line in f:
+                    s = line.strip()
+                    if s and not s.startswith("#"):
+                        rankings.append(s)
+        except Exception:
+            pass
+
+    return {"rankings": rankings, "meta": meta, "n": len(rankings)}
 
 
 @app.get("/api/health")
@@ -274,6 +317,23 @@ def get_changelog():
     return {
         "current": projections.MODEL_REV,
         "entries": [
+            {
+                "version": "v9.4 — 2026-05-13",
+                "title": "In-match live projections + UX polish",
+                "changes": [
+                    "Live (in-match) projections on the Live Score tab — new 'Live' column shows actual + remaining estimate. Hitters use completed-PA share of the 4.3 PA/game expectation; pitchers use ip_per_start * 3 outs as the expected denominator. Standings line shows 'Stock 47.0 → live 92.4' so you see projected final, not just where everyone is right now",
+                    "Stats tab: every player-table column header is click-to-sort with ▲/▼ indicators. Click 'Stock Avg' to see who Stock crushes vs the field, click 'Total' to flip to volume, etc.",
+                    "Ask Algo tab — paste any roster, get back ranked projections with form/tier/IP/K9 context + START/CONSIDER/SIT badges. Uses the same cached projection slate as /api/projections so first-call is fast",
+                    "Hall of Fame tab — all-time records, season champions, head-to-head matrix, biggest blowouts, worst single picks, most-picked players. Merges live scored drafts with imported historic seasons (2023/2024/2025/2026)",
+                    "Daily MLB trivia (Draft tab) — 3 auto-generated questions per day from the slate + Statcast, gated behind 'Who are you?' picker so no spoilers, hardened distractors so all 4 options are legit leaders, season leaderboard",
+                    "Multi-season historic import: 2023 (112 days) + 2024 (66) + 2025 (102) + 2026 (live) — 302 days, 9084 picks across the record book. New all-time best hitter game: Kyle Schwarber 66.0 (Stock, 2025-08-28)",
+                    "Restricted-undo on draft: button now disables when the last pick wasn't yours, with 'X's pick — locked' label. Prevents accidental undo of someone else's pick in a shared session",
+                    "Position override: Kyle Schwarber → OF (joined Ohtani) so he's draftable to OF slots instead of being DH-locked",
+                    "League baselines footer on every tab — surfaces the live Statcast averages (brl%/hh%/xERA/xwOBA) with their age. 'refresh' link forces a re-pull on demand",
+                    "Disk cache LRU eviction: bounded at 400MB so /data volume can't fill up again (the 5/13 trivia outage was caused by 958MB of unbounded cache growth)",
+                    "Dynasty rankings: imported the real FantraxHQ Top-500 CSV (replaces the hand-curated 70-name list); matching is now accent / suffix / middle-initial tolerant with last-name fallback so far more players resolve to a rank",
+                ],
+            },
             {
                 "version": "v9.3 — 2026-05-12",
                 "title": "Advanced projection factors",
