@@ -134,17 +134,17 @@ $$("nav button").forEach((b) => {
       }
       // Lazy-load today's trivia panel. Failure is silent (panel stays hidden).
       loadTrivia().catch(() => {});
-    }
-    if (b.dataset.tab === "hof") {
-      loadHallOfFame().catch(() => {});
+      // Auto-load today's draft if one exists — else the next upcoming, else
+      // the most recent past one. This logic used to fire here, then accidentally
+      // got moved into the HOF branch in an earlier refactor (where `today` was
+      // out of scope and it failed silently). Restoring to the Draft branch
+      // means clicking the Draft tab no longer leaves a 2-week-old draft loaded.
       const sel = $("#draft-id");
       const opts = sel ? Array.from(sel.options).map((o) => o.value).filter(Boolean) : [];
       let pick = null;
       if (opts.includes(today)) {
         pick = today;
       } else if (opts.length) {
-        // Today has no draft — auto-load the next upcoming draft (≥ today),
-        // or the most recent past draft as a fallback.
         const upcoming = opts.filter((d) => d >= today).sort();
         const past = opts.filter((d) => d < today).sort().reverse();
         pick = upcoming[0] || past[0];
@@ -152,7 +152,6 @@ $$("nav button").forEach((b) => {
       if (sel && pick) {
         sel.value = pick;
         state.currentDraftId = pick;
-        // Also point the date input at the auto-loaded draft so the UI is consistent.
         if ($("#date").value !== pick) {
           $("#date").value = pick;
           state._slateDate = null;
@@ -162,6 +161,9 @@ $$("nav button").forEach((b) => {
       } else {
         state.currentDraftId = null;
       }
+    }
+    if (b.dataset.tab === "hof") {
+      loadHallOfFame().catch(() => {});
     }
     refresh();
   });
