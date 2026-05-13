@@ -318,6 +318,18 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.4.1 — 2026-05-13",
+                "title": "Late-day polish",
+                "changes": [
+                    "Most-Picked-Player record now splits two-way Ohtani by role — his 113 hitter picks + 11 pitcher picks were merging into one 124-count entry, drowning out the actual all-time leader Jose Ramirez (118 as hitter). Now shows 'Shohei Ohtani (hitter)' / '(pitcher)' separately",
+                    "Position override: Brent Rooker → OF (joins Ohtani + Schwarber) so he's draftable to OF slots instead of DH-locked",
+                    "Lone-SP-needer's SP picks never burn the snake turn — Stock can take both his SPs back-to-back AND keep his natural hitter/UTIL turns. Previously OOO only fired for off-turn picks; now also fires when it IS your natural turn but you're the only one with open SP slots",
+                    "Dynasty matcher: stricter fallback. Was using last-name-only which collided ('Endy Rodríguez' inherited Julio Rodriguez's #9 rank). Now uses (first-letter + last-name) — keeps 'B Witt' → 'Bobby Witt Jr.' working without false positives like Endy/Julio",
+                    "Dynasty data: imported the full FantraxHQ Top-500 CSV (was a hand-curated 70 names)",
+                    "Restricted-undo on draft: only the drafter of the last pick can undo it (their button label flips to '↩️ Undo my pick (X)'; others see 'locked'). Prevents accidental undo of someone else's pick in a shared session",
+                ],
+            },
+            {
                 "version": "v9.4 — 2026-05-13",
                 "title": "In-match live projections + UX polish",
                 "changes": [
