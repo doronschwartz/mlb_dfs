@@ -291,6 +291,13 @@ class Draft:
                 )
             drafter = drafter_override
             is_ooo = True
+        # Extra rule (added per user request): even when it IS the lone
+        # SP-needer's natural turn, picking an SP shouldn't burn that turn —
+        # they can grab their SPs whenever (the rest of the snake is held
+        # for their hitter/UTIL/BN slots anyway). This way Stock can take
+        # both his SPs right now without giving up his natural hitter turns.
+        elif slot == "SP" and self.can_pick_sp_out_of_order(drafter):
+            is_ooo = True
         if projection.player_id in self.picked_ids():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(slot, projection):
