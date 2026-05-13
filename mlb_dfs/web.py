@@ -104,6 +104,15 @@ def health():
     return {"ok": True}
 
 
+@app.post("/api/admin/cache_gc")
+def admin_cache_gc():
+    """Force-evict the disk cache down to the LRU target. No auth — there's
+    nothing destructive here (cache entries are reproducible), but limit to
+    POST so accidental GET-loads don't trigger it."""
+    from . import disk_cache
+    return disk_cache.gc(force=True)
+
+
 # ---------- Daily MLB trivia ----------
 
 @app.get("/api/trivia/{date}")
