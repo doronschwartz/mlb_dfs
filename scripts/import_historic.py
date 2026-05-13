@@ -64,35 +64,91 @@ def _to_float(s):
 
 
 def parse_standings(path: str, year: int) -> list[dict]:
+    """Header-aware parser for the combined Standings_Points sheet (2024 + 2026).
+
+    Strategy: walk the header after the 'Date' column and find every cell that
+    contains a drafter name (Stock / Meech / JL — header cells like 'JL Standing'
+    or bare 'Stock' both match). Group those into blocks of 3 consecutive
+    drafter columns; expect 3 blocks total (Standing, Points, Full Total).
+
+    Handles both layouts:
+    - 2024: Date col 6, single-blank between blocks → block cols 7-9, 11-13, 16-18
+    - 2026: Date col 7, double-blank between blocks → block cols 8-10, 13-15, 19-21
+
+    Drafter order within each block can vary year-to-year (2024: JL/Meech/Stock;
+    2026: Stock/Meech/JL); we extract it from the header itself.
+    """
     if not os.path.exists(path):
         return []
     with open(path) as f:
         rows = list(csv.reader(f))
+    if not rows:
+        return []
+    header = [c.strip() for c in rows[0]]
+    try:
+        date_col = header.index("Date")
+    except ValueError:
+        return []
+
+    def _drafter_in_cell(cell: str) -> str | None:
+        for name in ("Stock", "Meech", "JL"):
+            if name in cell:
+                return name
+        return None
+
+    # Collect every header column index that names a drafter, in order.
+    drafter_cols: list[tuple[int, str]] = []
+    for i in range(date_col + 1, len(header)):
+        d = _drafter_in_cell(header[i])
+        if d:
+            drafter_cols.append((i, d))
+
+    # Group into runs of 3 consecutive drafter columns (consecutive = next
+    # drafter column index is current+1, no gap). Each run is one block.
+    blocks: list[list[tuple[int, str]]] = []
+    cur: list[tuple[int, str]] = []
+    for idx, name in drafter_cols:
+        if cur and idx != cur[-1][0] + 1:
+            if len(cur) == 3:
+                blocks.append(cur)
+            cur = []
+        cur.append((idx, name))
+    if len(cur) == 3:
+        blocks.append(cur)
+
+    if len(blocks) < 2:
+        return []
+    standing_block = blocks[0]
+    points_block = blocks[1]
+    full_block = blocks[2] if len(blocks) >= 3 else None
+    drafter_order = [n for _, n in standing_block]
+
     out = []
     for row in rows[1:]:
-        row = row + [""] * max(0, 25 - len(row))
-        date_iso = parse_date_label(row[7], year)
+        row = row + [""] * max(0, 30 - len(row))
+        date_iso = parse_date_label(row[date_col], year)
         if not date_iso:
             continue
-        ranks = (_to_float(row[8]), _to_float(row[9]), _to_float(row[10]))
-        totals = (_to_float(row[13]), _to_float(row[14]), _to_float(row[15]))
-        fulls = (_to_float(row[19]), _to_float(row[20]), _to_float(row[21]))
+        ranks = [_to_float(row[i]) for i, _ in standing_block]
+        totals = [_to_float(row[i]) for i, _ in points_block]
+        if full_block:
+            fulls = [_to_float(row[i]) for i, _ in full_block]
+        else:
+            fulls = list(totals)
         if any(v is None for v in totals):
             continue
-        names = ("Stock", "Meech", "JL")
-        standings = [
-            {
-                "drafter": names[i],
+        standings = []
+        for i, name in enumerate(drafter_order):
+            standings.append({
+                "drafter": name,
                 "rank": int(ranks[i]) if ranks[i] is not None else 0,
                 "total": round(totals[i], 2),
-                "full_total": round(fulls[i] or totals[i], 2),
-            }
-            for i in range(3)
-        ]
+                "full_total": round(fulls[i] if fulls[i] is not None else totals[i], 2),
+            })
         out.append({
             "date": date_iso,
             "season": year,
-            "drafters": list(names),
+            "drafters": list(drafter_order),
             "is_complete": True,
             "standings": standings,
         })
