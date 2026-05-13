@@ -185,6 +185,29 @@ def ask_algo(req: AskAlgoRequest):
     }
 
 
+@app.get("/api/league_averages")
+def get_league_averages(season: int | None = None, refresh: bool = False):
+    """Surfaces the current league baselines (barrel%, hh%, xERA, xwOBA,
+    sweet-spot%) that drive the projection algo. Cached 24h, auto-refreshes
+    on first request after expiry. Pass ?refresh=true to force a re-fetch
+    from Statcast right now."""
+    from . import savant
+    s = season or Date.today().year
+    if refresh:
+        savant._LG_CACHE.pop(s, None)
+    lg = savant.league_averages(s)
+    cached = savant._LG_CACHE.get(s)
+    fetched_at = cached[0] if cached else None
+    age_seconds = (time.time() - fetched_at) if fetched_at else None
+    return {
+        "season": s,
+        "averages": lg,
+        "fetched_at": fetched_at,
+        "age_seconds": age_seconds,
+        "ttl_seconds": savant._LG_TTL,
+    }
+
+
 @app.post("/api/admin/cache_gc")
 def admin_cache_gc():
     """Force-evict the disk cache down to the LRU target. No auth — there's

@@ -777,6 +777,37 @@ document.addEventListener("mouseenter", (e) => {
   if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
 })();
 
+// League baselines footer — surfaces the live Statcast averages the algo
+// uses, so it's visible at a glance whether they're current. 24h auto-refresh
+// on the server; click "refresh" to force a fresh pull from Statcast.
+async function loadLeagueBaselines(force = false) {
+  const el = $("#lg-baselines");
+  if (!el) return;
+  try {
+    const r = await api(`/api/league_averages${force ? "?refresh=true" : ""}`);
+    const a = r.averages || {};
+    const ageH = r.age_seconds != null ? (r.age_seconds / 3600).toFixed(1) : "?";
+    const fresh = r.age_seconds != null && r.age_seconds < 24 * 3600;
+    const cls = fresh ? "fresh" : "stale";
+    el.innerHTML = `
+      <b>League baselines (${r.season})</b> · live from Statcast,
+      <span class="${cls}">${ageH}h old</span>
+      (<a id="lg-refresh">refresh</a>) ·
+      <b>hitter</b> brl ${a.brl_pct_hitter?.toFixed(2)}% · hh ${a.hh_pct_hitter?.toFixed(2)}% ·
+      xwOBA ${a.xwoba_hitter?.toFixed(3)} ·
+      <b>pitcher allowed</b> brl ${a.brl_pct_allowed?.toFixed(2)}% · hh ${a.hh_pct_allowed?.toFixed(2)}% ·
+      xERA ${a.xera?.toFixed(2)} · xwOBA-agst ${a.xwoba_against?.toFixed(3)}
+    `;
+    $("#lg-refresh")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadLeagueBaselines(true);
+    });
+  } catch (e) {
+    el.innerHTML = `<span class="stale">League baselines unavailable: ${e.message || e}</span>`;
+  }
+}
+window.addEventListener("DOMContentLoaded", () => loadLeagueBaselines().catch(() => {}));
+
 // Decide the action label given current Fantrax slot vs recommendation.
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.
 const _BENCH_SLOTS = new Set(["BN", "Res", "Reserve", "IR", "InjRes", "Inj Res", ""]);

@@ -761,3 +761,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   max-width: min(420px, calc(100vw - 32px));
   z-index: 100;
 }
+
+/* League baselines footer — surface the live Statcast averages the algo
+   uses so users can confirm at a glance they're current (24h auto-refresh). */
+.lg-baselines { font-size: 11px; margin-top: 6px; line-height: 1.5; }
+.lg-baselines b { color: var(--text); font-weight: 600; }
+.lg-baselines .stale { color: var(--bad); }
+.lg-baselines .fresh { color: var(--accent-2); }
+.lg-baselines a { color: var(--accent); cursor: pointer; }
