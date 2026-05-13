@@ -2635,32 +2635,36 @@ async function _loadDynasty() {
       const kept = tokens.filter(t => !SUFFIXES.has(t) && t.length > 1);
       return kept.join(" ");
     };
-    // Secondary key: just last name. Lets us catch 'Witt' alone matching
-    // 'Bobby Witt Jr.' when one source omits the first name.
-    const lastNameOnly = (s) => {
+    // Secondary key: (first-letter-of-first-name) + (last name). Lets us
+    // resolve 'B. Witt' → 'Bobby Witt Jr.' WITHOUT collapsing different
+    // players who share a last name (Endy Rodríguez ≠ Julio Rodriguez —
+    // the 'Rodriguez'-only fallback was matching every Rodriguez to Julio's
+    // rank, which is how the user got Endy Rodríguez stamped at Dyn #9).
+    const initLast = (s) => {
       const n = norm(s);
       if (!n) return "";
       const parts = n.split(/\s+/);
-      return parts[parts.length - 1];
+      if (parts.length < 2) return "";
+      return parts[0][0] + " " + parts[parts.length - 1];
     };
     const map = new Map();
-    const lastMap = new Map();
+    const initLastMap = new Map();
     (data.rankings || []).forEach((name, i) => {
       const rank = i + 1;
       const k = norm(name);
       if (k && !map.has(k)) map.set(k, rank);
-      const lk = lastNameOnly(name);
-      if (lk && !lastMap.has(lk)) lastMap.set(lk, rank);
+      const ik = initLast(name);
+      if (ik && !initLastMap.has(ik)) initLastMap.set(ik, rank);
     });
-    // Final lookup function: try full normalized name first, then fall back
-    // to last-name-only. This catches MLB-API names like 'Vladimir Guerrero
-    // Jr.' against CSV 'Vladimir Guerrero Jr', and 'Luis Robert Jr.' against
-    // CSV 'Luis Robert', without false positives at the top of the list.
+    // Lookup: exact normalized first, then init+lastname fallback. This is
+    // strict enough that 'Endy Rodriguez' won't collide with 'Julio Rodriguez'
+    // (different first-letter 'e' vs 'j'), but still resolves cases like
+    // 'V. Guerrero' → 'Vladimir Guerrero', or shortform 'B Witt' → 'Bobby Witt'.
     const lookup = (name) => {
       const k = norm(name);
       if (k && map.has(k)) return map.get(k);
-      const lk = lastNameOnly(name);
-      if (lk && lastMap.has(lk)) return lastMap.get(lk);
+      const ik = initLast(name);
+      if (ik && initLastMap.has(ik)) return initLastMap.get(ik);
       return null;
     };
     state._dynastyMap = { map, norm, lookup, n: (data.rankings || []).length };
