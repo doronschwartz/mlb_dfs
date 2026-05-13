@@ -41,17 +41,122 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from itertools import groupby
 
+import logging
+import time
+
 from . import historic
 
 
 # ---------- helpers ----------
+#
+# Records merge LIVE drafts with HISTORIC imports. Why: the spreadsheet import
+# captures days through whenever the user last exported the CSV; everything
+# after that is in /data/drafts as live scored drafts. Without the merge, the
+# Hall of Fame missed every day since the last import (e.g. 9 days of 2026
+# play between the sheet export and "today"), and included bogus historic
+# rows where the sheet had partial-game data (the 2026-04-30 entry showed
+# 5.3 pts total when the live scoring shows 95.2).
+#
+# Merge rule: for any date present in BOTH live and historic, the live entry
+# wins (it reflects fresh box-score scoring; historic is whatever the
+# spreadsheet had on import day).
+#
+# Picks dedupe: (date, drafter, player_name, role) is the uniqueness tuple.
+# Two-way Ohtani gets drafted both as P and as OF on the same day — those
+# are DIFFERENT picks and should both count. But the import script collapsed
+# "Ohtani(P)" → "Shohei Ohtani" for the name, creating duplicate rows when
+# the OF row was also "Shohei Ohtani". Including role in the dedupe key
+# keeps Ohtani's two-way picks separate while removing accidental sheet dups.
+
+_MERGED_CACHE: dict[str, tuple[float, list]] = {}
+_MERGED_TTL = 60  # cheap to refresh; just dedupes some Python work for back-to-back HOF requests
+
+
+def _load_live() -> tuple[list[dict], list[dict], set[str]]:
+    """Score every saved live draft on the volume. Returns (live_standings,
+    live_picks, seen_dates). Failures (corrupt draft files, scoring errors)
+    are logged and skipped — never block the whole HOF render."""
+    now = time.time()
+    cached = _MERGED_CACHE.get("live")
+    if cached and (now - cached[0]) < _MERGED_TTL:
+        return cached[1]
+    live_standings: list[dict] = []
+    live_picks: list[dict] = []
+    seen: set[str] = set()
+    try:
+        from . import draft as draft_mod, live as live_mod
+    except Exception as e:
+        logging.warning("records: live data unavailable: %s", e)
+        result = (live_standings, live_picks, seen)
+        _MERGED_CACHE["live"] = (now, result)
+        return result
+    for did in draft_mod.list_drafts():
+        try:
+            dr = draft_mod.load_draft(did)
+        except Exception:
+            continue
+        if not dr.picks:
+            continue
+        try:
+            standings = live_mod.score_draft(dr)
+        except Exception as e:
+            logging.warning("records: score_draft failed for %s: %s", did, e)
+            continue
+        try:
+            ssn = int(dr.date[:4])
+        except Exception:
+            continue
+        seen.add(dr.date)
+        live_standings.append({
+            "date": dr.date,
+            "season": ssn,
+            "drafters": list(dr.drafters),
+            "is_complete": dr.is_complete(),
+            "standings": [
+                {"drafter": s.drafter, "rank": s.rank,
+                 "total": round(s.total, 2), "full_total": round(s.full_total, 2)}
+                for s in standings
+            ],
+        })
+        for s in standings:
+            for pick, ps in s.picks:
+                pts = float(ps.points) if ps else 0.0
+                live_picks.append({
+                    "date": dr.date, "season": ssn, "drafter": pick.drafter,
+                    "player_name": pick.name,
+                    "score": round(pts, 2),
+                    "role": pick.role,
+                })
+    result = (live_standings, live_picks, seen)
+    _MERGED_CACHE["live"] = (now, result)
+    return result
+
+
+def _dedupe_picks(rows: list[dict]) -> list[dict]:
+    """Drop accidental duplicate picks from the spreadsheet import. Uniqueness
+    is (date, drafter, player_name, role) — keeps two-way Ohtani as two picks
+    (P + OF) but removes literal duplicate rows."""
+    seen: set[tuple] = set()
+    out: list[dict] = []
+    for p in rows:
+        key = (p.get("date"), p.get("drafter"), p.get("player_name"), p.get("role"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
 
 def _picks() -> list[dict]:
-    return historic.picks()
+    _live_st, live_picks, seen = _load_live()
+    hist = [p for p in historic.picks() if p.get("date") not in seen]
+    return _dedupe_picks(live_picks + hist)
 
 
 def _standings() -> list[dict]:
-    return historic.standings()
+    live_standings, _live_picks, seen = _load_live()
+    hist = [s for s in historic.standings() if s.get("date") not in seen]
+    return live_standings + hist
 
 
 def seasons() -> list[int]:
