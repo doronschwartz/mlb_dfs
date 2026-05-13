@@ -199,7 +199,8 @@ def player_stats(
 # Example: Shohei Ohtani is listed DH but his last non-P fielding position
 # was OF, so the league wants OF eligibility for his hitter row.
 POSITION_OVERRIDES = {
-    660271: "OF",   # Shohei Ohtani
+    660271: "OF",   # Shohei Ohtani — DH listed, but OF-eligible in our league
+    656941: "OF",   # Kyle Schwarber — primary DH but historically OF, league treats as OF
 }
 
 
