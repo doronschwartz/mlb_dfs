@@ -20,6 +20,7 @@
       <button data-tab="kprops">K Props</button>
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
+      <button data-tab="ask">🎯 Ask Algo</button>
       <button data-tab="hof">🏆 Hall of Fame</button>
     </nav>
     <div class="date-row">
@@ -310,6 +311,29 @@
         <button id="score-load">Score it</button>
       </div>
       <div id="score-out"></div>
+    </section>
+
+    <section id="tab-ask" class="tab">
+      <h2>🎯 Ask the Algo <span class="muted" style="font-size:13px;font-weight:400;">— paste any roster, get ranked projections</span></h2>
+      <p class="muted" style="font-size:13px;">
+        Drop in player names (one per line). The algo finds each on today's slate,
+        runs the full projection (Statcast + Vegas + park + form + matchup), and
+        ranks them. Use this to sanity-check a Fantrax lineup, compare two waiver
+        candidates, or just see who's projected to crush tonight.
+      </p>
+      <div class="setup-row">
+        <textarea id="ask-names" rows="14"
+          style="flex:1; min-width:300px; font-family:ui-monospace,Menlo,monospace;"
+          placeholder="Nick Lodolo&#10;Dylan Cease&#10;Framber Valdez&#10;Michael King&#10;Parker Messick&#10;Sonny Gray&#10;..."></textarea>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:160px;">
+          <label style="font-size:12px;display:flex;flex-direction:column;gap:3px;">
+            Date
+            <input id="ask-date" type="date" />
+          </label>
+          <button id="ask-go" class="btn-pick">🎯 Run through algo</button>
+        </div>
+      </div>
+      <div id="ask-out"></div>
     </section>
 
     <section id="tab-hof" class="tab">

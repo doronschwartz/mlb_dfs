@@ -104,6 +104,82 @@ def health():
     return {"ok": True}
 
 
+class AskAlgoRequest(BaseModel):
+    names: list[str]
+    date: str | None = None
+
+
+@app.post("/api/ask_algo")
+def ask_algo(req: AskAlgoRequest):
+    """Look up projections for a free-form list of player names. Used by the
+    Ask Algo tab — paste a roster, get back ranked projections + matchup
+    context for each player on the date. Name matching is fuzzy: case-
+    insensitive substring, accent-insensitive, common-suffix-stripped.
+    """
+    d = Date.fromisoformat(req.date) if req.date else Date.today()
+    try:
+        projections_today = projections.project_slate(d)
+    except Exception as e:
+        raise HTTPException(500, f"projection slate failed: {e}")
+
+    import unicodedata
+    def _norm(s: str) -> str:
+        if not s:
+            return ""
+        nfkd = unicodedata.normalize("NFKD", s)
+        no_accent = "".join(c for c in nfkd if not unicodedata.combining(c))
+        return no_accent.lower().replace(".", "").replace("'", "").strip()
+
+    by_name_norm: dict[str, dict] = {}
+    for p in projections_today:
+        nm = _norm(getattr(p, "name", "") or "")
+        if nm:
+            by_name_norm[nm] = p
+
+    out: list[dict] = []
+    missing: list[str] = []
+    for raw_name in req.names:
+        query = _norm(raw_name)
+        if not query:
+            continue
+        match = None
+        # 1) Exact normalized match
+        if query in by_name_norm:
+            match = by_name_norm[query]
+        else:
+            # 2) Last-name + first-initial fuzzy match
+            for nm, p in by_name_norm.items():
+                # check substring both ways with at-least 5-char overlap
+                if len(query) >= 5 and (query in nm or nm in query):
+                    match = p
+                    break
+                # Last name match: split query by spaces, take last token
+                q_last = query.split()[-1] if query.split() else query
+                p_last = nm.split()[-1] if nm.split() else nm
+                if len(q_last) >= 4 and q_last == p_last:
+                    match = p
+                    break
+        if match:
+            out.append({
+                "query": raw_name,
+                "name": match.name,
+                "projected_points": match.projected_points,
+                "role": match.role,
+                "position": match.position,
+                "components": match.components,
+                "notes": match.notes,
+            })
+        else:
+            missing.append(raw_name)
+    out.sort(key=lambda x: -(x.get("projected_points") or 0))
+    return {
+        "date": d.isoformat(),
+        "matched": out,
+        "missing": missing,
+        "total_slate_projections": len(projections_today),
+    }
+
+
 @app.post("/api/admin/cache_gc")
 def admin_cache_gc():
     """Force-evict the disk cache down to the LRU target. No auth — there's

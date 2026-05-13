@@ -618,6 +618,123 @@ function _hofMostPickedTable(rows) {
 $("#hof-refresh")?.addEventListener("click", () => loadHallOfFame());
 $("#hof-season-filter")?.addEventListener("change", () => loadHallOfFame());
 
+// ---------- Ask the Algo ----------
+// Paste any list of player names, get ranked projections + matchup context.
+
+async function runAskAlgo() {
+  const namesRaw = ($("#ask-names")?.value || "").trim();
+  const dateInput = $("#ask-date")?.value;
+  const out = $("#ask-out");
+  if (!out) return;
+  const names = namesRaw.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (!names.length) {
+    out.innerHTML = '<div class="muted">Paste at least one name above.</div>';
+    return;
+  }
+  out.innerHTML = '<div class="muted">Running through the algo…</div>';
+  try {
+    const body = { names };
+    if (dateInput) body.date = dateInput;
+    const r = await api("/api/ask_algo", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    renderAskAlgo(r);
+  } catch (e) {
+    out.innerHTML = `<div class="muted">Failed: ${e.message || e}</div>`;
+  }
+}
+
+function _askRecommend(role, proj) {
+  // Simple heuristic: well-defined buckets that match the existing form/QoC
+  // tier thinking. Hitters peak ~25 pts, pitchers ~25 pts; bottom is 0/negative.
+  if (proj == null) return ["OFF", "No game today"];
+  if (role === "pitcher") {
+    if (proj >= 16) return ["START", "Strong play"];
+    if (proj >= 11) return ["CONSIDER", "Acceptable arm"];
+    return ["SIT", "Risky — low projection"];
+  }
+  if (proj >= 12) return ["START", "Strong play"];
+  if (proj >= 8) return ["CONSIDER", "Mid-tier"];
+  return ["SIT", "Low projection"];
+}
+
+function renderAskAlgo(r) {
+  const out = $("#ask-out");
+  if (!out) return;
+  const matched = r.matched || [];
+  const missing = r.missing || [];
+  if (!matched.length && !missing.length) {
+    out.innerHTML = '<div class="muted">No matches found.</div>';
+    return;
+  }
+  const rows = matched.map((p, i) => {
+    const c = p.components || {};
+    const role = p.role || "";
+    const proj = p.projected_points;
+    const [rec, recHint] = _askRecommend(role, proj);
+    // Context fields differ by role
+    let context = "";
+    if (role === "pitcher") {
+      const bits = [];
+      if (c.form_tag) bits.push(c.form_tag);
+      if (c.qoc_tier && c.qoc_tier !== "—") bits.push(c.qoc_tier);
+      if (c.ip_per_start != null) bits.push(`${c.ip_per_start} IP/start`);
+      if (c.k9_season != null) bits.push(`${c.k9_season.toFixed(1)} K/9`);
+      if (c.is_opener) bits.push("OPENER");
+      if (c.opp_abbr) bits.push(`@${c.opp_abbr}`);
+      context = bits.join(" · ");
+    } else {
+      const bits = [];
+      if (c.form_tag) bits.push(c.form_tag);
+      if (c.qoc_tier && c.qoc_tier !== "—") bits.push(c.qoc_tier);
+      if (c.batting_order) bits.push(`#${c.batting_order}`);
+      if (c.implied_team_total) bits.push(`${c.implied_team_total.toFixed(1)}R team`);
+      if (c.opp_abbr && c.opp_sp_name) bits.push(`vs ${c.opp_sp_name}`);
+      context = bits.join(" · ");
+    }
+    // Build inline breakdown tooltip using the existing helper
+    const tooltipHTML = projTooltip({
+      name: p.name,
+      projected_points: proj,
+      role,
+      components: c,
+    });
+    return `<tr>
+      <td class="rank">${i+1}</td>
+      <td class="player has-tooltip" data-tooltip-text="${(tooltipHTML || "").replace(/"/g,"&quot;")}">${p.name}<div class="meta">${role || ""} ${p.position ? "· " + p.position : ""}</div></td>
+      <td class="meta">${context || "—"}</td>
+      <td><span class="ask-rec-${rec}" title="${recHint}">${rec}</span></td>
+      <td class="proj">${proj != null ? proj.toFixed(2) : "—"}</td>
+    </tr>`;
+  }).join("");
+  let html = `<div class="ask-results">
+    <table class="ask-table">
+      <thead><tr><th>#</th><th>Player</th><th>Context</th><th>Reco</th><th class="proj">Proj</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+  if (missing.length) {
+    html += `<div class="ask-missing">
+      <b>Not in today's slate:</b> ${missing.join(", ")}
+      <div class="muted" style="font-size:11px;margin-top:4px;">
+        These players either aren't probable today, are on IL, or are bullpen arms (RPs don't get daily projections — try the K Props tab or check their next start).
+      </div>
+    </div>`;
+  }
+  out.innerHTML = html;
+}
+
+$("#ask-go")?.addEventListener("click", runAskAlgo);
+$("#ask-names")?.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "Enter") runAskAlgo();
+});
+// Default date to today
+(function initAskDate() {
+  const el = $("#ask-date");
+  if (el && !el.value) el.value = new Date().toISOString().slice(0, 10);
+})();
+
 // Decide the action label given current Fantrax slot vs recommendation.
 // Returns {label, cls, action} where action ∈ KEEP / PROMOTE / BENCH / SIT / OFF.
 const _BENCH_SLOTS = new Set(["BN", "Res", "Reserve", "IR", "InjRes", "Inj Res", ""]);

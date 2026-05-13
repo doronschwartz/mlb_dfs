@@ -721,3 +721,19 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .hof-h2h .h2h-cell .w { color: var(--accent-2); }
 .hof-h2h .h2h-cell .l { color: var(--bad); }
 .hof-empty { color: var(--muted); font-style: italic; padding: 10px; }
+
+/* Ask Algo */
+.ask-results { margin-top: 16px; }
+.ask-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--panel); border-radius: 8px; overflow: hidden; }
+.ask-table th, .ask-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ask-table th { background: linear-gradient(135deg, rgba(96,165,250,0.10), transparent); font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+.ask-table tr:last-child td { border-bottom: none; }
+.ask-table .rank { color: var(--muted); width: 30px; text-align: center; }
+.ask-table .proj { font-weight: 700; color: var(--accent-2); text-align: right; font-variant-numeric: tabular-nums; }
+.ask-table .player { font-weight: 600; }
+.ask-table .meta { color: var(--muted); font-size: 12px; }
+.ask-rec-START { background: rgba(52,211,153,0.15); color: var(--accent-2); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+.ask-rec-CONSIDER { background: rgba(96,165,250,0.15); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+.ask-rec-SIT { background: rgba(239,68,68,0.15); color: var(--bad); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+.ask-rec-OFF { background: var(--border); color: var(--muted); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+.ask-missing { background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 13px; }
