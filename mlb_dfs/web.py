@@ -1787,6 +1787,54 @@ def recommend(draft_id: str, top_n: int = 8):
     }
 
 
+def _live_projection(role: str, pre_game_proj: float, actual: float | None,
+                      raw: dict | None, game_state: str | None,
+                      components: dict | None) -> tuple[float, float]:
+    """Returns (live_projection, remaining_fraction).
+
+    live_projection = actual_so_far + remaining_estimate
+      where remaining_estimate = pre_game_proj * (1 - completed_share_of_game)
+
+    Hitters: completed_PAs / expected ~4.3 PAs gives the share consumed.
+    Pitchers: completed_outs / expected_outs (from avg IP/start, default 16.5
+    outs = 5.5 IP). For pre-game / no game / scratched players, remaining
+    fraction is 1.0 so live = pre_game. For Final, remaining is 0 so live
+    = actual.
+    """
+    state = (game_state or "").lower()
+    is_final = "final" in state
+    pre = pre_game_proj or 0.0
+    act = actual or 0.0
+    raw = raw or {}
+    if is_final:
+        return round(act, 2), 0.0
+    # No actuals yet — pre-game or scheduled, projection stands
+    if actual is None or not state or "scheduled" in state or "not in" in state or "pre" in state:
+        return round(pre, 2), 1.0
+
+    if role == "pitcher":
+        # Pre-game expected outs (from components if available, else 5.5 IP)
+        ip_per_start = (components or {}).get("ip_per_start") or 5.5
+        expected_outs = max(6, int(round(ip_per_start * 3)))   # at least 2 IP
+        completed_outs = int(raw.get("outs") or 0)
+        remaining = max(0.0, (expected_outs - completed_outs) / expected_outs)
+    else:
+        # Hitter: expected ~4.3 PAs over the full game
+        expected_pa = 4.3
+        # Completed PAs ≈ AB + BB + HBP (no AB record for BB/HBP)
+        pa = int(raw.get("1B", 0) + raw.get("2B", 0) + raw.get("3B", 0)
+                 + raw.get("HR", 0) + raw.get("BB", 0) + raw.get("HBP", 0)
+                 + raw.get("K", 0))
+        # We don't track AB on outs, so add an estimate: each completed PA
+        # that isn't a hit/walk/HBP/K counts as a generic out via stripping
+        # 'GIDP'+'SF' impact already aggregated in points. Keep this simple:
+        # PA approx hits + walks + HBP + Ks. For the remaining share, this
+        # under-estimates slightly (misses GO/FO/SF) — fine for a live UI hint.
+        remaining = max(0.0, (expected_pa - pa) / expected_pa)
+    live = act + pre * remaining
+    return round(live, 2), round(remaining, 2)
+
+
 @app.get("/api/drafts/{draft_id}/score")
 def score(draft_id: str):
     try:
@@ -1801,6 +1849,41 @@ def score(draft_id: str):
         live_proj_by_id = {lp.player_id: lp for lp in live_projs}
     except Exception:
         live_proj_by_id = {}
+
+    def _pick_row(p, ps):
+        pre_proj = (live_proj_by_id[p.player_id].projected_points
+                    if p.player_id in live_proj_by_id
+                    else (p.projected_points or 0.0))
+        actual = (ps.points if ps and ps.played else None)
+        components = (live_proj_by_id[p.player_id].components
+                      if p.player_id in live_proj_by_id else None)
+        live_proj, remaining_frac = _live_projection(
+            role=(ps.role if ps else p.role),
+            pre_game_proj=pre_proj,
+            actual=actual,
+            raw=(ps.raw if ps else None),
+            game_state=(ps.game_state if ps else None),
+            components=components,
+        )
+        return {
+            "slot": p.slot,
+            "name": p.name,
+            "player_id": p.player_id,
+            "pick_number": p.pick_number,
+            "drafter": p.drafter,
+            "projected": pre_proj,
+            "live_projection": live_proj,
+            "remaining_fraction": remaining_frac,
+            "actual": actual,
+            "raw": (ps.raw if ps else None),
+            "game_state": (ps.game_state if ps else None),
+            "counted": (ps.counted_in_total if ps else False),
+            "played": (ps.played if ps else False),
+            "lineup_status": (ps.lineup_status if ps else "pending"),
+            "promoted": (ps.promoted_from_bench if ps else False),
+            "breakdown": (ps.breakdown if ps else []),
+        }
+
     return {
         "draft_id": draft_id,
         "standings": [
@@ -1809,27 +1892,22 @@ def score(draft_id: str):
                 "rank": s.rank,
                 "total": round(s.total, 2),
                 "full_total": round(s.full_total, 2),
-                "picks": [
-                    {
-                        "slot": p.slot,
-                        "name": p.name,
-                        "player_id": p.player_id,
-                        "pick_number": p.pick_number,
-                        "drafter": p.drafter,
-                        "projected": (live_proj_by_id[p.player_id].projected_points
-                                      if p.player_id in live_proj_by_id
-                                      else p.projected_points),
-                        "actual": (ps.points if ps and ps.played else None),
-                        "raw": (ps.raw if ps else None),
-                        "game_state": (ps.game_state if ps else None),
-                        "counted": (ps.counted_in_total if ps else False),
-                        "played": (ps.played if ps else False),
-                        "lineup_status": (ps.lineup_status if ps else "pending"),
-                        "promoted": (ps.promoted_from_bench if ps else False),
-                        "breakdown": (ps.breakdown if ps else []),
-                    }
-                    for p, ps in s.picks
-                ],
+                # Live projected total = sum of each counted pick's live_projection
+                "live_projected_total": round(sum(
+                    _live_projection(
+                        role=(ps.role if ps else p.role),
+                        pre_game_proj=(live_proj_by_id[p.player_id].projected_points
+                                       if p.player_id in live_proj_by_id
+                                       else (p.projected_points or 0.0)),
+                        actual=(ps.points if ps and ps.played else None),
+                        raw=(ps.raw if ps else None),
+                        game_state=(ps.game_state if ps else None),
+                        components=(live_proj_by_id[p.player_id].components
+                                    if p.player_id in live_proj_by_id else None),
+                    )[0]
+                    for p, ps in s.picks if (ps is None or ps.counted_in_total)
+                ), 2),
+                "picks": [_pick_row(p, ps) for p, ps in s.picks],
             }
             for s in standings
         ],

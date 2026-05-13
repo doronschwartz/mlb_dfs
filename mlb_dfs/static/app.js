@@ -2651,7 +2651,13 @@ $("#score-load").addEventListener("click", async () => {
         .map(
           (s) => {
             const rankClass = s.rank === 1 ? "rank-1" : s.rank === 2 ? "rank-2" : s.rank === 3 ? "rank-3" : "";
-            return `<div class="row ${rankClass}"><span>${s.rank}. <b>${s.drafter}</b></span><span class="total">${s.total.toFixed(2)} <span class="muted">(full ${s.full_total.toFixed(2)})</span></span></div>`;
+            // Live projected total = actual so far + remaining projection
+            // estimate. Useful mid-game to project where everyone WILL finish
+            // (vs the static .total which is pure actual right now).
+            const liveProj = s.live_projected_total != null
+              ? `<span class="muted" style="font-size:12px;"> → live ${s.live_projected_total.toFixed(2)}</span>`
+              : "";
+            return `<div class="row ${rankClass}"><span>${s.rank}. <b>${s.drafter}</b></span><span class="total">${s.total.toFixed(2)}${liveProj} <span class="muted">(full ${s.full_total.toFixed(2)})</span></span></div>`;
           },
         )
         .join("")}
@@ -2702,11 +2708,25 @@ $("#score-load").addEventListener("click", async () => {
               if (gs.includes("pre") || gs.includes("warmup") || gs.includes("scheduled")) return "Pre";
               return p.game_state;
             })();
+            // Live projection: actual + remaining_proj estimate. Differs
+            // from "Proj" (pre-game) once the game starts — shows the user
+            // where this player is heading given how the game has actually
+            // unfolded. Mid-game heat: if live > pre-game proj, color green;
+            // if live < pre-game (player's been quiet), color red.
+            const lp = p.live_projection;
+            const showLive = lp != null && p.played && stateLabel !== "Final";
+            const liveCls = !showLive ? "" :
+              (lp > p.projected + 1.5 ? "live-up" :
+               lp < p.projected - 1.5 ? "live-down" : "");
+            const liveCell = showLive
+              ? `<td class="live-proj ${liveCls}">${lp.toFixed(2)}</td>`
+              : `<td class="muted live-proj">${p.projected.toFixed(2)}</td>`;
             return `
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
             <td title="${escapeAttr(p.name)}">${p.name} ${lineupTag} ${tag} ${promoted}</td>
             <td>${p.projected.toFixed(2)}</td>
+            ${liveCell}
             <td class="player-cell"><span class="name-trigger">${actualVal}</span>${tooltip}</td>
             <td>${stateLabel}</td>
             ${replaceCell}
@@ -2714,11 +2734,14 @@ $("#score-load").addEventListener("click", async () => {
           },
         )
         .join("");
+      const liveProjTotal = s.live_projected_total != null
+        ? ` → <span class="muted">live ${s.live_projected_total.toFixed(2)}</span>`
+        : "";
       return `
         <div class="standings">
-          <h4 style="margin:0 0 6px;">${s.drafter} — ${s.total.toFixed(2)}</h4>
+          <h4 style="margin:0 0 6px;">${s.drafter} — ${s.total.toFixed(2)}${liveProjTotal}</h4>
           <table>
-            <thead><tr><th>Slot</th><th>Player</th><th>Proj</th><th>Actual</th><th>State</th><th></th></tr></thead>
+            <thead><tr><th>Slot</th><th>Player</th><th>Proj</th><th title="Actual + remaining projection estimate">Live</th><th>Actual</th><th>State</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
