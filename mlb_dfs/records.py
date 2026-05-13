@@ -528,16 +528,18 @@ def league_records(season: int | None = None) -> dict:
             "date": f"{ssn}",
             "extra": f"total points scored in {ssn}",
         })
-    # Most-picked player (any role)
+    # Most-picked player (any role). Counted per (name, role) so two-way
+    # Ohtani-as-hitter and Ohtani-as-pitcher show as separate entries —
+    # otherwise his 129-combined count drowns out the single-role leaders.
     if picks:
-        pick_counter = Counter(p["player_name"] for p in picks)
-        name, count = pick_counter.most_common(1)[0]
+        pick_counter = Counter((p["player_name"], p["role"]) for p in picks)
+        (name, role), count = pick_counter.most_common(1)[0]
         rec.append({
             "stat": "Most-Picked Player (All-Time)",
-            "name": name,
+            "name": f"{name} ({role})",
             "value": count,
             "date": "—",
-            "extra": f"times drafted across all seasons",
+            "extra": f"times drafted as {role} across all seasons",
         })
     # Most all-time wins
     drafter_all = drafter_alltime(season=season)

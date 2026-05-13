@@ -201,6 +201,7 @@ def player_stats(
 POSITION_OVERRIDES = {
     660271: "OF",   # Shohei Ohtani — DH listed, but OF-eligible in our league
     656941: "OF",   # Kyle Schwarber — primary DH but historically OF, league treats as OF
+    667670: "OF",   # Brent Rooker — primary DH, league treats as OF (historically OF)
 }
 
 
