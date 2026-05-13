@@ -737,3 +737,20 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .ask-rec-SIT { background: rgba(239,68,68,0.15); color: var(--bad); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
 .ask-rec-OFF { background: var(--border); color: var(--muted); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; }
 .ask-missing { background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 8px 12px; margin-top: 10px; font-size: 13px; }
+
+/* Ask Algo: tooltip positioning for the right-aligned projection cell.
+   The proj cell is narrow + right-aligned, so we have to (a) make it the
+   positioning context, (b) flip the tooltip to anchor on the right side
+   (was floating off the left edge of the table), (c) expand the trigger
+   to fill the cell so the cursor doesn't lose hover on the tiny number,
+   and (d) drop the 4px gap so the user can scan from number → tooltip
+   without falling out of the hover area. */
+.ask-table .player-cell { position: relative; cursor: pointer; }
+.ask-table .player-cell .name-trigger {
+  display: inline-block; padding: 6px 4px; min-width: 60px; text-align: right;
+}
+.ask-table .player-cell .breakdown-tooltip {
+  left: auto; right: 0; top: 100%;
+  /* Keep tooltip inside the viewport — the table sits near the right edge */
+  max-width: min(420px, calc(100vw - 32px));
+}
