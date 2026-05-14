@@ -322,23 +322,31 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   .score-grid { grid-template-columns: 1fr; gap: 14px; }
   .score-grid .standings { padding: 8px; }
   .score-grid h4 { font-size: 15px; margin-bottom: 6px !important; }
-  .score-grid table { font-size: 13.5px; width: 100%; }
-  .score-grid th { padding: 5px 4px; font-size: 11px; }
-  .score-grid td { padding: 7px 4px; vertical-align: middle; }
+  .score-grid table { font-size: 13px; width: 100%; table-layout: fixed; }
+  .score-grid th { padding: 5px 3px; font-size: 11px; }
+  .score-grid td { padding: 7px 3px; vertical-align: middle; }
   /* Hide State col (6) — game state is rarely useful on mobile (the per-row
      game state shows in the score header above each card anyway). */
   .score-grid th:nth-child(6), .score-grid td:nth-child(6) { display: none; }
-  /* Slot — narrow, muted */
-  .score-grid th:nth-child(1), .score-grid td:nth-child(1) { width: 38px; font-weight: 600; color: var(--muted); }
-  /* Proj / Live / Actual — tight tabular numeric columns at the right */
+  /* Slot — narrower so the numeric cols have more breathing room */
+  .score-grid th:nth-child(1), .score-grid td:nth-child(1) { width: 32px; font-weight: 600; color: var(--muted); font-size: 11px; }
+  /* Proj / Live / Actual — three tabular-numeric cols. 50px each so that
+     '23.89' + padding fits comfortably and adjacent values don't smash
+     ('23.8923.00' was the pre-fix overlap). padding-right keeps them off
+     the cell border, padding-left adds visible separation from the col to
+     the left without needing to widen further. */
   .score-grid th:nth-child(3), .score-grid td:nth-child(3),
   .score-grid th:nth-child(4), .score-grid td:nth-child(4),
   .score-grid th:nth-child(5), .score-grid td:nth-child(5) {
-    width: 42px; text-align: right; font-variant-numeric: tabular-nums;
+    width: 50px; min-width: 50px; max-width: 50px;
+    text-align: right; font-variant-numeric: tabular-nums;
+    padding-left: 6px; padding-right: 4px;
+    white-space: nowrap;
   }
-  .score-grid td:nth-child(2) { font-size: 13.5px; line-height: 1.25; white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
+  /* Player col takes the remaining width and wraps naturally for long names */
+  .score-grid td:nth-child(2) { font-size: 13px; line-height: 1.25; white-space: normal; max-width: none; overflow: visible; text-overflow: clip; padding-left: 4px; }
   .score-grid td:nth-child(2) .lineup-tag { font-size: 9px; padding: 1px 4px; vertical-align: middle; }
-  .score-grid td:last-child { width: 50px; padding-right: 0; }
+  .score-grid td:last-child { width: 48px; padding-right: 0; padding-left: 4px; }
   .score-grid .replace-btn.score-replace-btn {
     padding: 6px 0; font-size: 11px; min-height: 32px; width: 100%; line-height: 1;
   }
