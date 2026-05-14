@@ -283,6 +283,18 @@ class Draft:
         #     remaining (the snake is just waiting on that one drafter's SPs,
         #     so others can finish their hitter/UTIL/BN slots freely).
         # Out-of-order picks are flagged so they don't advance the snake.
+        #
+        # NOTE: an earlier v9.4.1 added an elif that flagged ANY SP pick by
+        # the lone SP-needer as OOO, even on their natural turn. That broke
+        # the snake math — a lone-SP-needer taking two SPs on their natural
+        # turn would have 2 OOO picks not counted, the snake would think
+        # fewer picks had happened, and the next drafter could be skipped
+        # (Stock done 10/10 + 2 OOO meant n_in=26 → round 9 idx 2 → land
+        # back at Stock done → wrap to Meech, skipping JL). Reverted.
+        #
+        # The intended flexibility — "take SPs whenever, even when it's not
+        # your turn" — is preserved by the off-turn drafter_override path
+        # below. Picks on your natural turn always advance the snake.
         is_ooo = False
         if drafter_override and drafter_override != drafter:
             if not self.can_pick_out_of_order(drafter_override, slot):
@@ -290,13 +302,6 @@ class Draft:
                     f"out-of-order pick not allowed for {drafter_override} into {slot}"
                 )
             drafter = drafter_override
-            is_ooo = True
-        # Extra rule (added per user request): even when it IS the lone
-        # SP-needer's natural turn, picking an SP shouldn't burn that turn —
-        # they can grab their SPs whenever (the rest of the snake is held
-        # for their hitter/UTIL/BN slots anyway). This way Stock can take
-        # both his SPs right now without giving up his natural hitter turns.
-        elif slot == "SP" and self.can_pick_sp_out_of_order(drafter):
             is_ooo = True
         if projection.player_id in self.picked_ids():
             raise ValueError(f"{projection.name} is already drafted")
