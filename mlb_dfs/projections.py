@@ -702,6 +702,7 @@ def project_pitcher(
     is_home: bool | None = None,
     ump_k_factor: float | None = None,
     opp_lineup_avg_pg: float | None = None,
+    vegas_k_line: float | None = None,
     as_of: Date | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7, as_of=as_of)
@@ -870,6 +871,27 @@ def project_pitcher(
 
     proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor
 
+    # Vegas K-prop adjustment (v9.5): pitcher_strikeouts market lines are the
+    # sharpest single signal for the biggest fantasy event a pitcher has —
+    # multiple US books + live betting flow. We don't replace the projection
+    # (that would over-weight one market), we blend a damped delta: convert
+    # the gap between Vegas K-line and our rolling-stats-implied Ks into pts
+    # and apply at half weight, capped ±3 pts.
+    k_prop_adj = 0.0
+    if vegas_k_line is not None and vegas_k_line > 0:
+        k9_now = _safe_float(seasn.get("strikeoutsPer9Inn"))
+        ip_avg = ip_total_l14 / max(int(starts_14), 1) if starts_14 else 5.5
+        expected_K = (k9_now * ip_avg / 9.0) if k9_now > 0 else (5.5 * 1.0)
+        if expected_K > 0:
+            delta_K = vegas_k_line - expected_K
+            # 1.5 pts/K, damped to 0.5 so we don't overcommit to one market
+            k_prop_adj = max(-3.0, min(delta_K * 1.5 * 0.5, 3.0))
+            proj += k_prop_adj
+            notes.append(
+                f"K-prop adj {k_prop_adj:+.2f} pts (Vegas {vegas_k_line:.1f} K vs "
+                f"rolling-implied {expected_K:.1f})"
+            )
+
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
     # outing). Project no higher than 9 pts even if rolling form says more.
@@ -936,6 +958,8 @@ def project_pitcher(
             "ip_per_start": round(ip_total_l14 / max(int(starts_14), 1), 2) if starts_14 else None,
             "is_opener": is_opener,
             "k9_season": round(_safe_float(seasn.get("strikeoutsPer9Inn")), 1) or None,
+            "vegas_k_line": vegas_k_line,
+            "k_prop_adj": round(k_prop_adj, 2) if vegas_k_line else None,
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
@@ -1417,7 +1441,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-12-v9.3" # +K/9 in sp_factor, TTO penalty, team defense, opener detect, ISO form, SB modeling
+MODEL_REV = "2026-05-14-v9.5" # +Vegas K-prop pitcher adjustment (damped delta, ±3 pts cap)
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -1605,6 +1629,28 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         if v is not None:
             team_totals[tid] = v
 
+    # Pitcher K-prop market lines (v9.5) — keyed by pitcher name, normalized
+    # for matching. We use the actual betting market (not our internal K-prop
+    # tester, which user flagged as garbage). Sharpest single signal for K
+    # output. Cached on disk per-day by odds_api. Failure → empty dict and
+    # project_pitcher just skips the adjustment.
+    try:
+        k_prop_lines_raw, _meta = odds_api.get_pitcher_strikeout_lines_cached(d.isoformat())
+    except Exception as e:
+        logging.warning("k-prop lines fetch failed: %s", e)
+        k_prop_lines_raw = {}
+    def _norm_pitcher_name(s: str) -> str:
+        import unicodedata
+        nfkd = unicodedata.normalize("NFKD", s or "")
+        no_accent = "".join(c for c in nfkd if not unicodedata.combining(c))
+        return no_accent.lower().replace(".", "").replace("'", "").strip()
+    k_prop_by_name: dict[str, float] = {}
+    for nm, info in (k_prop_lines_raw or {}).items():
+        line = info.get("line") if isinstance(info, dict) else None
+        if line is None:
+            continue
+        k_prop_by_name[_norm_pitcher_name(nm)] = float(line)
+
     # Bullpen quality: season bullpen ERA per team. ~30 API calls cached for the day.
     bullpen_era = _bullpen_era_by_team(season)
 
@@ -1697,8 +1743,9 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         sp_throws = (handedness.get(sp_id) or {}).get("throws")
         rolling_pitch_x = _safe_float((rolling_pitcher.get(sp_id) or {}).get("est_woba")) or None
         season_pitch_x = _safe_float((season_pitcher.get(sp_id) or {}).get("est_woba")) or None
+        sp_name = info["name"] or pool.get(sp_id, {}).get("name", "?")
         projections.append(project_pitcher(
-            sp_id, info["name"] or pool.get(sp_id, {}).get("name", "?"),
+            sp_id, sp_name,
             team_id=info["team_id"], season=season,
             opponent_team_id=info["opp_team_id"],
             park=info.get("park"),
@@ -1710,6 +1757,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             is_home=info.get("is_home"),
             ump_k_factor=info.get("ump_k_factor"),
             opp_lineup_avg_pg=lineup_avg_pg_by_team.get(info["opp_team_id"]),
+            vegas_k_line=k_prop_by_name.get(_norm_pitcher_name(sp_name)),
             as_of=d,
         ))
 

@@ -318,6 +318,17 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.5 — 2026-05-14",
+                "title": "Vegas K-props in pitcher projection",
+                "changes": [
+                    "Wired the actual betting market's pitcher_strikeouts lines (from the-odds-api.com, the same source the K Props tab uses) into project_pitcher as a damped delta. K is the biggest single fantasy event for a pitcher (1.5 pts/K × 7-10 Ks/start), so the sharpest available K-rate signal is the multi-book Vegas line",
+                    "Math: delta_K = vegas_line − rolling-implied K (k9 × ip_per_start/9). Convert to pts at 1.5/K, damp to 0.5 weight, cap ±3 pts. Doesn't replace the projection — augments it",
+                    "Skipped: our internal K Prop Tester score (user flagged as garbage). Only the live Vegas-market lines flow into the algo",
+                    "Tooltip shows the Vegas line and the adjustment so the source is auditable",
+                    "MODEL_REV bumped to 2026-05-14-v9.5 so cached pitcher projections regenerate with the K-prop signal",
+                ],
+            },
+            {
                 "version": "v9.4.1 — 2026-05-13",
                 "title": "Late-day polish",
                 "changes": [
