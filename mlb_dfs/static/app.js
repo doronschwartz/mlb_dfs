@@ -2797,7 +2797,10 @@ $("#score-load").addEventListener("click", async () => {
             const tooltip = renderBreakdownTooltip(p);
             // 2 decimals so per-pick actuals literally sum to the team total
             // (e.g. Blackburn 0.45 displays as 0.45, not rounded 0.5).
+            // dataEmpty flag keeps the muted styling for the "no data yet"
+            // dash; real numeric values use the bright Actual styling.
             const actualVal = p.actual === null ? "-" : p.actual.toFixed(2);
+            const actualEmpty = p.actual === null;
             const stateLabel = (() => {
               const gs = (p.game_state || "").toLowerCase();
               if (!gs) return "";
@@ -2829,7 +2832,7 @@ $("#score-load").addEventListener("click", async () => {
             <td title="${escapeAttr(p.name)}">${p.name} ${lineupTag} ${tag} ${promoted}</td>
             <td>${p.projected.toFixed(2)}</td>
             ${liveCell}
-            <td class="player-cell"><span class="name-trigger">${actualVal}</span>${tooltip}</td>
+            <td class="player-cell"><span class="name-trigger${actualEmpty ? " actual-empty" : ""}">${actualVal}</span>${tooltip}</td>
             <td>${stateLabel}</td>
             ${replaceCell}
           </tr>`;

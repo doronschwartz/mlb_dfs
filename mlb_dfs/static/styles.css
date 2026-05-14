@@ -805,3 +805,21 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   background: var(--panel); border: 1px solid var(--border);
 }
 .sched-swap-pick:hover { border-color: var(--accent); background: var(--panel-2, rgba(96,165,250,0.06)); }
+
+/* Live Score: make the Actual column the brightest, most-prominent number.
+   It's the column that matters most when games are final (Proj is the past
+   prediction; Live is a mid-game estimate; Actual is the truth). Previously
+   it inherited the cell's default text color and looked muted next to the
+   bold Proj and the colorful Live, so the user couldn't read it easily. */
+.score-row td.player-cell .name-trigger {
+  font-weight: 700;
+  color: var(--text);   /* full-bright white in dark theme */
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+/* When Actual is "-" (pre-game / no data), keep it muted — the bright
+   styling above is for actual numeric scores only. */
+.score-row td.player-cell .name-trigger.actual-empty {
+  color: var(--muted); font-weight: 400; font-size: 13px;
+}
