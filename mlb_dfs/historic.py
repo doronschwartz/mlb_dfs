@@ -20,6 +20,8 @@ TEAM_ALIASES = {
     "ARI": "AZ",   # Arizona Diamondbacks
     "SFG": "SF",   # San Francisco Giants
     "WAS": "WSH",  # Washington Nationals
+    "OAK": "ATH",  # Oakland → Athletics (team renamed for 2025+ in MLB)
+    "SDP": "SD",   # San Diego Padres
 }
 
 

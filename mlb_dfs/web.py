@@ -1291,18 +1291,21 @@ def schedule_builder(
 
     counts: Counter[str] = Counter()
     if seed_from_existing:
-        # Seed from the spreadsheet's historic team-appearance counts so the
-        # builder picks up where the season left off, not from zero.
-        for team, n in historic.team_counts().items():
-            counts[team] += int(n)
-        # Include live saved drafts ONLY when the date is:
-        #   1. before the rebuild range start (`ddate < s`) — otherwise it'd
-        #      double-count games we're about to repick, and
-        #   2. strictly in the past (`ddate < today`) — drafts created for a
-        #      future day haven't been "played" so shouldn't bias the count, and
-        #   3. not already covered by the historic CSV — otherwise double-count.
+        # Seed from CURRENT-SEASON live drafts only. The historic
+        # team_counts.json file (from the spreadsheet "How Often" imports)
+        # holds stale per-season leftovers (e.g. 2025 full-season counts of
+        # 41 per team) that aren't a meaningful baseline for balancing
+        # the 2026 schedule. Better: count actual played slates this season
+        # by replaying their saved game_pks against the day's MLB schedule.
+        #
+        # Include live drafts only when:
+        #   1. ddate < s (range start) — don't include the days we're about
+        #      to repick
+        #   2. ddate < today — don't include future-dated drafts as "played"
+        #   3. same season as the range start (filters out any cross-year
+        #      drafts that might linger)
         today = Date.today()
-        historic_dates = {e.get("date") for e in historic.standings()}
+        current_year = s.year
         for did in draft_mod.list_drafts():
             try:
                 dr = draft_mod.load_draft(did)
@@ -1312,7 +1315,7 @@ def schedule_builder(
                 ddate = Date.fromisoformat(dr.date)
             except Exception:
                 continue
-            if ddate >= s or ddate >= today or dr.date in historic_dates:
+            if ddate >= s or ddate >= today or ddate.year != current_year:
                 continue
             # Re-derive teams from the draft's gamePks against that day's schedule.
             try:
@@ -1325,8 +1328,8 @@ def schedule_builder(
                     continue
                 aa = ((g.get("teams") or {}).get("away") or {}).get("team", {}).get("abbreviation")
                 ha = ((g.get("teams") or {}).get("home") or {}).get("team", {}).get("abbreviation")
-                if aa: counts[aa] += 1
-                if ha: counts[ha] += 1
+                if aa: counts[historic.canonical_team(aa)] += 1
+                if ha: counts[historic.canonical_team(ha)] += 1
 
     # The friend league plays Sun-Thu only — skip Friday (weekday 4) and
     # Saturday (weekday 5) when proposing slates.
@@ -1354,7 +1357,8 @@ def schedule_builder(
         scored = sorted(
             games,
             key=lambda g: (
-                counts[g["away"]["abbr"] or ""] + counts[g["home"]["abbr"] or ""],
+                counts[historic.canonical_team(g["away"]["abbr"] or "")]
+                + counts[historic.canonical_team(g["home"]["abbr"] or "")],
                 # Day games preferred (more likely to be watched live). False=0
                 # sorts before True=1, so we negate.
                 0 if _is_day_game(g) else 1,
@@ -1364,8 +1368,8 @@ def schedule_builder(
         )
         chosen = [g for g in scored if g["away"]["abbr"] and g["home"]["abbr"]][:slate_size]
         for g in chosen:
-            counts[g["away"]["abbr"]] += 1
-            counts[g["home"]["abbr"]] += 1
+            counts[historic.canonical_team(g["away"]["abbr"])] += 1
+            counts[historic.canonical_team(g["home"]["abbr"])] += 1
         days.append({
             "date": cur.isoformat(),
             "selected_games": [
