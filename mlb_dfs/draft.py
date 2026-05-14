@@ -151,20 +151,36 @@ class Draft:
         # lone-SP-needer convenience) don't steal anyone's turn — the drafter
         # who was on the clock when the OOO pick happened is still on the clock.
         n = sum(1 for p in self.picks if not getattr(p, "out_of_order", False))
-        round_idx = n // len(self.drafters)
-        idx_in_round = n % len(self.drafters)
-        order = self.drafters if round_idx % 2 == 0 else list(reversed(self.drafters))
+        D = len(self.drafters)
 
-        # If the natural drafter has already filled every slot (e.g. they took
-        # one out-of-order then completed their snake picks earlier), advance
-        # to the next drafter in the round who still has an open slot.
-        for skip in range(len(self.drafters)):
-            d = order[(idx_in_round + skip) % len(self.drafters)]
+        def _drafter_at_position(global_pos: int) -> str:
+            """Snake-order drafter at global pick position `global_pos` (0-based).
+            Even rounds use natural order; odd rounds reverse."""
+            r = global_pos // D
+            i = global_pos % D
+            order = self.drafters if r % 2 == 0 else list(reversed(self.drafters))
+            return order[i]
+
+        def _drafter_has_open_slot(d: str) -> str | None:
             taken_slots = [p.slot for p in self.picks if p.drafter == d]
             for s in SLOTS:
                 if taken_slots.count(s) < SLOTS.count(s):
-                    return d, s
-        return order[idx_in_round], "BN"
+                    return s
+            return None
+
+        # Walk forward in snake order from the natural position. If the
+        # natural drafter is done, advance to the NEXT position (which may
+        # be in the next round, with the snake direction reversed). This
+        # is the correct snake behavior: a done drafter is bypassed and
+        # the remaining drafters continue picking in snake order, NOT in
+        # a same-round wrap (which would skip a drafter every other round).
+        max_picks = D * PICKS_PER_DRAFTER
+        for global_pos in range(n, max_picks):
+            d = _drafter_at_position(global_pos)
+            s = _drafter_has_open_slot(d)
+            if s is not None:
+                return d, s
+        return None  # everyone is full (shouldn't reach here unless is_complete)
 
     def picked_ids(self) -> set[int]:
         return {p.player_id for p in self.picks}
