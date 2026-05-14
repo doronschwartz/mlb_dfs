@@ -314,20 +314,27 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   .replace-btn .rb-short { display: inline; }
 }
 @media (max-width: 700px) {
-  /* Live scoring */
+  /* Live scoring — columns are now:
+       1 Slot · 2 Player · 3 Proj · 4 Live · 5 Actual · 6 State · 7 Replace
+     (Live was inserted at position 4 in the v9.4 in-match-projection ship,
+     which shifted Actual to 5 and State to 6; mobile rules were stamped on
+     the old layout and ended up hiding Actual + shrinking State.) */
   .score-grid { grid-template-columns: 1fr; gap: 14px; }
   .score-grid .standings { padding: 8px; }
   .score-grid h4 { font-size: 15px; margin-bottom: 6px !important; }
   .score-grid table { font-size: 13.5px; width: 100%; }
   .score-grid th { padding: 5px 4px; font-size: 11px; }
   .score-grid td { padding: 7px 4px; vertical-align: middle; }
-  /* Hide State col — game state is rarely useful on mobile */
-  .score-grid th:nth-child(5), .score-grid td:nth-child(5) { display: none; }
-  /* Tight Slot/Proj/Actual; let Player breathe */
+  /* Hide State col (6) — game state is rarely useful on mobile (the per-row
+     game state shows in the score header above each card anyway). */
+  .score-grid th:nth-child(6), .score-grid td:nth-child(6) { display: none; }
+  /* Slot — narrow, muted */
   .score-grid th:nth-child(1), .score-grid td:nth-child(1) { width: 38px; font-weight: 600; color: var(--muted); }
+  /* Proj / Live / Actual — tight tabular numeric columns at the right */
   .score-grid th:nth-child(3), .score-grid td:nth-child(3),
-  .score-grid th:nth-child(4), .score-grid td:nth-child(4) {
-    width: 46px; text-align: right; font-variant-numeric: tabular-nums;
+  .score-grid th:nth-child(4), .score-grid td:nth-child(4),
+  .score-grid th:nth-child(5), .score-grid td:nth-child(5) {
+    width: 42px; text-align: right; font-variant-numeric: tabular-nums;
   }
   .score-grid td:nth-child(2) { font-size: 13.5px; line-height: 1.25; white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
   .score-grid td:nth-child(2) .lineup-tag { font-size: 9px; padding: 1px 4px; vertical-align: middle; }
