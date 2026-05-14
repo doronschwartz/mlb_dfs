@@ -1891,17 +1891,20 @@ def _live_projection(role: str, pre_game_proj: float, actual: float | None,
         completed_outs = int(raw.get("outs") or 0)
         remaining = max(0.0, (expected_outs - completed_outs) / expected_outs)
     else:
-        # Hitter: expected ~4.3 PAs over the full game
+        # Hitter: expected ~4.3 PAs over the full game. Prefer the MLB API's
+        # plateAppearances count (captures every PA including pure outs),
+        # falling back to AB + BB + HBP if only AB-based stats are present,
+        # falling back to event-summed PAs as a last resort.
         expected_pa = 4.3
-        # Completed PAs ≈ AB + BB + HBP (no AB record for BB/HBP)
-        pa = int(raw.get("1B", 0) + raw.get("2B", 0) + raw.get("3B", 0)
-                 + raw.get("HR", 0) + raw.get("BB", 0) + raw.get("HBP", 0)
-                 + raw.get("K", 0))
-        # We don't track AB on outs, so add an estimate: each completed PA
-        # that isn't a hit/walk/HBP/K counts as a generic out via stripping
-        # 'GIDP'+'SF' impact already aggregated in points. Keep this simple:
-        # PA approx hits + walks + HBP + Ks. For the remaining share, this
-        # under-estimates slightly (misses GO/FO/SF) — fine for a live UI hint.
+        pa = int(raw.get("PA") or 0)
+        if not pa:
+            ab = int(raw.get("AB") or 0)
+            if ab:
+                pa = ab + int(raw.get("BB", 0)) + int(raw.get("HBP", 0))
+            else:
+                pa = int(raw.get("1B", 0) + raw.get("2B", 0) + raw.get("3B", 0)
+                         + raw.get("HR", 0) + raw.get("BB", 0) + raw.get("HBP", 0)
+                         + raw.get("K", 0))
         remaining = max(0.0, (expected_pa - pa) / expected_pa)
     live = act + pre * remaining
     return round(live, 2), round(remaining, 2)

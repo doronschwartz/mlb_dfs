@@ -350,6 +350,13 @@ def _score_player(pick: Pick, lines: list[dict]) -> PlayerScore:
                 "SB": hl.stolen_bases, "GIDP": hl.gidp, "K": hl.strikeouts,
             }.items():
                 raw_totals[k] = raw_totals.get(k, 0) + v
+            # Capture AB + PA from MLB stats so the live-projection math
+            # can compute true completed-PA share. Without this, a 0-for-3
+            # hitter looks like "0 PAs taken" and live_proj treats him as
+            # full pre-game proj remaining (wrong).
+            stats = line["stats"]
+            raw_totals["AB"] = raw_totals.get("AB", 0) + int(stats.get("atBats", 0) or 0)
+            raw_totals["PA"] = raw_totals.get("PA", 0) + int(stats.get("plateAppearances", 0) or 0)
 
     if len(lines) > 1:
         raw_totals["games"] = len(lines)

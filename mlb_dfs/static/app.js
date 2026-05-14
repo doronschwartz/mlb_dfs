@@ -2688,10 +2688,12 @@ $("#score-load").addEventListener("click", async () => {
         .map(
           (s) => {
             const rankClass = s.rank === 1 ? "rank-1" : s.rank === 2 ? "rank-2" : s.rank === 3 ? "rank-3" : "";
-            // Live projected total = actual so far + remaining projection
-            // estimate. Useful mid-game to project where everyone WILL finish
-            // (vs the static .total which is pure actual right now).
-            const liveProj = s.live_projected_total != null
+            // Show '→ live X' only when there's actual remaining game time —
+            // i.e. live_projected_total > total by a meaningful margin.
+            // Once every game is final, live == actual and the arrow is noise.
+            const hasLive = s.live_projected_total != null
+              && Math.abs(s.live_projected_total - s.total) > 0.5;
+            const liveProj = hasLive
               ? `<span class="muted" style="font-size:12px;"> → live ${s.live_projected_total.toFixed(2)}</span>`
               : "";
             return `<div class="row ${rankClass}"><span>${s.rank}. <b>${s.drafter}</b></span><span class="total">${s.total.toFixed(2)}${liveProj} <span class="muted">(full ${s.full_total.toFixed(2)})</span></span></div>`;
@@ -2745,19 +2747,20 @@ $("#score-load").addEventListener("click", async () => {
               if (gs.includes("pre") || gs.includes("warmup") || gs.includes("scheduled")) return "Pre";
               return p.game_state;
             })();
-            // Live projection: actual + remaining_proj estimate. Differs
-            // from "Proj" (pre-game) once the game starts — shows the user
-            // where this player is heading given how the game has actually
-            // unfolded. Mid-game heat: if live > pre-game proj, color green;
-            // if live < pre-game (player's been quiet), color red.
+            // Live projection: only meaningful WHILE the game is in progress.
+            //   - Final / Pre / no-game: render '—' (live_proj == actual once
+            //     the game is over and == pre_game before the game starts,
+            //     so the column would be redundant. Showing '—' is clearer).
+            //   - Live: show the live projection with green/red color cue
+            //     vs the original pre-game projection.
             const lp = p.live_projection;
-            const showLive = lp != null && p.played && stateLabel !== "Final";
-            const liveCls = !showLive ? "" :
+            const isLive = stateLabel === "Live" && p.played;
+            const liveCls = !isLive ? "" :
               (lp > p.projected + 1.5 ? "live-up" :
                lp < p.projected - 1.5 ? "live-down" : "");
-            const liveCell = showLive
+            const liveCell = isLive && lp != null
               ? `<td class="live-proj ${liveCls}">${lp.toFixed(2)}</td>`
-              : `<td class="muted live-proj">${p.projected.toFixed(2)}</td>`;
+              : `<td class="live-proj muted" style="text-align:center;">—</td>`;
             return `
           <tr class="${cls} score-row">
             <td>${p.slot}</td>
@@ -2771,7 +2774,9 @@ $("#score-load").addEventListener("click", async () => {
           },
         )
         .join("");
-      const liveProjTotal = s.live_projected_total != null
+      const hasLiveTeam = s.live_projected_total != null
+        && Math.abs(s.live_projected_total - s.total) > 0.5;
+      const liveProjTotal = hasLiveTeam
         ? ` → <span class="muted">live ${s.live_projected_total.toFixed(2)}</span>`
         : "";
       return `
