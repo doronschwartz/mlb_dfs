@@ -1291,21 +1291,21 @@ def schedule_builder(
 
     counts: Counter[str] = Counter()
     if seed_from_existing:
-        # Seed from CURRENT-SEASON live drafts only. The historic
-        # team_counts.json file (from the spreadsheet "How Often" imports)
-        # holds stale per-season leftovers (e.g. 2025 full-season counts of
-        # 41 per team) that aren't a meaningful baseline for balancing
-        # the 2026 schedule. Better: count actual played slates this season
-        # by replaying their saved game_pks against the day's MLB schedule.
-        #
-        # Include live drafts only when:
-        #   1. ddate < s (range start) — don't include the days we're about
-        #      to repick
-        #   2. ddate < today — don't include future-dated drafts as "played"
-        #   3. same season as the range start (filters out any cross-year
-        #      drafts that might linger)
+        # Seed from CURRENT-SEASON data. Two sources, deduped by date:
+        #   1. historic.team_counts() — refreshed from the 2026 spreadsheet
+        #      'Team How Often' sheet; per-team total across early-season
+        #      days that were tracked in the sheet before the live system
+        #      took over. canonical_team() folds aliases (OAK→ATH, etc).
+        #   2. Live saved drafts on the volume — for dates AFTER the
+        #      spreadsheet cutoff. Filtered to current season and only
+        #      dates not already covered by historic.standings() so a
+        #      day isn't double-counted.
         today = Date.today()
         current_year = s.year
+        for team, n in historic.team_counts().items():
+            counts[team] += int(n)
+        historic_dates = {e.get("date") for e in historic.standings()
+                          if (e.get("date") or "").startswith(f"{current_year}-")}
         for did in draft_mod.list_drafts():
             try:
                 dr = draft_mod.load_draft(did)
@@ -1317,7 +1317,8 @@ def schedule_builder(
                 continue
             if ddate >= s or ddate >= today or ddate.year != current_year:
                 continue
-            # Re-derive teams from the draft's gamePks against that day's schedule.
+            if dr.date in historic_dates:
+                continue  # already counted via historic.team_counts() above
             try:
                 games = mlb_api.schedule(ddate)
             except Exception:
