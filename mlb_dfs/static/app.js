@@ -2639,37 +2639,27 @@ async function _loadDynasty() {
       const kept = tokens.filter(t => !SUFFIXES.has(t) && t.length > 1);
       return kept.join(" ");
     };
-    // Secondary key: (first-letter-of-first-name) + (last name). Lets us
-    // resolve 'B. Witt' → 'Bobby Witt Jr.' WITHOUT collapsing different
-    // players who share a last name (Endy Rodríguez ≠ Julio Rodriguez —
-    // the 'Rodriguez'-only fallback was matching every Rodriguez to Julio's
-    // rank, which is how the user got Endy Rodríguez stamped at Dyn #9).
-    const initLast = (s) => {
-      const n = norm(s);
-      if (!n) return "";
-      const parts = n.split(/\s+/);
-      if (parts.length < 2) return "";
-      return parts[0][0] + " " + parts[parts.length - 1];
-    };
+    // Exact normalized-name match only. We previously had a (first-initial
+    // + last-name) fallback to catch 'B. Witt' → 'Bobby Witt Jr.', but the
+    // MLB API always returns full first names so the fallback's only real
+    // effect was creating false positives between players who share both
+    // a first initial AND last name:
+    //   - 'Endy Rodríguez' → matched Julio Rodriguez's rank #9 (both 'j'+rod
+    //     after the earlier last-name-only bug, fixed to first-letter, but
+    //     'Jesus Rodriguez' is also 'j'+rodriguez and still collided)
+    //   - Other plausible collisions: Jose/Jordan/Jason Ramirez, Luis Robert
+    //     Sr/Jr, etc.
+    // Better to underclaim and show players as 'unranked' than to mislabel.
+    // Normalization is already aggressive (accents, suffixes, periods,
+    // middle initials) so exact match catches all the legitimate cases.
     const map = new Map();
-    const initLastMap = new Map();
     (data.rankings || []).forEach((name, i) => {
-      const rank = i + 1;
       const k = norm(name);
-      if (k && !map.has(k)) map.set(k, rank);
-      const ik = initLast(name);
-      if (ik && !initLastMap.has(ik)) initLastMap.set(ik, rank);
+      if (k && !map.has(k)) map.set(k, i + 1);
     });
-    // Lookup: exact normalized first, then init+lastname fallback. This is
-    // strict enough that 'Endy Rodriguez' won't collide with 'Julio Rodriguez'
-    // (different first-letter 'e' vs 'j'), but still resolves cases like
-    // 'V. Guerrero' → 'Vladimir Guerrero', or shortform 'B Witt' → 'Bobby Witt'.
     const lookup = (name) => {
       const k = norm(name);
-      if (k && map.has(k)) return map.get(k);
-      const ik = initLast(name);
-      if (ik && initLastMap.has(ik)) return initLastMap.get(ik);
-      return null;
+      return (k && map.has(k)) ? map.get(k) : null;
     };
     state._dynastyMap = { map, norm, lookup, n: (data.rankings || []).length };
   } catch {}
