@@ -251,6 +251,53 @@ def get_league_averages(season: int | None = None, refresh: bool = False):
     }
 
 
+@app.post("/api/admin/draft/{draft_id}/normalize_ooo")
+def admin_normalize_ooo(draft_id: str):
+    """Replay a draft's pick sequence under the CURRENT OOO rules and
+    rewrite each pick's out_of_order flag. Fixes drafts where picks were
+    stored under an older (now-reverted) rule that incorrectly flagged
+    natural-turn picks as OOO, which makes on_the_clock skip drafters."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    original = list(dr.picks)
+    fixed_count = 0
+    # Replay: clear all picks, then re-add one at a time and recompute
+    # what the OOO flag SHOULD be at that step.
+    dr.picks = []
+    for orig in original:
+        info = dr.on_the_clock()
+        if info is None:
+            # Draft was full but original had more picks — keep the rest as-is
+            dr.picks.append(orig)
+            continue
+        on_clock_drafter, _slot = info
+        # Under current rules: pick is OOO iff drafter != on_clock_drafter
+        # (and the off-turn picker was the lone-SP-needer or non-SP free-for-all).
+        # If drafter matches on_clock, pick is natural-turn → OOO=False.
+        should_be_ooo = (orig.drafter != on_clock_drafter)
+        if orig.out_of_order != should_be_ooo:
+            fixed_count += 1
+        # Build a corrected Pick. The dataclass is mutable, so just set the flag.
+        corrected = draft_mod.Pick(
+            drafter=orig.drafter, slot=orig.slot,
+            player_id=orig.player_id, name=orig.name,
+            position=orig.position, role=orig.role,
+            projected_points=orig.projected_points,
+            pick_number=orig.pick_number,
+            game_pk=orig.game_pk,
+            out_of_order=should_be_ooo,
+        )
+        dr.picks.append(corrected)
+    draft_mod.save_draft(dr)
+    return {
+        "draft_id": draft_id,
+        "total_picks": len(dr.picks),
+        "flags_fixed": fixed_count,
+    }
+
+
 @app.post("/api/admin/cache_gc")
 def admin_cache_gc():
     """Force-evict the disk cache down to the LRU target. No auth — there's
