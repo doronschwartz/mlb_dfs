@@ -789,3 +789,12 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .live-proj { font-variant-numeric: tabular-nums; }
 .live-proj.live-up { color: var(--accent-2); font-weight: 600; }
 .live-proj.live-down { color: var(--bad); font-weight: 600; }
+
+/* Schedule builder: clickable game chips for swap-to-alternate */
+.matchup-chip.clickable { cursor: pointer; transition: background 0.1s, border-color 0.1s; }
+.matchup-chip.clickable:hover { background: rgba(96,165,250,0.15); border-color: var(--accent); }
+.sched-swap-pick {
+  padding: 8px 10px; border-radius: 6px;
+  background: var(--panel); border: 1px solid var(--border);
+}
+.sched-swap-pick:hover { border-color: var(--accent); background: var(--panel-2, rgba(96,165,250,0.06)); }

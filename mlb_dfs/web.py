@@ -1271,6 +1271,7 @@ def schedule_builder(
     end: str | None = None,
     slate_size: int = 6,
     seed_from_existing: bool = True,
+    locked_days: str | None = None,
 ):
     """Suggest a per-day slate selection across the week starting `start`
     (which must be a Sunday). End auto-derives as start+6 (full week); the
@@ -1288,6 +1289,19 @@ def schedule_builder(
     e = Date.fromisoformat(end) if end else (s + timedelta(days=6))
     if e < s:
         raise HTTPException(400, "end must be on/after start")
+
+    # Locked days: {date: set(game_pks)} — used as-is. The greedy filler
+    # honors them, and they still contribute to the team-count progression
+    # so downstream days re-balance around the user's swap.
+    locked_map: dict[str, set[int]] = {}
+    if locked_days:
+        try:
+            import json as _json
+            for entry in _json.loads(locked_days):
+                if isinstance(entry, dict) and entry.get("date"):
+                    locked_map[entry["date"]] = set(int(p) for p in (entry.get("game_pks") or []))
+        except Exception as e:
+            raise HTTPException(400, f"locked_days must be JSON [{{date,game_pks}}]: {e}")
 
     counts: Counter[str] = Counter()
     if seed_from_existing:
@@ -1367,7 +1381,20 @@ def schedule_builder(
                 hash((g.get("gamePk", 0), cur.isoformat())) & 0xFFFF,
             ),
         )
-        chosen = [g for g in scored if g["away"]["abbr"] and g["home"]["abbr"]][:slate_size]
+        # Honor a locked-day pin if the user has swapped a game on this date.
+        # Locked game_pks are taken as-is in order; any remaining slate-size
+        # capacity is filled greedily from the rest of the day's games.
+        locked_pks_for_day = locked_map.get(cur.isoformat())
+        if locked_pks_for_day:
+            locked_games = [g for g in games if g.get("gamePk") in locked_pks_for_day
+                            and g["away"]["abbr"] and g["home"]["abbr"]]
+            remaining_cap = max(0, slate_size - len(locked_games))
+            filler = [g for g in scored
+                      if g.get("gamePk") not in locked_pks_for_day
+                      and g["away"]["abbr"] and g["home"]["abbr"]][:remaining_cap]
+            chosen = locked_games + filler
+        else:
+            chosen = [g for g in scored if g["away"]["abbr"] and g["home"]["abbr"]][:slate_size]
         for g in chosen:
             counts[historic.canonical_team(g["away"]["abbr"])] += 1
             counts[historic.canonical_team(g["home"]["abbr"])] += 1
@@ -1384,6 +1411,18 @@ def schedule_builder(
                 }
                 for g in chosen
             ],
+            "all_games": [
+                {
+                    "gamePk": g["gamePk"],
+                    "away_abbr": g["away"]["abbr"],
+                    "home_abbr": g["home"]["abbr"],
+                    "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
+                    "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
+                    "status": g.get("detailedStatus", ""),
+                }
+                for g in games if g["away"]["abbr"] and g["home"]["abbr"]
+            ],
+            "locked": cur.isoformat() in locked_map,
             "team_counts_after": dict(counts),
         })
         cur += timedelta(days=1)

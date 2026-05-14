@@ -3521,24 +3521,43 @@ $("#sched-build").addEventListener("click", async () => {
   start = _toSunday(start);
   $("#sched-start").value = start;
   $("#sched-out").innerHTML = `<div class="muted">Building (this fetches each day's slate from MLB)…</div>`;
+  // Reset locks when building a fresh week
+  scheduleLocks = {};
+  await rebuildSchedule(start);
+});
+
+// {date: [gamePk, gamePk, ...]} — user's manually-pinned game choices that
+// override the greedy filler. Persists across rebuilds within the same week
+// so subsequent click-swaps don't undo prior swaps.
+let scheduleLocks = {};
+
+async function rebuildSchedule(start) {
   try {
-    const data = await api(`/api/schedule_builder?start=${start}`);
+    const lockedDays = Object.entries(scheduleLocks).map(([date, pks]) => ({date, game_pks: pks}));
+    const qs = lockedDays.length
+      ? `?start=${start}&locked_days=${encodeURIComponent(JSON.stringify(lockedDays))}`
+      : `?start=${start}`;
+    const data = await api(`/api/schedule_builder${qs}`);
     scheduleResult = data;
     renderSchedule(data);
     $("#sched-apply-row").hidden = false;
   } catch (e) {
     $("#sched-out").innerHTML = `<div class="muted">${e.message}</div>`;
   }
-});
+}
 
 function renderSchedule(data) {
   const days = data.days
     .map((day) => {
+      const lockedNote = scheduleLocks[day.date]
+        ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>` : "";
       const chips = day.selected_games
-        .map((g) => `<span class="matchup-chip">${g.away_abbr} @ ${g.home_abbr}</span>`)
+        .map((g, i) => `<span class="matchup-chip clickable"
+              data-date="${day.date}" data-gamepk="${g.gamePk}"
+              title="Click to swap this game">${g.away_abbr} @ ${g.home_abbr}</span>`)
         .join("");
-      return `<div class="sched-day">
-        <h4>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span></h4>
+      return `<div class="sched-day" data-date="${day.date}">
+        <h4>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${lockedNote}</h4>
         <div class="matchups">${chips}</div>
       </div>`;
     })
@@ -3553,11 +3572,67 @@ function renderSchedule(data) {
     })
     .join("");
   $("#sched-out").innerHTML = `
+    <div class="muted" style="margin-bottom:8px;font-size:12px;">
+      💡 Click any game to swap it for another from that day's full slate — downstream days will rebalance automatically.
+    </div>
     ${days}
     <div class="team-counts">
       <div class="muted" style="margin-bottom:6px;">Team appearances after applying this schedule (green = lowest, orange = highest, range ${min}–${max}):</div>
       <div class="row">${teamRow}</div>
     </div>`;
+  // Wire click-to-swap on every chip
+  document.querySelectorAll("#sched-out .matchup-chip.clickable").forEach(chip => {
+    chip.addEventListener("click", () => openSwapModal(chip.dataset.date, parseInt(chip.dataset.gamepk, 10)));
+  });
+}
+
+// Modal: swap one game in a day for another game from that day's full schedule.
+// Shows all candidate games for the date with a "pick" button each; on pick,
+// locks the new game and re-runs the schedule builder.
+function openSwapModal(date, currentGamePk) {
+  const day = (scheduleResult.days || []).find(d => d.date === date);
+  if (!day) return;
+  const currentGames = day.selected_games || [];
+  const allGames = day.all_games || [];
+  const inSlate = new Set(currentGames.map(g => g.gamePk));
+  const candidates = allGames.filter(g => !inSlate.has(g.gamePk));
+  if (!candidates.length) {
+    alert(`Only ${currentGames.length} games scheduled on ${date} — no alternates to swap in.`);
+    return;
+  }
+  const current = currentGames.find(g => g.gamePk === currentGamePk);
+  const modal = $("#changelog-modal");
+  const body = $("#changelog-body");
+  $("#changelog-modal .modal-header h2").textContent = `Swap game on ${date}`;
+  body.innerHTML = `
+    <div style="margin-bottom:10px;">
+      <div class="muted" style="font-size:12px;">Removing:</div>
+      <div style="font-size:14px;font-weight:600;">${current ? `${current.away_abbr} @ ${current.home_abbr}` : currentGamePk}
+        <span class="muted" style="font-weight:400;font-size:12px;">— ${current?.away_sp || "?"} vs ${current?.home_sp || "?"}</span></div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:6px;">Pick a replacement (${candidates.length} alternates available):</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${candidates.map(g => `
+        <button class="btn-pick sched-swap-pick" data-date="${date}" data-newpk="${g.gamePk}"
+                style="text-align:left;display:flex;justify-content:space-between;align-items:center;">
+          <span><b>${g.away_abbr} @ ${g.home_abbr}</b> <span class="muted" style="font-size:11px;">${g.away_sp} vs ${g.home_sp}</span></span>
+          <span class="muted" style="font-size:11px;">${g.status || ""}</span>
+        </button>`).join("")}
+    </div>`;
+  modal.style.display = "flex";
+  document.querySelectorAll(".sched-swap-pick").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const d = btn.dataset.date;
+      const newPk = parseInt(btn.dataset.newpk, 10);
+      // Build the new locked game list for this day: keep all current games
+      // EXCEPT the one being swapped, then add the new one.
+      const remaining = currentGames.filter(g => g.gamePk !== currentGamePk).map(g => g.gamePk);
+      scheduleLocks[d] = [...remaining, newPk];
+      modal.style.display = "none";
+      $("#sched-out").innerHTML = `<div class="muted">Rebalancing the week around your swap…</div>`;
+      await rebuildSchedule($("#sched-start").value);
+    });
+  });
 }
 
 $("#sched-apply").addEventListener("click", async () => {
