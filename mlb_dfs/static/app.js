@@ -738,12 +738,16 @@ $("#ask-names")?.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.key === "Enter") runAskAlgo();
 });
 
-// Viewport-aware tooltip positioner for the Ask Algo proj cells.
-// Computes whether there's more room above or below the trigger and pins
-// the tooltip's --tt-top / --tt-left CSS vars accordingly. Delegated handler
-// so it works for rows added after the initial render.
+// Viewport-aware tooltip positioner.
+// Used by both the Ask Algo tab (.ask-table) and the Live Score tab
+// (.score-row) — anywhere the breakdown tooltip's default position:absolute
+// puts it off-screen or in a weird spot relative to the trigger. Computes
+// the trigger's bounding rect on mouseenter and sets --tt-top / --tt-left
+// CSS vars; the matching CSS rule swaps position:fixed in for those cells.
 document.addEventListener("mouseenter", (e) => {
-  const tt = e.target && e.target.closest && e.target.closest(".ask-table .player-cell .name-trigger");
+  const tt = e.target && e.target.closest && e.target.closest(
+    ".ask-table .player-cell .name-trigger, .score-row .player-cell .name-trigger"
+  );
   if (!tt) return;
   const cell = tt.closest(".player-cell");
   const tooltip = cell && cell.querySelector(".breakdown-tooltip");
@@ -763,7 +767,7 @@ document.addEventListener("mouseenter", (e) => {
   if (top + ttRect.height > vh - margin) {
     top = Math.max(margin, rect.top - ttRect.height - 4);
   }
-  // Anchor right edge of tooltip to right edge of trigger (proj is right-aligned)
+  // Anchor right edge of tooltip to right edge of trigger (right-aligned cell)
   let left = rect.right - ttRect.width;
   if (left < margin) left = margin;
   if (left + ttRect.width > vw - margin) left = vw - margin - ttRect.width;
