@@ -1662,6 +1662,71 @@ function projTooltip(p) {
   </div>`;
 }
 
+// Live-projection tooltip — shown when hovering the "Live" column on the
+// Live Score tab. Explains the live math (actual + remaining × pre_game)
+// plus the full pre-game factor breakdown so users can audit both layers.
+//
+// Pick shape (from /api/drafts/{id}/score): {
+//   projected, live_projection, remaining_fraction, actual, raw,
+//   game_state, components: {role, ip_per_start, ...}, ...
+// }
+function liveProjTooltip(p) {
+  const pre = p.projected ?? 0;
+  const act = p.actual ?? 0;
+  const live = p.live_projection ?? pre;
+  const remaining = p.remaining_fraction ?? 0;
+  const remPct = (remaining * 100).toFixed(0);
+  const role = (p.components || {}).role || p.role || "hitter";
+  // Math explainer
+  let mathRows;
+  if (role === "pitcher") {
+    const ipPerStart = (p.components || {}).ip_per_start ?? 5.5;
+    const expectedOuts = Math.max(6, Math.round(ipPerStart * 3));
+    const outs = (p.raw || {}).outs || 0;
+    mathRows = `
+      <div class="bk-row"><span class="bk-label">Pre-game projection</span><span class="bk-total">${pre.toFixed(2)} pts</span></div>
+      <div class="bk-row"><span class="bk-label">Actual so far</span><span class="bk-total">${act.toFixed(2)} pts</span></div>
+      <div class="bk-row"><span class="bk-label">Outs recorded</span><span class="bk-total muted">${outs} of ${expectedOuts} expected (${ipPerStart} IP/start × 3)</span></div>
+      <div class="bk-row"><span class="bk-label">Remaining share</span><span class="bk-total">${remPct}%</span></div>
+      <div class="bk-row" style="border-top:1px solid var(--border);padding-top:4px;margin-top:4px;">
+        <span class="bk-label">Live = actual + pre × remaining</span>
+        <span class="bk-total">${act.toFixed(2)} + ${pre.toFixed(2)} × ${remaining.toFixed(2)}</span>
+      </div>`;
+  } else {
+    const pa = (p.raw || {}).PA || 0;
+    const expectedPA = 4.3;
+    mathRows = `
+      <div class="bk-row"><span class="bk-label">Pre-game projection</span><span class="bk-total">${pre.toFixed(2)} pts</span></div>
+      <div class="bk-row"><span class="bk-label">Actual so far</span><span class="bk-total">${act.toFixed(2)} pts</span></div>
+      <div class="bk-row"><span class="bk-label">PAs taken</span><span class="bk-total muted">${pa} of ${expectedPA.toFixed(1)} expected</span></div>
+      <div class="bk-row"><span class="bk-label">Remaining share</span><span class="bk-total">${remPct}%</span></div>
+      <div class="bk-row" style="border-top:1px solid var(--border);padding-top:4px;margin-top:4px;">
+        <span class="bk-label">Live = actual + pre × remaining</span>
+        <span class="bk-total">${act.toFixed(2)} + ${pre.toFixed(2)} × ${remaining.toFixed(2)}</span>
+      </div>`;
+  }
+  // Reuse the pre-game projection breakdown for the bottom half. projTooltip
+  // expects {name, projected_points, role, components} — adapt the score-pick.
+  const pre_tt_inner = projTooltip({
+    name: p.name,
+    projected_points: pre,
+    role: role,
+    components: p.components || {},
+  });
+  // Strip the outer wrapper from projTooltip so we can inline its content.
+  // projTooltip returns '<div class="breakdown-tooltip">...</div>'.
+  const pre_inner = pre_tt_inner.replace(/^<div class="breakdown-tooltip">/, "").replace(/<\/div>\s*$/, "");
+  return `<div class="breakdown-tooltip">
+    <div class="bk-title">${p.name} <span class="muted" style="font-weight:400;font-size:11px;">— live projection</span></div>
+    <div class="bk-rows">${mathRows}</div>
+    <div class="bk-grand"><span>Live projection</span><span>${live.toFixed(2)} pts</span></div>
+    <div class="bk-rows" style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">
+      <div class="bk-row"><span class="muted" style="font-size:11px;font-style:italic;">Pre-game seed (full breakdown):</span></div>
+      ${pre_inner}
+    </div>
+  </div>`;
+}
+
 function renderProjectionsTable() {
   const rows = projCache.data
     .slice(0, 60)
@@ -2746,14 +2811,17 @@ $("#score-load").addEventListener("click", async () => {
             //     the game is over and == pre_game before the game starts,
             //     so the column would be redundant. Showing '—' is clearer).
             //   - Live: show the live projection with green/red color cue
-            //     vs the original pre-game projection.
+            //     vs the original pre-game projection. Hover (or tap) shows
+            //     the live math + the full pre-game factor breakdown so the
+            //     user can audit how this number was derived.
             const lp = p.live_projection;
             const isLive = stateLabel === "Live" && p.played;
             const liveCls = !isLive ? "" :
               (lp > p.projected + 1.5 ? "live-up" :
                lp < p.projected - 1.5 ? "live-down" : "");
+            const liveTT = isLive && lp != null ? liveProjTooltip(p) : "";
             const liveCell = isLive && lp != null
-              ? `<td class="live-proj ${liveCls}">${lp.toFixed(2)}</td>`
+              ? `<td class="live-proj player-cell ${liveCls}"><span class="name-trigger" style="cursor:help;">${lp.toFixed(2)}</span>${liveTT}</td>`
               : `<td class="live-proj muted" style="text-align:center;">—</td>`;
             return `
           <tr class="${cls} score-row">
