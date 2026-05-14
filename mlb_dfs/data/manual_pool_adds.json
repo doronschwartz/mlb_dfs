@@ -8,5 +8,14 @@
       "position": "SS",
       "note": "Activated off IL after rehab assignment"
     }
+  ],
+  "2026-05-14": [
+    {
+      "player_id": 666129,
+      "team_id": 146,
+      "name": "Braxton Garrett",
+      "position": "SP",
+      "note": "Probable for Marlins but not yet active on MLB roster"
+    }
   ]
 }

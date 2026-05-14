@@ -1611,6 +1611,31 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
                 "ump_k_factor": ump_k,
             }
 
+    # Inject manual pitcher adds (data/manual_pool_adds.json) into probable_sps
+    # so they get a real project_pitcher projection. Without this, an
+    # IL-activated SP shows in the pool but with no projection (since
+    # probable_sps only sources from MLB API's probablePitcher field).
+    try:
+        for add in mlb_api._load_manual_pool_adds(d):
+            pos = (add.get("position") or "").upper()
+            if pos not in ("SP", "P"):
+                continue  # RPs aren't projected here; skip
+            pid = add.get("player_id")
+            tid = add.get("team_id")
+            if not pid or not tid or tid not in matchups:
+                continue
+            if pid in probable_sps:
+                continue  # MLB API already had them as probable
+            m = matchups[tid]
+            probable_sps[pid] = {
+                "team_id": tid, "opp_team_id": m["opp"], "park": m["park"],
+                "name": add.get("name") or f"player_{pid}",
+                "opp_abbr": m.get("opp_abbr"), "is_home": m.get("is_home"),
+                "ump_k_factor": None,
+            }
+    except Exception as e:
+        logging.warning("manual SP inject failed: %s", e)
+
     pool = mlb_api.players_in_slate(d)
     # Pull lineups for batting order info (None if lineup not yet posted).
     try:
