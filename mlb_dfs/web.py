@@ -1261,6 +1261,19 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
         game_pk = _resolve_game_pk_for_pick(dr, proj, req.game_pk)
     except HTTPException:
         raise
+    # Block the replacement if every game the candidate's team plays today
+    # has already started or finished — once first pitch happens you can't
+    # add a new player to your roster for that day.
+    if proj.team_id:
+        team_pks = _team_to_slate_gamepks(dr).get(proj.team_id, [])
+        states = _game_state_map(dr)
+        if team_pks and not any(states.get(pk, "pre") == "pre" for pk in team_pks):
+            game_states_summary = ", ".join(f"{pk}={states.get(pk,'?')}" for pk in team_pks)
+            raise HTTPException(
+                400,
+                f"{proj.name}'s game(s) for today have already started or finished "
+                f"({game_states_summary}). Pick a player whose game hasn't started yet."
+            )
     try:
         dr.replace_pick(pick_number, proj, game_pk=game_pk)
     except ValueError as e:
@@ -1911,14 +1924,24 @@ def get_pool(draft_id: str):
     )
     team_games = _team_to_slate_gamepks(dr)
     labels = _game_label_map_full(dr)
+    game_states = _game_state_map(dr)
     for p in pool:
         ls = lineups.get(p["player_id"])
         p["lineup_status"] = ls.get("status") if ls else "pending"
         slate_games = team_games.get(p.get("team_id") or 0, [])
         p["team_games_in_slate"] = [
-            {"game_pk": gpk, "label": labels.get(gpk, "")}
+            {
+                "game_pk": gpk,
+                "label": labels.get(gpk, ""),
+                "state": game_states.get(gpk, "pre"),
+            }
             for gpk in slate_games
         ]
+        # Replaceable iff at least one of this player's slate games hasn't
+        # started yet. Once every game's first-pitch has happened the player
+        # can no longer be added to a roster for the day.
+        p["replaceable"] = any(g["state"] == "pre" for g in p["team_games_in_slate"]) \
+            if p["team_games_in_slate"] else False
     return {
         "on_the_clock": on_clock,
         "remaining_slots": remaining,
@@ -2182,6 +2205,27 @@ def _draft_state(dr) -> dict:
             for d in dr.drafters
         },
     }
+
+
+def _game_state_map(dr) -> dict[int, str]:
+    """gamePk -> 'pre' | 'live' | 'final'. Used to block replacement candidates
+    whose game has already started — once first pitch happens you can't add
+    a new player to a roster for that day."""
+    selected = set(dr.game_pks) if dr.game_pks else None
+    out: dict[int, str] = {}
+    for g in mlb_api.schedule(Date.fromisoformat(dr.date)):
+        pk = g.get("gamePk")
+        if pk is None or (selected is not None and pk not in selected):
+            continue
+        abstract = (g.get("status") or {}).get("abstractGameState") or ""
+        if abstract == "Live":
+            out[pk] = "live"
+        elif abstract == "Final":
+            out[pk] = "final"
+        else:
+            # Preview / Scheduled / Pre-Game / Warmup / Postponed / etc.
+            out[pk] = "pre"
+    return out
 
 
 def _team_to_slate_gamepks(dr) -> dict[int, list[int]]:

@@ -2320,8 +2320,14 @@ async function openMoveMenu(anchorEl, { pickNumber, currentSlot, name }) {
 async function openReplaceModal({ pickNumber, slot, oldName }) {
   const data = await api(`/api/drafts/${state.currentDraftId}/pool`).catch(() => null);
   if (!data) return alert("Couldn't load replacement candidates.");
+  // Replaceable iff (a) eligible for the slot AND (b) at least one of the
+  // player's slate games hasn't started yet. Backend stamps `replaceable`
+  // on every pool entry — once every relevant game is Live/Final you can't
+  // add a new player for that team for the day.
+  const beforeFilterCount = data.pool.filter((p) => (p.position_slots || p.eligible_slots).includes(slot)).length;
   const allCandidates = data.pool
     .filter((p) => (p.position_slots || p.eligible_slots).includes(slot))
+    .filter((p) => p.replaceable !== false)
     .sort((a, b) => {
       const order = { in: 0, pending: 1, out: 2, undefined: 1 };
       const da = order[a.lineup_status] ?? 1;
@@ -2329,6 +2335,7 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
       if (da !== db) return da - db;
       return b.projected_points - a.projected_points;
     });
+  const blockedCount = beforeFilterCount - allCandidates.length;
 
   const overlay = document.createElement("div");
   overlay.className = "replace-modal";
@@ -2340,6 +2347,7 @@ async function openReplaceModal({ pickNumber, slot, oldName }) {
       </div>
       <p class="muted" style="font-size:12px;margin:4px 0 8px;">
         Sorted by lineup status (in lineup first), then projection.
+        ${blockedCount > 0 ? `<br><span style="color:var(--bad);">${blockedCount} candidate${blockedCount === 1 ? "" : "s"} hidden — their game has already started/finished today.</span>` : ""}
       </p>
       <input id="replace-search" placeholder="Search by name…"
              style="width:100%;margin-bottom:10px;" autofocus />
