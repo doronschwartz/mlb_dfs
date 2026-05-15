@@ -3556,6 +3556,13 @@ function _renderSundayChips() {
   });
 }
 
+// Tracks whether the current preview corresponds to a built week. When set,
+// a "💾 Save changes to drafts" button appears once the user makes any
+// swap — it pushes the new game_pks to each affected draft via
+// /api/drafts/{date}/games (which doesn't touch picks).
+let scheduleBuiltWeek = null;       // sundayIso when a built week is loaded
+let scheduleOriginalLocks = {};     // {date: [pks]} snapshot at load time
+
 // Fetch every existing draft for the Sun-Thu of a given week, build a
 // locked_days payload from their saved game_pks, then call rebuildSchedule
 // so the preview reads the exact same games that were saved.
@@ -3578,8 +3585,68 @@ async function _loadBuiltWeek(sundayIso) {
     } catch { return null; }
   }));
   for (const r of results) if (r) scheduleLocks[r.date] = r.game_pks;
+  scheduleBuiltWeek = sundayIso;
+  // Deep-copy so we can detect drift later
+  scheduleOriginalLocks = {};
+  for (const [k, v] of Object.entries(scheduleLocks)) scheduleOriginalLocks[k] = [...v];
   $("#sched-out").innerHTML = `<div class="muted">Loading built schedule for ${sundayIso}…</div>`;
   await rebuildSchedule(sundayIso);
+}
+
+// True if any day's game-pk set has changed from what was on-disk at load time.
+function _scheduleHasUnsavedChanges() {
+  if (!scheduleBuiltWeek || !scheduleResult) return false;
+  for (const day of (scheduleResult.days || [])) {
+    if (day.past) continue;  // past days never count
+    const currentPks = (day.selected_games || []).map(g => g.gamePk).sort();
+    const originalPks = [...(scheduleOriginalLocks[day.date] || [])].sort();
+    if (currentPks.length !== originalPks.length) return true;
+    for (let i = 0; i < currentPks.length; i++) {
+      if (currentPks[i] !== originalPks[i]) return true;
+    }
+  }
+  return false;
+}
+
+// Push the current preview's game_pks for each non-past day back to its
+// existing draft via /api/drafts/{date}/games. Picks are NOT modified —
+// the endpoint only updates game_pks. Days with no on-disk draft get
+// skipped (would need to be created via the apply flow instead).
+async function _saveScheduleChanges() {
+  if (!scheduleResult) return;
+  const out = $("#sched-out");
+  const ops = [];
+  for (const day of (scheduleResult.days || [])) {
+    if (day.past) continue;
+    if (!_schedDraftDates.has(day.date)) continue;  // no saved draft to update
+    const game_pks = (day.selected_games || []).map(g => g.gamePk);
+    ops.push({ date: day.date, game_pks });
+  }
+  if (!ops.length) return alert("No editable days to save.");
+  // Run sequentially so errors surface clearly
+  const results = [];
+  for (const op of ops) {
+    try {
+      await api(`/api/drafts/${op.date}/games`, {
+        method: "POST",
+        body: JSON.stringify({ game_pks: op.game_pks }),
+      });
+      results.push({ ok: true, date: op.date });
+    } catch (e) {
+      results.push({ ok: false, date: op.date, error: e.message || String(e) });
+    }
+  }
+  const ok = results.filter(r => r.ok).length;
+  const fails = results.filter(r => !r.ok);
+  // Refresh the original-locks snapshot so the button hides again
+  scheduleOriginalLocks = {};
+  for (const [k, v] of Object.entries(scheduleLocks)) scheduleOriginalLocks[k] = [...v];
+  let msg = `Saved ${ok}/${ops.length} day${ops.length === 1 ? "" : "s"}.`;
+  if (fails.length) msg += " Failed: " + fails.map(f => `${f.date} (${f.error})`).join(", ");
+  // Re-render to drop the save banner
+  renderSchedule(scheduleResult);
+  // Add a transient confirmation atop
+  out.insertAdjacentHTML("afterbegin", `<div class="muted" style="margin-bottom:8px;color:var(--accent-2);">✓ ${msg}</div>`);
 }
 
 async function _refreshSchedDrafts() {
@@ -3623,8 +3690,11 @@ $("#sched-build").addEventListener("click", async () => {
   start = _toSunday(start);
   $("#sched-start").value = start;
   $("#sched-out").innerHTML = `<div class="muted">Building (this fetches each day's slate from MLB)…</div>`;
-  // Reset locks when building a fresh week
+  // Reset locks AND built-week context when building a fresh week so the
+  // Save Changes button doesn't appear on a freshly-built (unsaved) preview.
   scheduleLocks = {};
+  scheduleBuiltWeek = null;
+  scheduleOriginalLocks = {};
   await rebuildSchedule(start);
 });
 
@@ -3722,11 +3792,19 @@ function renderSchedule(data) {
   const resetLocksBtn = lockedCount
     ? `<button id="sched-reset-locks" title="Clear all locks and let every day rebalance" style="background:rgba(239,68,68,0.1);border-color:var(--bad);color:var(--bad);">↺ Reset ${lockedCount} lock${lockedCount === 1 ? "" : "s"}</button>`
     : "";
+  // Save button — shown when looking at a built week AND the preview has
+  // drifted from what's on-disk. Saves each non-past day's new game_pks
+  // back to its existing draft (picks are preserved).
+  const showSave = _scheduleHasUnsavedChanges();
+  const saveBtn = showSave
+    ? `<button id="sched-save-changes" title="Push the swapped games back to each draft for this week (picks stay)" style="background:var(--accent-2);color:#000;font-weight:700;">💾 Save changes to drafts</button>`
+    : "";
 
   $("#sched-out").innerHTML = `
     <div class="muted" style="margin-bottom:8px;font-size:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
       <span>💡 Click any game to swap it. Hit 🌙 Late on any day to pin that day's 6 latest games; downstream days rebalance around your locks.</span>
       ${resetLocksBtn}
+      ${saveBtn}
     </div>
     ${days}
     <div class="team-counts">
@@ -3737,6 +3815,7 @@ function renderSchedule(data) {
   document.querySelectorAll("#sched-out .matchup-chip.clickable").forEach(chip => {
     chip.addEventListener("click", () => openSwapModal(chip.dataset.date, parseInt(chip.dataset.gamepk, 10)));
   });
+  $("#sched-save-changes")?.addEventListener("click", _saveScheduleChanges);
   // Wire Reset Locks — clears every manual override and re-runs the
   // builder so every day picks greedily again with the day-game tiebreaker.
   $("#sched-reset-locks")?.addEventListener("click", () => {
