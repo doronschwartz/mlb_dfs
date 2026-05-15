@@ -1463,8 +1463,10 @@ def schedule_builder(
     # Track every matchup picked across the week so Pass B can deprioritize
     # repeats. Includes Pass A's day-game picks because if a series happens
     # to play a day game on Wed AND a night game on Tue/Mon, that's still a
-    # repeat we want to spread out.
-    picked_matchups: set[frozenset] = set()
+    # repeat we want to spread out. Counter (not set) so a thrice-repeated
+    # matchup sorts after a twice-repeated one — first-times come first,
+    # then least-repeated, etc.
+    picked_matchups: Counter[frozenset] = Counter()
 
     # Pass A — fill day games + locks
     pass_a_chosen: dict[str, list[dict]] = {}
@@ -1490,7 +1492,7 @@ def schedule_builder(
         for g in chosen:
             counts[historic.canonical_team(g["away"]["abbr"])] += 1
             counts[historic.canonical_team(g["home"]["abbr"])] += 1
-            picked_matchups.add(_matchup_key(g))
+            picked_matchups[_matchup_key(g)] += 1
         pass_a_chosen[cur_iso] = chosen
 
     # Pass B — fill remainder with night games. Sort key:
@@ -1522,10 +1524,13 @@ def schedule_builder(
                 key=lambda g: (
                     # Day-game preference still applies to filler ordering
                     0 if _is_day_game(g) else 1,
-                    # Repeat-matchup penalty (only meaningful for night games
-                    # since day games rarely overlap a series): True sorts
-                    # after False, so first-time matchups come first.
-                    1 if (not _is_day_game(g) and _matchup_key(g) in picked_matchups) else 0,
+                    # Repeat-matchup count (only applies to night games per
+                    # user observation that day games rarely overlap series).
+                    # 0 = first time this week, 1 = first repeat, 2 = second
+                    # repeat, etc. Lower sorts first, so the algorithm
+                    # exhausts unique matchups before tapping the same series
+                    # twice and the same series 3x last.
+                    picked_matchups.get(_matchup_key(g), 0) if not _is_day_game(g) else 0,
                     counts[historic.canonical_team(g["away"]["abbr"] or "")]
                     + counts[historic.canonical_team(g["home"]["abbr"] or "")],
                     hash((g.get("gamePk", 0), cur_iso)) & 0xFFFF,
@@ -1536,7 +1541,7 @@ def schedule_builder(
             for g in extras:
                 counts[historic.canonical_team(g["away"]["abbr"])] += 1
                 counts[historic.canonical_team(g["home"]["abbr"])] += 1
-                picked_matchups.add(_matchup_key(g))
+                picked_matchups[_matchup_key(g)] += 1
             chosen = chosen + extras
         days.append({
             "date": cur_iso,
