@@ -1409,7 +1409,27 @@ def schedule_builder(
     # The friend league plays Sun-Thu only — skip Friday (weekday 4) and
     # Saturday (weekday 5) when proposing slates.
     SKIP_WEEKDAYS = {4, 5}
-    days = []
+
+    def _is_day_game(g):
+        # MLB schedule returns gameDate as ISO Z (UTC). Day games on the
+        # east coast start ~17-21 UTC; night games ~23 UTC onward.
+        iso = g.get("gameDate") or ""
+        try:
+            hour = int(iso[11:13])
+            return hour < 22   # ~before 6pm ET
+        except Exception:
+            return False
+
+    # ---- two-pass build (v9.6) ----
+    # Pass A: walk every Sun-Thu day in the range and lock in either the
+    #   user-pinned games (locked_days) OR the day-game-only subset (up to
+    #   slate_size). Team counts update after each day so subsequent days'
+    #   day-game picks already see the budget pressure.
+    # Pass B: walk again and fill any day that didn't reach slate_size with
+    #   that day's night games, sorted by team count using the post-Pass-A
+    #   totals — so days short on day games (typically Mon/Tue) naturally
+    #   absorb the rebalancing for whatever Wed/Thu locked in via day games.
+    days_meta: list[dict] = []
     cur = s
     while cur <= e:
         if cur.weekday() in SKIP_WEEKDAYS:
@@ -1420,55 +1440,71 @@ def schedule_builder(
         except Exception:
             cur += timedelta(days=1)
             continue
-        def _is_day_game(g):
-            # MLB schedule returns gameDate as ISO Z (UTC). Day games on the
-            # east coast start ~17-21 UTC; night games ~23 UTC onward.
-            iso = g.get("gameDate") or ""
-            try:
-                hour = int(iso[11:13])
-                return hour < 22   # ~before 6pm ET
-            except Exception:
-                return False
-        # Sort order (v9.6): DAY-GAME first, team-count second.
-        # User preference: day games supersede team-count balance. If 6 day
-        # games are scheduled, take all 6 even if it leaves some teams a bit
-        # heavier; days where greedy fills LATER (Mon → Tue → Wed → Thu) will
-        # naturally compensate because the team counts they're balancing will
-        # already account for whatever this day picked.
-        # Inside the day-game and night-game subsets, lowest team count wins —
-        # so balance is still maintained, just constrained to within each
-        # daypart.
-        scored = sorted(
-            games,
-            key=lambda g: (
-                # Day games first (False=0 sorts before True=1)
-                0 if _is_day_game(g) else 1,
-                # Then lowest combined team-count
-                counts[historic.canonical_team(g["away"]["abbr"] or "")]
-                + counts[historic.canonical_team(g["home"]["abbr"] or "")],
-                # tiebreak: random-ish so reruns don't always pick the same game
-                hash((g.get("gamePk", 0), cur.isoformat())) & 0xFFFF,
-            ),
-        )
-        # Honor a locked-day pin if the user has swapped a game on this date.
-        # Locked game_pks are taken as-is in order; any remaining slate-size
-        # capacity is filled greedily from the rest of the day's games.
-        locked_pks_for_day = locked_map.get(cur.isoformat())
+        days_meta.append({"date": cur, "games": games})
+        cur += timedelta(days=1)
+
+    # Pass A — fill day games + locks
+    pass_a_chosen: dict[str, list[dict]] = {}
+    for meta in days_meta:
+        cur_iso = meta["date"].isoformat()
+        games = meta["games"]
+        valid = [g for g in games if g["away"]["abbr"] and g["home"]["abbr"]]
+        locked_pks_for_day = locked_map.get(cur_iso)
         if locked_pks_for_day:
-            locked_games = [g for g in games if g.get("gamePk") in locked_pks_for_day
-                            and g["away"]["abbr"] and g["home"]["abbr"]]
-            remaining_cap = max(0, slate_size - len(locked_games))
-            filler = [g for g in scored
-                      if g.get("gamePk") not in locked_pks_for_day
-                      and g["away"]["abbr"] and g["home"]["abbr"]][:remaining_cap]
-            chosen = locked_games + filler
+            chosen = [g for g in valid if g.get("gamePk") in locked_pks_for_day]
+            # If they locked fewer than slate_size, leave the remainder for
+            # Pass B to fill — keeps cascading rebalance intact.
         else:
-            chosen = [g for g in scored if g["away"]["abbr"] and g["home"]["abbr"]][:slate_size]
+            day_games = sorted(
+                [g for g in valid if _is_day_game(g)],
+                key=lambda g: (
+                    counts[historic.canonical_team(g["away"]["abbr"] or "")]
+                    + counts[historic.canonical_team(g["home"]["abbr"] or "")],
+                    hash((g.get("gamePk", 0), cur_iso)) & 0xFFFF,
+                ),
+            )
+            chosen = day_games[:slate_size]
         for g in chosen:
             counts[historic.canonical_team(g["away"]["abbr"])] += 1
             counts[historic.canonical_team(g["home"]["abbr"])] += 1
+        pass_a_chosen[cur_iso] = chosen
+
+    # Pass B — fill remainder with night games, sorted by current counts
+    days = []
+    for meta in days_meta:
+        cur_iso = meta["date"].isoformat()
+        games = meta["games"]
+        valid = [g for g in games if g["away"]["abbr"] and g["home"]["abbr"]]
+        chosen = list(pass_a_chosen.get(cur_iso, []))
+        chosen_pks = {g.get("gamePk") for g in chosen}
+        if len(chosen) < slate_size:
+            night_pool = [g for g in valid
+                          if g.get("gamePk") not in chosen_pks
+                          and not _is_day_game(g)]
+            # If still under cap and the locked-day set was partial, also
+            # consider unpicked day games as filler (rare; e.g. user pinned
+            # 2 specific games on a day that has 8 day games available).
+            day_pool = [g for g in valid
+                        if g.get("gamePk") not in chosen_pks
+                        and _is_day_game(g)]
+            filler_sorted = sorted(
+                night_pool + day_pool,
+                key=lambda g: (
+                    # Day-game preference still applies to filler ordering
+                    0 if _is_day_game(g) else 1,
+                    counts[historic.canonical_team(g["away"]["abbr"] or "")]
+                    + counts[historic.canonical_team(g["home"]["abbr"] or "")],
+                    hash((g.get("gamePk", 0), cur_iso)) & 0xFFFF,
+                ),
+            )
+            needed = slate_size - len(chosen)
+            extras = filler_sorted[:needed]
+            for g in extras:
+                counts[historic.canonical_team(g["away"]["abbr"])] += 1
+                counts[historic.canonical_team(g["home"]["abbr"])] += 1
+            chosen = chosen + extras
         days.append({
-            "date": cur.isoformat(),
+            "date": cur_iso,
             "selected_games": [
                 {
                     "gamePk": g["gamePk"],
@@ -1477,7 +1513,7 @@ def schedule_builder(
                     "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
                     "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
                     "status": g.get("detailedStatus", ""),
-                    "gameDate": g.get("gameDate"),   # ISO UTC; frontend formats to ET on chips
+                    "gameDate": g.get("gameDate"),
                 }
                 for g in chosen
             ],
@@ -1489,14 +1525,13 @@ def schedule_builder(
                     "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
                     "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
                     "status": g.get("detailedStatus", ""),
-                    "gameDate": g.get("gameDate"),   # ISO UTC; frontend uses for late-Sunday sort
+                    "gameDate": g.get("gameDate"),
                 }
-                for g in games if g["away"]["abbr"] and g["home"]["abbr"]
+                for g in valid
             ],
-            "locked": cur.isoformat() in locked_map,
+            "locked": cur_iso in locked_map,
             "team_counts_after": dict(counts),
         })
-        cur += timedelta(days=1)
 
     return {
         "start": start,
