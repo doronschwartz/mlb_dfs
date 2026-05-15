@@ -3653,13 +3653,14 @@ function renderSchedule(data) {
     .map((day) => {
       const lockedNote = scheduleLocks[day.date]
         ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>` : "";
-      // Per-day "🌙 Late" — shown only if this day has more games scheduled
-      // than the slate cap (otherwise there's no late-night alternative to
-      // pick). Locks this day to its 6 latest start-times; rest of the week
-      // rebalances. Hidden if the day is fully locked already.
+      // Per-day "🌙 Late" / "☀️ Early" — shown only if this day has more
+      // games scheduled than the slate cap (otherwise there's nothing else
+      // to swap up). Locks the day to its 6 latest (or earliest) start-
+      // times; rest of the week rebalances.
       const hasAlternates = (day.all_games || []).length > day.selected_games.length;
-      const lateBtn = hasAlternates
-        ? `<button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; the rest of the week rebalances around it">🌙 Late</button>`
+      const dayActionBtns = hasAlternates
+        ? `<button class="sched-early-day" data-date="${day.date}" title="Lock this day to the 6 earliest start-times; rest of the week rebalances">☀️ Early</button>
+           <button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; rest of the week rebalances">🌙 Late</button>`
         : "";
       // Sort chips by start time ascending so the row reads naturally —
       // earliest first pitch on the left, latest on the right. The backend
@@ -3688,7 +3689,7 @@ function renderSchedule(data) {
       return `<div class="sched-day" data-date="${day.date}">
         <h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${mix}${lockedNote}</span>
-          ${lateBtn}
+          ${dayActionBtns}
         </h4>
         <div class="matchups">${chips}</div>
       </div>`;
@@ -3731,26 +3732,31 @@ function renderSchedule(data) {
     $("#sched-out").innerHTML = `<div class="muted">Resetting locks and rebuilding…</div>`;
     rebuildSchedule($("#sched-start").value);
   });
-  // Per-day "🌙 Late" — for whichever day's button was clicked, replace
-  // that day's slate with its 6 latest start-times and let rebuildSchedule
-  // re-balance everything else around the lock. Works on any day, not just
-  // Sunday (Sun stays as a common case, but the user might want a late
-  // Wednesday or Thursday too).
-  document.querySelectorAll(".sched-late-day").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const dt = btn.dataset.date;
-      const day = (data.days || []).find(d => d.date === dt);
-      if (!day || !day.all_games) return;
-      const sorted = [...day.all_games]
-        .filter(g => g.gameDate)
-        .sort((a, b) => (b.gameDate || "").localeCompare(a.gameDate || ""));
-      if (!sorted.length) return alert(`No games with valid start times on ${dt}.`);
-      const picks = sorted.slice(0, 6).map(g => g.gamePk);
-      scheduleLocks[dt] = picks;
-      $("#sched-out").innerHTML = `<div class="muted">Pinning ${picks.length} late game${picks.length === 1 ? "" : "s"} on ${dt} and rebalancing the rest of the week…</div>`;
-      rebuildSchedule($("#sched-start").value);
+  // Per-day daypart locks — '🌙 Late' picks the 6 latest start-times,
+  // '☀️ Early' picks the 6 earliest. Both lock the day and trigger a
+  // cascading rebuild so the rest of the week rebalances around it.
+  function _wireDaypartLock(selector, ascending) {
+    document.querySelectorAll(selector).forEach(btn => {
+      btn.addEventListener("click", () => {
+        const dt = btn.dataset.date;
+        const day = (data.days || []).find(d => d.date === dt);
+        if (!day || !day.all_games) return;
+        const sorted = [...day.all_games]
+          .filter(g => g.gameDate)
+          .sort((a, b) => ascending
+            ? (a.gameDate || "").localeCompare(b.gameDate || "")
+            : (b.gameDate || "").localeCompare(a.gameDate || ""));
+        if (!sorted.length) return alert(`No games with valid start times on ${dt}.`);
+        const picks = sorted.slice(0, 6).map(g => g.gamePk);
+        scheduleLocks[dt] = picks;
+        const label = ascending ? "early" : "late";
+        $("#sched-out").innerHTML = `<div class="muted">Pinning ${picks.length} ${label} game${picks.length === 1 ? "" : "s"} on ${dt} and rebalancing the rest of the week…</div>`;
+        rebuildSchedule($("#sched-start").value);
+      });
     });
-  });
+  }
+  _wireDaypartLock(".sched-late-day", false);
+  _wireDaypartLock(".sched-early-day", true);
 }
 
 // Format an ISO-UTC timestamp from MLB schedule into '7:05p ET' style. Returns

@@ -850,3 +850,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   color: var(--accent); cursor: pointer; line-height: 1;
 }
 .sched-late-day:hover { background: rgba(96,165,250,0.20); }
+
+/* Per-day "Early" — amber/yellow tinted to mirror the day-game amber theme */
+.sched-early-day {
+  font-size: 11px; padding: 3px 8px; border-radius: 4px;
+  background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.6);
+  color: #fbbf24; cursor: pointer; line-height: 1;
+}
+.sched-early-day:hover { background: rgba(251,191,36,0.22); }
