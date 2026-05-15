@@ -842,3 +842,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .matchup-chip.day { border-color: rgba(251,191,36,0.4); }
 .matchup-chip.day .time { color: #fbbf24; font-weight: 600; }
 .matchup-chip.night { opacity: 0.92; }
+
+/* Per-day "Late" button — compact, lives in each day's header */
+.sched-late-day {
+  font-size: 11px; padding: 3px 8px; border-radius: 4px;
+  background: rgba(96,165,250,0.10); border: 1px solid var(--accent);
+  color: var(--accent); cursor: pointer; line-height: 1;
+}
+.sched-late-day:hover { background: rgba(96,165,250,0.20); }
