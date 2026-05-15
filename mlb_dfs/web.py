@@ -1479,6 +1479,7 @@ def schedule_builder(
                     "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
                     "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
                     "status": g.get("detailedStatus", ""),
+                    "gameDate": g.get("gameDate"),   # ISO UTC; frontend uses for late-Sunday sort
                 }
                 for g in games if g["away"]["abbr"] and g["home"]["abbr"]
             ],

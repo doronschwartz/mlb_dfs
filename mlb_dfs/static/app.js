@@ -3640,9 +3640,20 @@ function renderSchedule(data) {
       return `<span class="team ${cls}">${t}: ${c}</span>`;
     })
     .join("");
+  // Sundays in the schedule range that have alternates (>6 games scheduled).
+  // The "Late Sunday" button pins the 6 latest start-times for whichever
+  // Sunday(s) appear in the range; rest of the week rebalances around it.
+  const sundayDates = (data.days || [])
+    .filter(d => new Date(d.date + "T12:00:00Z").getUTCDay() === 0)
+    .map(d => d.date);
+  const lateSundayBtn = sundayDates.length
+    ? `<button id="sched-late-sunday" class="btn-pick" style="margin-left:8px;" title="Lock Sunday's 6 latest games; rebalance the rest of the week">🌙 Late Sunday</button>`
+    : "";
+
   $("#sched-out").innerHTML = `
-    <div class="muted" style="margin-bottom:8px;font-size:12px;">
-      💡 Click any game to swap it for another from that day's full slate — downstream days will rebalance automatically.
+    <div class="muted" style="margin-bottom:8px;font-size:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+      <span>💡 Click any game to swap it for another from that day's full slate — downstream days will rebalance automatically.</span>
+      ${lateSundayBtn}
     </div>
     ${days}
     <div class="team-counts">
@@ -3652,6 +3663,27 @@ function renderSchedule(data) {
   // Wire click-to-swap on every chip
   document.querySelectorAll("#sched-out .matchup-chip.clickable").forEach(chip => {
     chip.addEventListener("click", () => openSwapModal(chip.dataset.date, parseInt(chip.dataset.gamepk, 10)));
+  });
+  // Wire Late Sunday: for each Sunday in the range, pick the 6 latest
+  // start-times and lock them. rebuildSchedule() honors the locks and lets
+  // the greedy filler rebalance Mon-Thu around the locked Sunday picks.
+  $("#sched-late-sunday")?.addEventListener("click", () => {
+    let total = 0;
+    for (const sd of sundayDates) {
+      const day = (data.days || []).find(d => d.date === sd);
+      if (!day || !day.all_games) continue;
+      const sorted = [...day.all_games]
+        .filter(g => g.gameDate)
+        .sort((a, b) => (b.gameDate || "").localeCompare(a.gameDate || ""));
+      if (sorted.length < 1) continue;
+      // Take up to 6 latest. If fewer than 6 scheduled that day, take what's there.
+      const picks = sorted.slice(0, 6).map(g => g.gamePk);
+      scheduleLocks[sd] = picks;
+      total += picks.length;
+    }
+    if (!total) return alert("Couldn't find Sunday games with valid start times.");
+    $("#sched-out").innerHTML = `<div class="muted">Pinning ${total} late-Sunday game${total === 1 ? "" : "s"} and rebalancing the rest of the week…</div>`;
+    rebuildSchedule($("#sched-start").value);
   });
 }
 
