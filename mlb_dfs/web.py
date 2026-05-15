@@ -1411,12 +1411,19 @@ def schedule_builder(
     SKIP_WEEKDAYS = {4, 5}
 
     def _is_day_game(g):
-        # MLB schedule returns gameDate as ISO Z (UTC). Day games on the
-        # east coast start ~17-21 UTC; night games ~23 UTC onward.
+        # MLB schedule returns gameDate as ISO UTC. We need to convert to ET
+        # before checking the hour — a 9:40 PM ET game starts at 01:40 UTC the
+        # NEXT day, so 'hour < 22 UTC' would falsely flag it as a day game
+        # (UTC hour 01 < 22 == True). Use zoneinfo for DST-correct conversion.
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
         iso = g.get("gameDate") or ""
+        if not iso:
+            return False
         try:
-            hour = int(iso[11:13])
-            return hour < 22   # ~before 6pm ET
+            dt_utc = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+            dt_et = dt_utc.astimezone(ZoneInfo("America/New_York"))
+            return dt_et.hour < 17   # before 5pm ET = day game
         except Exception:
             return False
 
