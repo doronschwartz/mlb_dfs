@@ -858,3 +858,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   color: #fbbf24; cursor: pointer; line-height: 1;
 }
 .sched-early-day:hover { background: rgba(251,191,36,0.22); }
+
+/* Past-day chips on the Schedule preview — read-only, slightly faded so
+   it's visually clear they can't be swapped. */
+.matchup-chip.past {
+  cursor: default; opacity: 0.7;
+  border-color: var(--border);
+}
+.matchup-chip.past:hover { background: transparent; border-color: var(--border); }

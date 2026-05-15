@@ -1393,6 +1393,29 @@ def schedule_builder(
         except Exception as e:
             raise HTTPException(400, f"locked_days must be JSON [{{date,game_pks}}]: {e}")
 
+    # Auto-lock past days: any date BEFORE today that already has a saved
+    # draft is hard-locked to that draft's game_pks. Those games are already
+    # finished — the user shouldn't be able to retroactively edit them, and
+    # the team-count balancer must include their teams in the totals so the
+    # remaining days balance around them. Overrides any user-supplied lock
+    # for the same date (a stale frontend can't accidentally rewrite history).
+    auto_locked_past: set[str] = set()
+    today = Date.today()
+    for did in draft_mod.list_drafts():
+        try:
+            ddate = Date.fromisoformat(did)
+        except Exception:
+            continue
+        if ddate >= today or ddate < s or ddate > e:
+            continue
+        try:
+            past_dr = draft_mod.load_draft(did)
+        except Exception:
+            continue
+        if past_dr.game_pks:
+            locked_map[did] = set(past_dr.game_pks)
+            auto_locked_past.add(did)
+
     counts: Counter[str] = Counter()
     if seed_from_existing:
         # Seed from CURRENT-SEASON data. Two sources, deduped by date:
@@ -1600,6 +1623,7 @@ def schedule_builder(
                 for g in valid
             ],
             "locked": cur_iso in locked_map,
+            "past": cur_iso in auto_locked_past,
             "team_counts_after": dict(counts),
         })
 

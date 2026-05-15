@@ -3651,14 +3651,20 @@ async function rebuildSchedule(start) {
 function renderSchedule(data) {
   const days = data.days
     .map((day) => {
-      const lockedNote = scheduleLocks[day.date]
-        ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>` : "";
+      // Past days (already played) get a permanent badge + no edit controls.
+      // The backend auto-locks them based on the saved draft's game_pks so
+      // they're treated as fixed history for the team-count balancer.
+      const isPast = !!day.past;
+      const pastNote = isPast
+        ? ` <span class="muted" style="font-size:11px;color:var(--accent-2);">— ✓ played (locked)</span>`
+        : (scheduleLocks[day.date]
+            ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>`
+            : "");
       // Per-day "🌙 Late" / "☀️ Early" — shown only if this day has more
-      // games scheduled than the slate cap (otherwise there's nothing else
-      // to swap up). Locks the day to its 6 latest (or earliest) start-
-      // times; rest of the week rebalances.
+      // games scheduled than the slate cap AND it's not in the past. Past
+      // days can't be retroactively edited.
       const hasAlternates = (day.all_games || []).length > day.selected_games.length;
-      const dayActionBtns = hasAlternates
+      const dayActionBtns = (!isPast && hasAlternates)
         ? `<button class="sched-early-day" data-date="${day.date}" title="Lock this day to the 6 earliest start-times; rest of the week rebalances">☀️ Early</button>
            <button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; rest of the week rebalances">🌙 Late</button>`
         : "";
@@ -3673,10 +3679,16 @@ function renderSchedule(data) {
         .map((g) => {
           const t = _fmtETTime(g.gameDate);
           const isDay = _isDayGameET(g.gameDate);
-          const cls = isDay ? "matchup-chip clickable day" : "matchup-chip clickable night";
-          return `<span class="${cls}"
+          // Past days: chips render but aren't clickable (no swap allowed).
+          const baseCls = isPast
+            ? "matchup-chip past"
+            : (isDay ? "matchup-chip clickable day" : "matchup-chip clickable night");
+          const titleTxt = isPast
+            ? `${g.away_sp} vs ${g.home_sp} · ${t || "?"} ET · this day is already played`
+            : `${g.away_sp} vs ${g.home_sp} · ${t || "?"} ET · click to swap`;
+          return `<span class="${baseCls}"
               data-date="${day.date}" data-gamepk="${g.gamePk}"
-              title="${g.away_sp} vs ${g.home_sp} · ${t || "?"} ET · click to swap">
+              title="${titleTxt}">
               <span class="time">${t || ""}</span>
               <span class="teams">${g.away_abbr} @ ${g.home_abbr}</span>
             </span>`;
