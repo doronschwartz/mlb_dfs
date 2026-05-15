@@ -1429,14 +1429,23 @@ def schedule_builder(
                 return hour < 22   # ~before 6pm ET
             except Exception:
                 return False
+        # Sort order (v9.6): DAY-GAME first, team-count second.
+        # User preference: day games supersede team-count balance. If 6 day
+        # games are scheduled, take all 6 even if it leaves some teams a bit
+        # heavier; days where greedy fills LATER (Mon → Tue → Wed → Thu) will
+        # naturally compensate because the team counts they're balancing will
+        # already account for whatever this day picked.
+        # Inside the day-game and night-game subsets, lowest team count wins —
+        # so balance is still maintained, just constrained to within each
+        # daypart.
         scored = sorted(
             games,
             key=lambda g: (
+                # Day games first (False=0 sorts before True=1)
+                0 if _is_day_game(g) else 1,
+                # Then lowest combined team-count
                 counts[historic.canonical_team(g["away"]["abbr"] or "")]
                 + counts[historic.canonical_team(g["home"]["abbr"] or "")],
-                # Day games preferred (more likely to be watched live). False=0
-                # sorts before True=1, so we negate.
-                0 if _is_day_game(g) else 1,
                 # tiebreak: random-ish so reruns don't always pick the same game
                 hash((g.get("gamePk", 0), cur.isoformat())) & 0xFFFF,
             ),
@@ -1468,6 +1477,7 @@ def schedule_builder(
                     "away_sp": (g["away"]["probablePitcher"] or {}).get("name", "TBD"),
                     "home_sp": (g["home"]["probablePitcher"] or {}).get("name", "TBD"),
                     "status": g.get("detailedStatus", ""),
+                    "gameDate": g.get("gameDate"),   # ISO UTC; frontend formats to ET on chips
                 }
                 for g in chosen
             ],

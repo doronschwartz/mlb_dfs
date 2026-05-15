@@ -3621,12 +3621,24 @@ function renderSchedule(data) {
       const lockedNote = scheduleLocks[day.date]
         ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>` : "";
       const chips = day.selected_games
-        .map((g, i) => `<span class="matchup-chip clickable"
+        .map((g) => {
+          const t = _fmtETTime(g.gameDate);
+          const isDay = _isDayGameET(g.gameDate);
+          const cls = isDay ? "matchup-chip clickable day" : "matchup-chip clickable night";
+          return `<span class="${cls}"
               data-date="${day.date}" data-gamepk="${g.gamePk}"
-              title="Click to swap this game">${g.away_abbr} @ ${g.home_abbr}</span>`)
+              title="${g.away_sp} vs ${g.home_sp} · ${t || "?"} ET · click to swap">
+              <span class="time">${t || ""}</span>
+              <span class="teams">${g.away_abbr} @ ${g.home_abbr}</span>
+            </span>`;
+        })
         .join("");
+      const nDay = day.selected_games.filter(g => _isDayGameET(g.gameDate)).length;
+      const nNight = day.selected_games.length - nDay;
+      const mix = day.selected_games.length
+        ? ` <span class="muted" style="font-size:11px;">(${nDay} day · ${nNight} night)</span>` : "";
       return `<div class="sched-day" data-date="${day.date}">
-        <h4>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${lockedNote}</h4>
+        <h4>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${mix}${lockedNote}</h4>
         <div class="matchups">${chips}</div>
       </div>`;
     })
@@ -3699,6 +3711,37 @@ function renderSchedule(data) {
   });
 }
 
+// Format an ISO-UTC timestamp from MLB schedule into '7:05p ET' style. Returns
+// "" for missing or invalid input. Uses Intl.DateTimeFormat for proper TZ math
+// (handles DST correctly — EST/EDT boundary in March/November).
+function _fmtETTime(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const s = d.toLocaleTimeString("en-US", {
+      hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York",
+    });
+    // "7:05 PM" → "7:05p"
+    return s.replace(/\s?AM/, "a").replace(/\s?PM/, "p");
+  } catch { return ""; }
+}
+// Day game = first pitch before 5 PM ET. Matches the backend's _is_day_game
+// heuristic which uses hour < 22 UTC ≈ 6 PM ET; we use 17 ET for the chip
+// tag to be slightly stricter (matinees + early afternoons are clearly day).
+function _isDayGameET(iso) {
+  if (!iso) return false;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return false;
+    const hourStr = d.toLocaleString("en-US", {
+      hour: "numeric", hour12: false, timeZone: "America/New_York",
+    });
+    const h = parseInt(hourStr, 10);
+    return h < 17;
+  } catch { return false; }
+}
+
 // Modal: swap one game in a day for another game from that day's full schedule.
 // Shows all candidate games for the date with a "pick" button each; on pick,
 // locks the new game and re-runs the schedule builder.
@@ -3714,6 +3757,14 @@ function openSwapModal(date, currentGamePk) {
     return;
   }
   const current = currentGames.find(g => g.gamePk === currentGamePk);
+  // Sort candidates: day games first, then by start time so the modal makes
+  // it easy to find a matinee replacement
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    const da = _isDayGameET(a.gameDate) ? 0 : 1;
+    const db = _isDayGameET(b.gameDate) ? 0 : 1;
+    if (da !== db) return da - db;
+    return (a.gameDate || "").localeCompare(b.gameDate || "");
+  });
   const modal = $("#changelog-modal");
   const body = $("#changelog-body");
   $("#changelog-modal .modal-header h2").textContent = `Swap game on ${date}`;
@@ -3721,16 +3772,23 @@ function openSwapModal(date, currentGamePk) {
     <div style="margin-bottom:10px;">
       <div class="muted" style="font-size:12px;">Removing:</div>
       <div style="font-size:14px;font-weight:600;">${current ? `${current.away_abbr} @ ${current.home_abbr}` : currentGamePk}
-        <span class="muted" style="font-weight:400;font-size:12px;">— ${current?.away_sp || "?"} vs ${current?.home_sp || "?"}</span></div>
+        <span class="muted" style="font-weight:400;font-size:12px;"> — ${_fmtETTime(current?.gameDate) || "?"} ET · ${current?.away_sp || "?"} vs ${current?.home_sp || "?"}</span></div>
     </div>
-    <div class="muted" style="font-size:12px;margin-bottom:6px;">Pick a replacement (${candidates.length} alternates available):</div>
+    <div class="muted" style="font-size:12px;margin-bottom:6px;">Pick a replacement (${sortedCandidates.length} alternates available, day games first):</div>
     <div style="display:flex;flex-direction:column;gap:6px;">
-      ${candidates.map(g => `
+      ${sortedCandidates.map(g => {
+        const t = _fmtETTime(g.gameDate);
+        const isDay = _isDayGameET(g.gameDate);
+        const dayTag = isDay ? `<span style="background:rgba(251,191,36,0.18);color:#fbbf24;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:6px;">DAY</span>` : "";
+        return `
         <button class="btn-pick sched-swap-pick" data-date="${date}" data-newpk="${g.gamePk}"
                 style="text-align:left;display:flex;justify-content:space-between;align-items:center;">
-          <span><b>${g.away_abbr} @ ${g.home_abbr}</b> <span class="muted" style="font-size:11px;">${g.away_sp} vs ${g.home_sp}</span></span>
+          <span>${dayTag}<span style="display:inline-block;width:48px;font-variant-numeric:tabular-nums;">${t || ""}</span>
+            <b>${g.away_abbr} @ ${g.home_abbr}</b>
+            <span class="muted" style="font-size:11px;margin-left:6px;">${g.away_sp} vs ${g.home_sp}</span></span>
           <span class="muted" style="font-size:11px;">${g.status || ""}</span>
-        </button>`).join("")}
+        </button>`;
+      }).join("")}
     </div>`;
   modal.style.display = "flex";
   document.querySelectorAll(".sched-swap-pick").forEach(btn => {

@@ -831,3 +831,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .score-row td.player-cell .name-trigger.actual-empty {
   color: var(--muted); font-weight: 400; font-size: 13px;
 }
+
+/* Schedule preview chips: show start time + day/night cue */
+.matchup-chip { display: inline-flex; align-items: center; gap: 6px; }
+.matchup-chip .time {
+  font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.matchup-chip .teams { font-size: 12px; }
+.matchup-chip.day { border-color: rgba(251,191,36,0.4); }
+.matchup-chip.day .time { color: #fbbf24; font-weight: 600; }
+.matchup-chip.night { opacity: 0.92; }
