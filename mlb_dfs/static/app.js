@@ -3542,11 +3542,44 @@ function _renderSundayChips() {
   }
   host.innerHTML = chips.join("");
   host.querySelectorAll(".sunday-chip").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", async () => {
       $("#sched-start").value = el.dataset.iso;
       _renderSundayChips();
+      // If this week is marked "built", auto-load the existing drafts so
+      // the user can SEE what was built without clicking Build manually.
+      // We pin each saved day's game_pks as locked_days so the rendered
+      // preview exactly matches what's on disk.
+      if (el.classList.contains("built")) {
+        await _loadBuiltWeek(el.dataset.iso);
+      }
     });
   });
+}
+
+// Fetch every existing draft for the Sun-Thu of a given week, build a
+// locked_days payload from their saved game_pks, then call rebuildSchedule
+// so the preview reads the exact same games that were saved.
+async function _loadBuiltWeek(sundayIso) {
+  const sun = new Date(sundayIso + "T12:00:00Z");
+  const dayDates = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(sun);
+    d.setUTCDate(sun.getUTCDate() + i);
+    dayDates.push(_isoDate(d));
+  }
+  scheduleLocks = {};
+  // Pull each existing draft in parallel; ignore failures (gap days).
+  const results = await Promise.all(dayDates.map(async (date) => {
+    if (!_schedDraftDates.has(date)) return null;
+    try {
+      const dr = await api(`/api/drafts/${date}`);
+      const game_pks = (dr.game_pks || []);
+      return game_pks.length ? { date, game_pks } : null;
+    } catch { return null; }
+  }));
+  for (const r of results) if (r) scheduleLocks[r.date] = r.game_pks;
+  $("#sched-out").innerHTML = `<div class="muted">Loading built schedule for ${sundayIso}…</div>`;
+  await rebuildSchedule(sundayIso);
 }
 
 async function _refreshSchedDrafts() {
