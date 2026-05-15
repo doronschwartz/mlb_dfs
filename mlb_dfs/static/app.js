@@ -3661,7 +3661,14 @@ function renderSchedule(data) {
       const lateBtn = hasAlternates
         ? `<button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; the rest of the week rebalances around it">🌙 Late</button>`
         : "";
-      const chips = day.selected_games
+      // Sort chips by start time ascending so the row reads naturally —
+      // earliest first pitch on the left, latest on the right. The backend
+      // returns games in pick-order (matchup-uniqueness + team-count) which
+      // is logically correct for the algorithm but confusing to scan.
+      const chipsSorted = [...day.selected_games].sort((a, b) =>
+        (a.gameDate || "").localeCompare(b.gameDate || "")
+      );
+      const chips = chipsSorted
         .map((g) => {
           const t = _fmtETTime(g.gameDate);
           const isDay = _isDayGameET(g.gameDate);
