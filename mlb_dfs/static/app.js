@@ -3736,8 +3736,7 @@ function openSwapModal(date, currentGamePk) {
   });
 }
 
-$("#sched-apply").addEventListener("click", async () => {
-  if (!scheduleResult) return alert("Build a schedule first.");
+async function _applySchedule(force) {
   const drafters = $("#sched-drafters").value
     .split(",").map((s) => s.trim()).filter(Boolean);
   if (drafters.length < 2) return alert("Need at least 2 drafters.");
@@ -3747,22 +3746,47 @@ $("#sched-apply").addEventListener("click", async () => {
     game_pks: d.selected_games.map((g) => g.gamePk),
   }));
   const out = $("#sched-apply-out");
-  out.textContent = "Creating drafts…";
+  out.textContent = force ? "Overwriting drafts…" : "Creating drafts…";
+  const data = await api(`/api/schedule_builder/apply`, {
+    method: "POST",
+    body: JSON.stringify({ drafters, days, randomize_order: randomize, force_overwrite: !!force }),
+  });
+  // Categorize the response
+  const created = data.created || [];
+  const overwritten = data.overwritten || [];
+  const skipped = data.skipped || [];
+  // Days that were skipped specifically because picks already exist —
+  // those can be retried with force_overwrite=true.
+  const conflicts = skipped.filter(s => (s.had_picks || 0) > 0);
+  let html = "";
+  if (created.length) html += `Created ${created.length} draft${created.length === 1 ? "" : "s"}. `;
+  if (overwritten.length) html += `Overwrote ${overwritten.length} (lost ${overwritten.reduce((a, b) => a + (b.lost_picks || 0), 0)} picks). `;
+  if (skipped.length) html += `Skipped ${skipped.length}. `;
+  if (conflicts.length && !force) {
+    const datesList = conflicts.map(c => `${c.date} (${c.had_picks} picks)`).join(", ");
+    html += `<br><span style="color:var(--warn);">⚠ ${conflicts.length} day${conflicts.length === 1 ? "" : "s"} already have picks: ${datesList}.</span>
+      <br><button id="sched-force" class="btn-danger" style="margin-top:6px;">↻ Overwrite anyway (wipes those ${conflicts.reduce((a, b) => a + (b.had_picks || 0), 0)} picks)</button>`;
+  } else if (created.length + overwritten.length) {
+    html += `<br><a href="#" id="sched-go-draft">Switch to Draft tab</a> to load any of them.`;
+  }
+  out.innerHTML = html || "No changes.";
+  $("#sched-go-draft")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelector('nav button[data-tab="draft"]').click();
+  });
+  $("#sched-force")?.addEventListener("click", async () => {
+    if (!confirm("Wipe existing picks and rebuild these days? This can't be undone.")) return;
+    await _applySchedule(true);
+  });
+  await loadDraftList();
+}
+
+$("#sched-apply").addEventListener("click", async () => {
+  if (!scheduleResult) return alert("Build a schedule first.");
   try {
-    const data = await api(`/api/schedule_builder/apply`, {
-      method: "POST",
-      body: JSON.stringify({ drafters, days, randomize_order: randomize }),
-    });
-    out.innerHTML =
-      `Created ${data.created.length} drafts, skipped ${data.skipped.length}. ` +
-      `<a href="#" id="sched-go-draft">Switch to Draft tab</a> to load any of them.`;
-    $("#sched-go-draft").addEventListener("click", (e) => {
-      e.preventDefault();
-      document.querySelector('nav button[data-tab="draft"]').click();
-    });
-    await loadDraftList();
+    await _applySchedule(false);
   } catch (e) {
-    out.textContent = e.message;
+    $("#sched-apply-out").textContent = e.message;
   }
 });
 refresh();

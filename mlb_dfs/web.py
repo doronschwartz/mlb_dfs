@@ -1503,31 +1503,64 @@ class ApplyScheduleRequest(BaseModel):
     drafters: list[str]
     days: list[dict]  # [{date: "YYYY-MM-DD", game_pks: [int]}]
     randomize_order: bool = True
+    # If a draft already exists for one of these dates AND has picks, skip
+    # it (and surface the conflict) unless force_overwrite is True. Without
+    # this guard the unconditional save_draft used to silently wipe a real
+    # draft-in-progress when the user re-ran the schedule builder.
+    force_overwrite: bool = False
 
 
 @app.post("/api/schedule_builder/apply")
 def apply_schedule(req: ApplyScheduleRequest):
     """Bulk-create one draft per day with the chosen slate. Drafter order is
-    randomized per day if requested (each draft gets its own snake order)."""
+    randomized per day if requested (each draft gets its own snake order).
+
+    Conflict policy:
+      - date has NO existing draft → create
+      - date has existing draft with 0 picks → overwrite (slate/drafters
+        update is the whole point of running the builder again)
+      - date has existing draft with picks AND force_overwrite=False → skip
+        with reason 'already has N picks' so the UI can prompt the user
+      - force_overwrite=True → always overwrite (UI explicitly confirmed)
+    """
     if len(req.drafters) < 2:
         raise HTTPException(400, "need at least 2 drafters")
-    created, skipped = [], []
+    existing_ids = set(draft_mod.list_drafts())
+    created, skipped, overwritten = [], [], []
     for entry in req.days:
         try:
             d = Date.fromisoformat(entry["date"])
         except Exception:
             skipped.append({"date": entry.get("date"), "reason": "bad date"})
             continue
+        date_iso = d.isoformat()
+        had_picks = 0
+        if date_iso in existing_ids:
+            try:
+                existing = draft_mod.load_draft(date_iso)
+                had_picks = len(existing.picks)
+            except Exception:
+                had_picks = 0
+            if had_picks > 0 and not req.force_overwrite:
+                skipped.append({
+                    "date": date_iso,
+                    "reason": f"already has {had_picks} picks — pass force_overwrite=true to replace",
+                    "had_picks": had_picks,
+                })
+                continue
         order = list(req.drafters)
         if req.randomize_order:
             random.shuffle(order)
         try:
             dr = draft_mod.new_draft(d, order, game_pks=entry.get("game_pks") or [])
             draft_mod.save_draft(dr)
-            created.append({"date": entry["date"], "drafters": order})
+            if had_picks > 0:
+                overwritten.append({"date": date_iso, "drafters": order, "lost_picks": had_picks})
+            else:
+                created.append({"date": date_iso, "drafters": order})
         except Exception as ex:
-            skipped.append({"date": entry["date"], "reason": str(ex)})
-    return {"created": created, "skipped": skipped}
+            skipped.append({"date": date_iso, "reason": str(ex)})
+    return {"created": created, "overwritten": overwritten, "skipped": skipped}
 
 
 @app.get("/api/stats/standings")
