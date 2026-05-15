@@ -1282,6 +1282,36 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
     return _draft_state(dr)
 
 
+class UpdateDraftersRequest(BaseModel):
+    drafters: list[str]
+
+
+@app.post("/api/drafts/{draft_id}/drafters")
+def update_drafters(draft_id: str, req: UpdateDraftersRequest):
+    """Reorder the drafters of an existing draft (changes the snake-order
+    round 1 starting position). Refuses if picks already exist — reordering
+    after picks have been made would corrupt the snake math."""
+    try:
+        dr = draft_mod.load_draft(draft_id)
+    except FileNotFoundError:
+        raise HTTPException(404, f"draft {draft_id} not found")
+    if dr.picks:
+        raise HTTPException(
+            400,
+            f"draft already has {len(dr.picks)} pick(s); reorder before any picks are made"
+        )
+    if sorted(req.drafters) != sorted(dr.drafters):
+        raise HTTPException(
+            400,
+            f"new drafters {req.drafters} must be the same set as existing {dr.drafters}"
+        )
+    if len(req.drafters) < 2:
+        raise HTTPException(400, "need at least 2 drafters")
+    dr.drafters = list(req.drafters)
+    draft_mod.save_draft(dr)
+    return _draft_state(dr)
+
+
 @app.post("/api/drafts/{draft_id}/games")
 def update_games(draft_id: str, req: UpdateGamesRequest):
     """Replace the draft's selected gamePks. Picks are not modified — they
