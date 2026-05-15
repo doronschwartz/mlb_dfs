@@ -3647,13 +3647,18 @@ function renderSchedule(data) {
     .filter(d => new Date(d.date + "T12:00:00Z").getUTCDay() === 0)
     .map(d => d.date);
   const lateSundayBtn = sundayDates.length
-    ? `<button id="sched-late-sunday" class="btn-pick" style="margin-left:8px;" title="Lock Sunday's 6 latest games; rebalance the rest of the week">🌙 Late Sunday</button>`
+    ? `<button id="sched-late-sunday" class="btn-pick" title="Lock Sunday's 6 latest games; rebalance the rest of the week">🌙 Late Sunday</button>`
+    : "";
+  const lockedCount = Object.keys(scheduleLocks).length;
+  const resetLocksBtn = lockedCount
+    ? `<button id="sched-reset-locks" title="Clear all locks and let every day rebalance" style="background:rgba(239,68,68,0.1);border-color:var(--bad);color:var(--bad);">↺ Reset ${lockedCount} lock${lockedCount === 1 ? "" : "s"}</button>`
     : "";
 
   $("#sched-out").innerHTML = `
     <div class="muted" style="margin-bottom:8px;font-size:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
-      <span>💡 Click any game to swap it for another from that day's full slate — downstream days will rebalance automatically.</span>
+      <span>💡 Click any game to swap it — downstream days rebalance around your locks (day-game tiebreaker stays in effect; 🔒 days stay pinned).</span>
       ${lateSundayBtn}
+      ${resetLocksBtn}
     </div>
     ${days}
     <div class="team-counts">
@@ -3663,6 +3668,13 @@ function renderSchedule(data) {
   // Wire click-to-swap on every chip
   document.querySelectorAll("#sched-out .matchup-chip.clickable").forEach(chip => {
     chip.addEventListener("click", () => openSwapModal(chip.dataset.date, parseInt(chip.dataset.gamepk, 10)));
+  });
+  // Wire Reset Locks — clears every manual override and re-runs the
+  // builder so every day picks greedily again with the day-game tiebreaker.
+  $("#sched-reset-locks")?.addEventListener("click", () => {
+    scheduleLocks = {};
+    $("#sched-out").innerHTML = `<div class="muted">Resetting locks and rebuilding…</div>`;
+    rebuildSchedule($("#sched-start").value);
   });
   // Wire Late Sunday: for each Sunday in the range, pick the 6 latest
   // start-times and lock them. rebuildSchedule() honors the locks and lets
