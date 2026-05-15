@@ -1450,6 +1450,22 @@ def schedule_builder(
         days_meta.append({"date": cur, "games": games})
         cur += timedelta(days=1)
 
+    def _matchup_key(g) -> frozenset:
+        """Order-insensitive matchup key — TOR@NYY and NYY@TOR collide so a
+        3-game series at one stadium plus a swap-stadium game later in the
+        week still register as 'the same matchup'. Used to penalize
+        repeated night-game matchups (per user request: day games on
+        Wed/Thu rarely overlap, so we don't penalize them)."""
+        away = historic.canonical_team(g["away"]["abbr"] or "")
+        home = historic.canonical_team(g["home"]["abbr"] or "")
+        return frozenset((away, home))
+
+    # Track every matchup picked across the week so Pass B can deprioritize
+    # repeats. Includes Pass A's day-game picks because if a series happens
+    # to play a day game on Wed AND a night game on Tue/Mon, that's still a
+    # repeat we want to spread out.
+    picked_matchups: set[frozenset] = set()
+
     # Pass A — fill day games + locks
     pass_a_chosen: dict[str, list[dict]] = {}
     for meta in days_meta:
@@ -1474,9 +1490,16 @@ def schedule_builder(
         for g in chosen:
             counts[historic.canonical_team(g["away"]["abbr"])] += 1
             counts[historic.canonical_team(g["home"]["abbr"])] += 1
+            picked_matchups.add(_matchup_key(g))
         pass_a_chosen[cur_iso] = chosen
 
-    # Pass B — fill remainder with night games, sorted by current counts
+    # Pass B — fill remainder with night games. Sort key:
+    #   1. day-game preference (matinees fill before night when both possible)
+    #   2. matchup-uniqueness penalty: a matchup already picked elsewhere in
+    #      the week sorts AFTER first-time matchups, so 3-night series get
+    #      thinned out
+    #   3. team-count balance
+    #   4. hash tiebreak
     days = []
     for meta in days_meta:
         cur_iso = meta["date"].isoformat()
@@ -1499,6 +1522,10 @@ def schedule_builder(
                 key=lambda g: (
                     # Day-game preference still applies to filler ordering
                     0 if _is_day_game(g) else 1,
+                    # Repeat-matchup penalty (only meaningful for night games
+                    # since day games rarely overlap a series): True sorts
+                    # after False, so first-time matchups come first.
+                    1 if (not _is_day_game(g) and _matchup_key(g) in picked_matchups) else 0,
                     counts[historic.canonical_team(g["away"]["abbr"] or "")]
                     + counts[historic.canonical_team(g["home"]["abbr"] or "")],
                     hash((g.get("gamePk", 0), cur_iso)) & 0xFFFF,
@@ -1509,6 +1536,7 @@ def schedule_builder(
             for g in extras:
                 counts[historic.canonical_team(g["away"]["abbr"])] += 1
                 counts[historic.canonical_team(g["home"]["abbr"])] += 1
+                picked_matchups.add(_matchup_key(g))
             chosen = chosen + extras
         days.append({
             "date": cur_iso,
