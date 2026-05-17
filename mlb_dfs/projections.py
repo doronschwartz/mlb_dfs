@@ -453,9 +453,23 @@ def project_hitter(
             whip = _safe_float(sp_season.get("whip"), default=1.30)
             k9 = _safe_float(sp_season.get("strikeoutsPer9Inn"), default=8.5)
             k9_part = 8.5 / max(k9, 4.0)   # inverse: high K/9 → low hitter factor
-            sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
+            # v9.9: blend pitcher whiff% percentile (forward-looking K-skill,
+            # more sample-efficient than rolling K/9). Savant 0-100 percentile;
+            # convert to a multiplier roughly centered at 50th = 1.0. A 90th
+            # percentile whiff pitcher (elite K stuff) gets ~0.85 (suppresses
+            # hitter by 15%); 10th gets ~1.15.
+            whiff_part = 1.0
+            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
+            if pp and pp.get("whiff") is not None:
+                # percentile → inverse multiplier: 100 → 0.80, 50 → 1.0, 0 → 1.20
+                whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40
+                sp_factor = (era / 4.20) * 0.35 + (whip / 1.30) * 0.20 + k9_part * 0.20 + whiff_part * 0.25
+                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f} whiff%-tile {pp['whiff']:.0f}"
+            else:
+                sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
+                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f}"
             sp_factor = max(0.6, min(sp_factor, 1.45))
-            notes.append(f"opposing SP adj x{sp_factor:.2f} (ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f})")
+            notes.append(f"opposing SP adj x{sp_factor:.2f} ({detail})")
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
     brl = _safe_float((qoc or {}).get("brl_percent"))
@@ -1458,7 +1472,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-17-v9.8" # +catcher framing factor (±3% cap) on pitcher projection
+MODEL_REV = "2026-05-17-v9.9" # +pitcher whiff% percentile in opposing-SP factor (vs hitter)
 
 
 def _proj_disk_path(key: tuple) -> str:

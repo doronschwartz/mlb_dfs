@@ -98,6 +98,48 @@ def lookup_batter_qoc(pid: int, season: int) -> dict | None:
     return batter_statcast(season).get(int(pid))
 
 
+def pitcher_percentiles(season: int) -> dict[int, dict]:
+    """{pitcher_id: {whiff, chase, k, bb, ...}} — Savant percentile rankings.
+
+    Values are 0-100 percentiles (higher = better for the pitcher). The
+    whiff_percent column is whiff-rate-on-swings percentile — a true skill
+    signal that's more forward-looking than rolling K/9 (which is event-
+    counted and polluted by lineup/park/luck). Used as a K-rate skill
+    component in sp_factor (vs hitter) and as a short-sample skill anchor
+    for the pitcher's own projection.
+    """
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/percentile-rankings"
+        f"?year={season}&csv=true&min=q&type=pitcher"
+    )
+    out: dict[int, dict] = {}
+    for r in rows:
+        try:
+            pid = int(r.get("player_id", "") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not pid:
+            continue
+        def _pct(field: str) -> float | None:
+            try:
+                v = r.get(field, "")
+                return float(v) if v not in (None, "", "null") else None
+            except (TypeError, ValueError):
+                return None
+        out[pid] = {
+            "whiff": _pct("whiff_percent"),
+            "chase": _pct("chase_percent"),
+            "k": _pct("k_percent"),
+            "bb": _pct("bb_percent"),
+            "xera_pct": _pct("xera"),
+        }
+    return out
+
+
+def lookup_pitcher_percentiles(pid: int, season: int) -> dict | None:
+    return pitcher_percentiles(season).get(int(pid))
+
+
 def catcher_framing(season: int) -> dict[int, float]:
     """{catcher_player_id: rv_tot (framing run value)}.
 
