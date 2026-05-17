@@ -3660,6 +3660,7 @@ async function _saveScheduleChanges() {
   const ops = [];
   for (const day of (scheduleResult.days || [])) {
     if (day.past) continue;
+    if (day.skipped) continue;  // user removed this day — leave any existing draft alone
     if (!_schedDraftDates.has(day.date)) continue;  // no saved draft to update
     const game_pks = (day.selected_games || []).map(g => g.gamePk);
     ops.push({ date: day.date, game_pks });
@@ -3735,6 +3736,7 @@ $("#sched-build").addEventListener("click", async () => {
   // Reset locks AND built-week context when building a fresh week so the
   // Save Changes button doesn't appear on a freshly-built (unsaved) preview.
   scheduleLocks = {};
+  scheduleSkips = new Set();
   scheduleBuiltWeek = null;
   scheduleOriginalLocks = {};
   await rebuildSchedule(start);
@@ -3744,14 +3746,22 @@ $("#sched-build").addEventListener("click", async () => {
 // override the greedy filler. Persists across rebuilds within the same week
 // so subsequent click-swaps don't undo prior swaps.
 let scheduleLocks = {};
+// Set of ISO dates the user has removed from this week's schedule entirely
+// (e.g. "we're not drafting Sunday"). Remaining days rebalance team counts
+// around the absence.
+let scheduleSkips = new Set();
 
 async function rebuildSchedule(start) {
   try {
     const lockedDays = Object.entries(scheduleLocks).map(([date, pks]) => ({date, game_pks: pks}));
-    const qs = lockedDays.length
-      ? `?start=${start}&locked_days=${encodeURIComponent(JSON.stringify(lockedDays))}`
-      : `?start=${start}`;
-    const data = await api(`/api/schedule_builder${qs}`);
+    const parts = [`start=${start}`];
+    if (lockedDays.length) {
+      parts.push(`locked_days=${encodeURIComponent(JSON.stringify(lockedDays))}`);
+    }
+    if (scheduleSkips.size) {
+      parts.push(`skipped_days=${encodeURIComponent(JSON.stringify([...scheduleSkips]))}`);
+    }
+    const data = await api(`/api/schedule_builder?${parts.join("&")}`);
     scheduleResult = data;
     renderSchedule(data);
     $("#sched-apply-row").hidden = false;
@@ -3767,6 +3777,18 @@ function renderSchedule(data) {
       // The backend auto-locks them based on the saved draft's game_pks so
       // they're treated as fixed history for the team-count balancer.
       const isPast = !!day.past;
+      const isSkipped = !!day.skipped;
+      // Skipped days render as a compact placeholder with a "Restore" button.
+      // No chips, no day-part toggles — the day is removed from the week and
+      // contributes nothing to team counts.
+      if (isSkipped) {
+        return `<div class="sched-day skipped" data-date="${day.date}" style="opacity:0.6;">
+          <h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span>${day.date} <span class="muted" style="font-weight:400;">— ❌ removed from week</span></span>
+            <button class="sched-restore-day" data-date="${day.date}" title="Add this day back to the schedule">↩️ Restore</button>
+          </h4>
+        </div>`;
+      }
       const pastNote = isPast
         ? ` <span class="muted" style="font-size:11px;color:var(--accent-2);">— ✓ played (locked)</span>`
         : (scheduleLocks[day.date]
@@ -3779,6 +3801,12 @@ function renderSchedule(data) {
       const dayActionBtns = (!isPast && hasAlternates)
         ? `<button class="sched-early-day" data-date="${day.date}" title="Lock this day to the 6 earliest start-times; rest of the week rebalances">☀️ Early</button>
            <button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; rest of the week rebalances">🌙 Late</button>`
+        : "";
+      // Skip button — shown for any non-past day, even ones without alternates,
+      // so the user can take the day out of the week entirely (e.g. "no draft
+      // Sunday"). Team counts rebalance over the remaining days.
+      const skipBtn = !isPast
+        ? `<button class="sched-skip-day" data-date="${day.date}" title="Remove this day from the schedule entirely; remaining days rebalance">❌ Skip</button>`
         : "";
       // Sort chips by start time ascending so the row reads naturally —
       // earliest first pitch on the left, latest on the right. The backend
@@ -3812,8 +3840,9 @@ function renderSchedule(data) {
         ? ` <span class="muted" style="font-size:11px;">(${nDay} day · ${nNight} night)</span>` : "";
       return `<div class="sched-day" data-date="${day.date}">
         <h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${mix}${lockedNote}</span>
+          <span>${day.date} <span class="muted" style="font-weight:400;">— ${day.selected_games.length} games</span>${mix}${pastNote}</span>
           ${dayActionBtns}
+          ${skipBtn}
         </h4>
         <div class="matchups">${chips}</div>
       </div>`;
@@ -3890,6 +3919,28 @@ function renderSchedule(data) {
   }
   _wireDaypartLock(".sched-late-day", false);
   _wireDaypartLock(".sched-early-day", true);
+  // Per-day skip/restore — toggles a day in/out of the week. Skipped days
+  // contribute no team-count signal, so the rest of the week rebalances
+  // around the absence on the next rebuild.
+  document.querySelectorAll(".sched-skip-day").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const dt = btn.dataset.date;
+      scheduleSkips.add(dt);
+      // Clear any matchup lock on the skipped day — it's not picking games
+      // anyway and the stale lock would resurrect on restore.
+      delete scheduleLocks[dt];
+      $("#sched-out").innerHTML = `<div class="muted">Removing ${dt} and rebalancing the rest of the week…</div>`;
+      rebuildSchedule($("#sched-start").value);
+    });
+  });
+  document.querySelectorAll(".sched-restore-day").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const dt = btn.dataset.date;
+      scheduleSkips.delete(dt);
+      $("#sched-out").innerHTML = `<div class="muted">Restoring ${dt} and rebalancing…</div>`;
+      rebuildSchedule($("#sched-start").value);
+    });
+  });
 }
 
 // Format an ISO-UTC timestamp from MLB schedule into '7:05p ET' style. Returns
@@ -3992,10 +4043,12 @@ async function _applySchedule(force) {
     .split(",").map((s) => s.trim()).filter(Boolean);
   if (drafters.length < 2) return alert("Need at least 2 drafters.");
   const randomize = $("#sched-randomize").checked;
-  const days = scheduleResult.days.map((d) => ({
-    date: d.date,
-    game_pks: d.selected_games.map((g) => g.gamePk),
-  }));
+  const days = scheduleResult.days
+    .filter((d) => !d.skipped)
+    .map((d) => ({
+      date: d.date,
+      game_pks: d.selected_games.map((g) => g.gamePk),
+    }));
   const out = $("#sched-apply-out");
   out.textContent = force ? "Overwriting drafts…" : "Creating drafts…";
   const data = await api(`/api/schedule_builder/apply`, {

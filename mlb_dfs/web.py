@@ -1382,6 +1382,7 @@ def schedule_builder(
     slate_size: int = 6,
     seed_from_existing: bool = True,
     locked_days: str | None = None,
+    skipped_days: str | None = None,
 ):
     """Suggest a per-day slate selection across the week starting `start`
     (which must be a Sunday). End auto-derives as start+6 (full week); the
@@ -1412,6 +1413,20 @@ def schedule_builder(
                     locked_map[entry["date"]] = set(int(p) for p in (entry.get("game_pks") or []))
         except Exception as e:
             raise HTTPException(400, f"locked_days must be JSON [{{date,game_pks}}]: {e}")
+
+    # Skipped days: dates the user explicitly removed from this week's
+    # schedule. We still emit them in the response (so the frontend can show
+    # a 'restore' affordance) but with no games selected and no contribution
+    # to team counts — the remaining days rebalance to absorb the slack.
+    skipped_set: set[str] = set()
+    if skipped_days:
+        try:
+            import json as _json
+            parsed = _json.loads(skipped_days)
+            if isinstance(parsed, list):
+                skipped_set = {str(d) for d in parsed if d}
+        except Exception as e:
+            raise HTTPException(400, f"skipped_days must be JSON array of ISO dates: {e}")
 
     # Auto-lock past days: any date BEFORE today that already has a saved
     # draft is hard-locked to that draft's game_pks. Those games are already
@@ -1547,6 +1562,11 @@ def schedule_builder(
         cur_iso = meta["date"].isoformat()
         games = meta["games"]
         valid = [g for g in games if g["away"]["abbr"] and g["home"]["abbr"]]
+        if cur_iso in skipped_set:
+            # Day is intentionally removed from the week — no games picked,
+            # no team-count contribution. Pass B also short-circuits below.
+            pass_a_chosen[cur_iso] = []
+            continue
         locked_pks_for_day = locked_map.get(cur_iso)
         if locked_pks_for_day:
             chosen = [g for g in valid if g.get("gamePk") in locked_pks_for_day]
@@ -1582,7 +1602,10 @@ def schedule_builder(
         valid = [g for g in games if g["away"]["abbr"] and g["home"]["abbr"]]
         chosen = list(pass_a_chosen.get(cur_iso, []))
         chosen_pks = {g.get("gamePk") for g in chosen}
-        if len(chosen) < slate_size:
+        is_skipped = cur_iso in skipped_set
+        if is_skipped:
+            chosen = []  # explicit: no fill for skipped days
+        elif len(chosen) < slate_size:
             night_pool = [g for g in valid
                           if g.get("gamePk") not in chosen_pks
                           and not _is_day_game(g)]
@@ -1644,6 +1667,7 @@ def schedule_builder(
             ],
             "locked": cur_iso in locked_map,
             "past": cur_iso in auto_locked_past,
+            "skipped": is_skipped,
             "team_counts_after": dict(counts),
         })
 
