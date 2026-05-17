@@ -704,6 +704,7 @@ def project_pitcher(
     ump_k_factor: float | None = None,
     opp_lineup_avg_pg: float | None = None,
     vegas_k_line: float | None = None,
+    catcher_framing_runs: float | None = None,
     as_of: Date | None = None,
 ) -> Projection:
     last7 = mlb_api.player_stats(pid, group="pitching", season=season, last_n_days=7, as_of=as_of)
@@ -870,7 +871,20 @@ def project_pitcher(
         lineup_factor = max(0.94, min(lineup_factor, 1.07))
         notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
 
-    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor
+    # Catcher framing factor (v9.8): elite framing catchers steal extra
+    # strikes for their pitcher, generating ~0.3-0.5 extra K per start.
+    # Anti-framers cost the same. Convert season rv_tot (run value from
+    # framing, typical ±10 range) to a small multiplier capped at ±3%.
+    # Signal is only meaningful when lineup is posted AND the catcher
+    # has a season sample on Savant.
+    framing_factor = 1.0
+    if catcher_framing_runs is not None and catcher_framing_runs != 0:
+        # +5 rv → +2.5% K boost; clamped ±3% to keep this conservative
+        # (catcher framing is real but a small component of total pitcher score).
+        framing_factor = 1.0 + max(-0.03, min(catcher_framing_runs * 0.005, 0.03))
+        notes.append(f"catcher framing x{framing_factor:.3f} (rv_tot {catcher_framing_runs:+.1f})")
+
+    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor * framing_factor
 
     # Vegas K-prop adjustment (v9.5): pitcher_strikeouts market lines are the
     # sharpest single signal for the biggest fantasy event a pitcher has —
@@ -956,6 +970,8 @@ def project_pitcher(
             "season_xwoba": season_xwoba,
             "tto_factor": round(tto_factor, 3),
             "defense_factor": round(defense_factor, 3),
+            "framing_factor": round(framing_factor, 3),
+            "catcher_framing_rv": catcher_framing_runs,
             "ip_per_start": round(ip_total_l14 / max(int(starts_14), 1), 2) if starts_14 else None,
             "is_opener": is_opener,
             "k9_season": round(_safe_float(seasn.get("strikeoutsPer9Inn")), 1) or None,
@@ -1442,7 +1458,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-17-v9.7" # COLD post-matchup 0.85→0.80, ELITE/POOR STATCAST_WEIGHT 0.30→0.25
+MODEL_REV = "2026-05-17-v9.8" # +catcher framing factor (±3% cap) on pitcher projection
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -1644,6 +1660,36 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     except Exception:
         lineups = {}
 
+    # Catcher framing (v9.8): map each team's starting catcher (when lineup
+    # posted) to their season framing run-value, then convert to a small
+    # K-rate multiplier for that team's pitcher. Elite framers (rv ~+5 to
+    # +10) generate ~0.3-0.5 extra K per start; anti-framers cost the same.
+    # Pre-lineup-posted: no signal, multiplier defaults to 1.0 (neutral).
+    catcher_framing_by_team: dict[int, float] = {}
+    try:
+        framing = savant.catcher_framing(season)
+        for g in games:
+            teams = g.get("teams") or {}
+            for side_key, players_key in (("home", "homePlayers"), ("away", "awayPlayers")):
+                team_id = ((teams.get(side_key) or {}).get("team") or {}).get("id")
+                players = (g.get("lineups") or {}).get(players_key) or []
+                if not team_id or not players:
+                    continue
+                # The catcher in a posted lineup is whichever player has
+                # primaryPosition == "C". DH'd catchers don't apply (their
+                # primaryPosition is C but someone else is behind the plate).
+                # Heuristic: first player with primaryPosition=C is the
+                # actual catcher for today's game in ~95% of cases.
+                catcher_pid = next(
+                    (p.get("id") for p in players
+                     if (p.get("primaryPosition") or {}).get("abbreviation") == "C"),
+                    None,
+                )
+                if catcher_pid and catcher_pid in framing:
+                    catcher_framing_by_team[team_id] = framing[catcher_pid]
+    except Exception as e:
+        logging.warning("catcher framing fetch failed: %s", e)
+
     # Vegas implied team totals — keyed by full team name.
     try:
         team_totals_by_name = odds_api.get_team_totals(d.isoformat()) or {}
@@ -1783,6 +1829,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             is_home=info.get("is_home"),
             ump_k_factor=info.get("ump_k_factor"),
             opp_lineup_avg_pg=lineup_avg_pg_by_team.get(info["opp_team_id"]),
+            catcher_framing_runs=catcher_framing_by_team.get(info["team_id"]),
             vegas_k_line=k_prop_by_name.get(_norm_pitcher_name(sp_name)),
             as_of=d,
         ))

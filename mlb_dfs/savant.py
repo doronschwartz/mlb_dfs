@@ -98,6 +98,39 @@ def lookup_batter_qoc(pid: int, season: int) -> dict | None:
     return batter_statcast(season).get(int(pid))
 
 
+def catcher_framing(season: int) -> dict[int, float]:
+    """{catcher_player_id: rv_tot (framing run value)}.
+
+    Pulls Savant's catcher-framing leaderboard. rv_tot is the total run value
+    that catcher gained/lost via pitch framing over the season — elite framers
+    (Realmuto, Kelly, Heim) hit +5 to +10; anti-framers (Salvy) hit -5 to -10.
+    Used to give a small K-rate boost to pitchers whose team's starting
+    catcher is an elite framer (and a shrink for anti-framers). 24h cached.
+
+    Note the URL omits the 'type' param — including type=Cat returns the
+    rows without player IDs (an empty 'id' column for every row). The plain
+    leaderboard URL returns id+name.
+    """
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/catcher-framing"
+        f"?year={season}&min=10&csv=true"
+    )
+    out: dict[int, float] = {}
+    for r in rows:
+        try:
+            pid = int(r.get("id", "") or 0)
+            rv = float(r.get("rv_tot", "") or 0)
+        except (TypeError, ValueError):
+            continue
+        if pid:
+            out[pid] = rv
+    return out
+
+
+def lookup_catcher_framing(pid: int, season: int) -> float | None:
+    return catcher_framing(season).get(int(pid))
+
+
 def lookup_pitcher_qoc(pid: int, season: int) -> dict | None:
     return pitcher_statcast(season).get(int(pid))
 

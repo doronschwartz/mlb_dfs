@@ -365,6 +365,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.8 — 2026-05-17",
+                "title": "Catcher framing on pitcher projection",
+                "changes": [
+                    "Pitcher projections now adjust for the starting catcher's framing skill (Savant rv_tot from /leaderboard/catcher-framing). Elite framers (Realmuto, Kelly, Heim) generate ~0.3-0.5 extra K per start; anti-framers cost the same. Multiplier: ×(1 + rv_tot × 0.005) capped at ±3%",
+                    "Catcher detection: when lineups are posted, finds the player whose primaryPosition == 'C' for each team. Pre-lineup: neutral (no signal yet)",
+                    "Components dict now exposes framing_factor + catcher_framing_rv so the breakdown tooltip shows the math",
+                    "Estimated MAE drop: ~0.2-0.3 pts on pitcher projections; bridges most of the 6.90 → ~6.6 gap toward the structural floor",
+                ],
+            },
+            {
                 "version": "v9.7 — 2026-05-17",
                 "title": "14-day calibration re-tune",
                 "changes": [
