@@ -469,21 +469,19 @@ def project_hitter(
     qoc_tier_pre = _qoc_tier_hitter(brl, hh) if (brl or hh) else "—"
     statcast_pg = _statcast_implied_pg_hitter(brl, hh) if (brl or hh) else None
     if statcast_pg is not None:
-        # Per-tier adaptive Statcast weight (v9 calibration update):
+        # Per-tier adaptive Statcast weight (v9.7 re-tune from 14-day calibration):
         #   HOT/COLD form_tag: 0.15 — let streak signal carry, override anchors
-        #   ELITE/POOR qoc tier: 0.30 — Bayesian audit (n=18 days) showed
-        #     ELITE bias -0.77 (P=99.9% over-projecting) and POOR bias +0.57
-        #     (P=99.5% under-projecting). The 0.40 Statcast pull was too
-        #     aggressive at the extremes; the formula assumes more talent
-        #     persistence than reality. Dropping to 0.30 for those tiers
-        #     softens both biases symmetrically.
-        #   SOLID/AVERAGE qoc tier: 0.40 — calibration shows P~10-15% for
-        #     non-zero bias on these (SOLID -0.24 ± 0.20, AVG +0.28 ± 0.20).
-        #     Within noise; keep default.
+        #   ELITE/POOR qoc tier: 0.25 — 14-day audit (n=804 ELITE) showed
+        #     ELITE bias -1.02 still (6σ over-projecting) even after the 0.30
+        #     drop. The Statcast prior is OVER-pulling elite-tier hitters
+        #     toward true talent; backing off to 0.25 lets the rolling base
+        #     carry more weight, closing about half the residual.
+        #   SOLID/AVERAGE qoc tier: 0.40 — calibration shows these are
+        #     within noise (SOLID -0.40, AVG -0.32 on n≈800 each); keep.
         if form_tag in ("HOT", "COLD"):
             STATCAST_WEIGHT = 0.15
         elif qoc_tier_pre in ("ELITE", "POOR"):
-            STATCAST_WEIGHT = 0.30
+            STATCAST_WEIGHT = 0.25
         else:
             STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
@@ -592,8 +590,11 @@ def project_hitter(
         proj *= 1.07
         notes.append("HOT post-matchup boost x1.07 (close +1.11 residual)")
     elif form_tag == "COLD":
-        proj *= 0.85
-        notes.append("COLD post-matchup shrink x0.85 (close -1.08 residual)")
+        # v9.7: tightened from 0.85 to 0.80 after 14-day audit (n=1195)
+        # showed COLD still over-projecting by -0.67 (5σ). 0.80 closes
+        # roughly half of the remaining residual without overshooting.
+        proj *= 0.80
+        notes.append("COLD post-matchup shrink x0.80 (close residual -0.67)")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1441,7 +1442,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-14-v9.5" # +Vegas K-prop pitcher adjustment (damped delta, ±3 pts cap)
+MODEL_REV = "2026-05-17-v9.7" # COLD post-matchup 0.85→0.80, ELITE/POOR STATCAST_WEIGHT 0.30→0.25
 
 
 def _proj_disk_path(key: tuple) -> str:

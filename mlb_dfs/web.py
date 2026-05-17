@@ -365,6 +365,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.7 — 2026-05-17",
+                "title": "14-day calibration re-tune",
+                "changes": [
+                    "COLD post-matchup multiplier ×0.85 → ×0.80. 14-day audit (n=1195) showed COLD hitters were still being over-projected by -0.67 pts (5σ). Tighter shrink closes about half the remaining residual",
+                    "ELITE/POOR STATCAST_WEIGHT 0.30 → 0.25. ELITE-QoC was over-projected by -1.02 pts (n=804, 6σ); the Statcast prior was pulling these hitters TOWARD true talent too aggressively. Lower weight lets the rolling base carry more signal",
+                    "Overall pre-tune calibration was already strong (bias +0.00, MAE 4.36 on n=4130) — these tweaks address the two residual signals that survived the n=18-day audit at v9.0",
+                    "MODEL_REV bumped to 2026-05-17-v9.7 — cache invalidated, projections regenerate",
+                ],
+            },
+            {
                 "version": "v9.5 — 2026-05-14",
                 "title": "Vegas K-props in pitcher projection",
                 "changes": [
