@@ -360,18 +360,19 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
   main { padding: 12px 8px; }
 
   /* All available players: drop noisy columns, lift fonts down.
-     Column order today: 1 Proj · 2 Dyn · 3 Player · 4 Pos · 5 Role
-                         · 6 Statcast · 7 Pick into · 8 Notes
-     On mobile keep Proj / Dyn / Player / Pick into. Drop the rest. */
+     Column order today: 1 Proj · 2 Dyn · 3 Player · 4 Pos · 5 Status
+                         · 6 Role · 7 Statcast · 8 Pick into · 9 Notes
+     On mobile keep Proj / Dyn / Player / Status / Pick into. */
   #pool-out table { font-size: 11px; }
   #pool-out th, #pool-out td { padding: 3px 4px; vertical-align: middle; }
   #pool-out th:nth-child(4), #pool-out td:nth-child(4) { display: none; }   /* Pos (color-coded in name) */
-  #pool-out th:nth-child(5), #pool-out td:nth-child(5) { display: none; }   /* Role */
-  #pool-out th:nth-child(6), #pool-out td:nth-child(6) { display: none; }   /* Statcast */
-  #pool-out th:nth-child(8), #pool-out td:nth-child(8) { display: none; }   /* Notes */
+  #pool-out th:nth-child(6), #pool-out td:nth-child(6) { display: none; }   /* Role */
+  #pool-out th:nth-child(7), #pool-out td:nth-child(7) { display: none; }   /* Statcast */
+  #pool-out th:nth-child(9), #pool-out td:nth-child(9) { display: none; }   /* Notes */
   #pool-out td:first-child { width: 44px; font-weight: 600; }
   #pool-out td:nth-child(2) { width: 36px; text-align: right; color: var(--muted); }
   #pool-out td:nth-child(3) { white-space: normal; line-height: 1.25; }
+  #pool-out th:nth-child(5), #pool-out td:nth-child(5) { width: 44px; padding-left: 2px; padding-right: 2px; text-align: center; }
 
   /* Projections tab: keep just Proj + Player on mobile (everything else is in
      the tap-to-open tooltip). Bigger fonts, tighter padding. */

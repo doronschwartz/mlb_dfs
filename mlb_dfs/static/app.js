@@ -2638,7 +2638,7 @@ function drawPool() {
   const html = `
     <table>
       <thead>
-        <tr><th>Proj</th><th title="Dynasty rank from internal Top list (— = unranked)">Dyn</th><th>Player</th><th>Pos</th><th>Role</th><th>Statcast</th><th>Pick into…</th><th>Notes</th></tr>
+        <tr><th>Proj</th><th title="Dynasty rank from internal Top list (— = unranked)">Dyn</th><th>Player</th><th>Pos</th><th title="Lineup status: in posted lineup, OUT (scratched), or TBD (lineup not yet posted)">Status</th><th>Role</th><th>Statcast</th><th>Pick into…</th><th>Notes</th></tr>
       </thead>
       <tbody>${rows
         .map(
@@ -2664,6 +2664,7 @@ function drawPool() {
           <td>${dynCell}</td>
           <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
+          <td class="pool-status">${lineupBadge(p.lineup_status)}</td>
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
           <td>${(() => {
