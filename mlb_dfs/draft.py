@@ -132,16 +132,47 @@ class Draft:
                     return d
         return None
 
+    def hitter_free_drafter(self) -> str | None:
+        """Inverse of non_sp_free_for_all: when EVERY other drafter has only
+        SP slots remaining, the one drafter who still owes non-SP slots can
+        free-for-all those hitter/UTIL/BN picks without waiting on snake
+        order. The other drafters only need SPs — they can't compete for
+        hitters anyway, so gating is purely friction.
+
+        Returns the lone non-SP-needer's name, or None when the snake
+        should still apply (multiple drafters with non-SP slots open, or
+        the lone non-SP-needer also still needs an SP)."""
+        non_sp_needers: list[str] = []
+        for d in self.drafters:
+            taken_slots = [p.slot for p in self.picks if p.drafter == d]
+            for s in SLOTS:
+                if s == "SP":
+                    continue
+                if taken_slots.count(s) < SLOTS.count(s):
+                    non_sp_needers.append(d)
+                    break
+        if len(non_sp_needers) != 1:
+            return None
+        lone = non_sp_needers[0]
+        # If the lone non-SP-needer ALSO still owes SPs, the snake still has
+        # work to do for them on the SP side — don't let them skip ahead.
+        taken_sp = sum(1 for p in self.picks if p.drafter == lone and p.slot == "SP")
+        if taken_sp < SLOTS.count("SP"):
+            return None
+        return lone
+
     def can_pick_out_of_order(self, drafter: str, slot: str) -> bool:
         """Combined OOO rule used by make_pick:
           - SP slot: drafter is the lone SP-needer (existing rule).
-          - non-SP slot: drafter is next_ooo_drafter — i.e. snake order
-            advanced past the held-up lone SP-needer to them."""
+          - non-SP slot: drafter is next_ooo_drafter (held-up-by-SP case),
+            OR drafter is the lone non-SP-needer with all others done on hitters."""
         if drafter not in self.drafters:
             return False
         if slot == "SP":
             return self.can_pick_sp_out_of_order(drafter)
-        return self.next_ooo_drafter() == drafter
+        if self.next_ooo_drafter() == drafter:
+            return True
+        return self.hitter_free_drafter() == drafter
 
     def on_the_clock(self) -> tuple[str, str] | None:
         """Returns (drafter, slot) for the next pick, or None if complete."""

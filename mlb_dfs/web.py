@@ -2078,7 +2078,10 @@ def get_pool(draft_id: str):
     # drafters, not just the on-clock drafter's. Otherwise hitters show 'no
     # slot left' because the on-clock drafter (the lone SP-needer) only needs
     # SPs. Frontend filters per-user from there.
-    if dr.non_sp_free_for_all():
+    if dr.non_sp_free_for_all() or dr.hitter_free_drafter():
+        # Either free-for-all mode is active. The pool should show pills for
+        # the union of every drafter's open slots so the OOO drafter can see
+        # picks; frontend filters per-drafter using remaining_by_drafter.
         remaining_set: set[str] = set()
         for d in dr.drafters:
             remaining_set.update(dr.remaining_slots(d))
@@ -2140,6 +2143,7 @@ def get_pool(draft_id: str):
         "remaining_slots": remaining,
         "remaining_by_drafter": remaining_by_drafter,
         "non_sp_free": dr.non_sp_free_for_all(),
+        "hitter_free_drafter": dr.hitter_free_drafter(),
         "pool": pool,
     }
 
@@ -2391,6 +2395,7 @@ def _draft_state(dr) -> dict:
         "sp_jump_drafter": _can_jump_for_sp(dr),
         "non_sp_free": dr.non_sp_free_for_all(),
         "next_ooo_drafter": dr.next_ooo_drafter(),
+        "hitter_free_drafter": dr.hitter_free_drafter(),
         "game_pks": list(dr.game_pks),
         "selected_games": _selected_games_summary(dr),
         "rosters": {

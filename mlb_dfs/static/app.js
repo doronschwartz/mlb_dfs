@@ -50,9 +50,13 @@ function canJumpForSP() {
 // drafter in the snake (skipping the held-up lone SP-needer) gets the OOO
 // non-SP pick at any one moment. Backend computes that drafter as
 // next_ooo_drafter — when it's me, I can jump.
+// Inverse case: when every OTHER drafter only needs SPs, I'm the lone
+// non-SP-needer and can grab my remaining hitter/UTIL/BN picks freely.
 function canJumpForNonSP() {
   if (!state.identity) return false;
-  return state._nextOooDrafter && state._nextOooDrafter === state.identity;
+  if (state._nextOooDrafter && state._nextOooDrafter === state.identity) return true;
+  if (state._hitterFreeDrafter && state._hitterFreeDrafter === state.identity) return true;
+  return false;
 }
 
 // Fixed roster shape (matches mlb_dfs.draft.SLOTS).
@@ -2004,6 +2008,7 @@ async function renderDraft(prefetchedData) {
   state._spJumpDrafter = data.sp_jump_drafter || null;
   state._nonSpFree = !!data.non_sp_free;
   state._nextOooDrafter = data.next_ooo_drafter || null;
+  state._hitterFreeDrafter = data.hitter_free_drafter || null;
   // Match the poll's myTurn definition exactly — otherwise the poll detects
   // a phantom flip every 4s and re-renders, which looks like flashing.
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
@@ -2067,10 +2072,14 @@ async function renderDraft(prefetchedData) {
   // The lone SP-needer in OOO mode can pick SP anytime (not just "on hold").
   const spAnytime = data.sp_jump_drafter || null;
   const oooNext = data.next_ooo_drafter || null;                     // next-in-snake for non-SP OOO pick
+  const hitterFree = data.hitter_free_drafter || null;                // lone non-SP-needer, free-for-all hitters
   const orderHtml = order.map((d) => {
     let cls = "";
     let label = d;
-    if (d === oooNext) {
+    if (d === hitterFree) {
+      cls = "on-clock";
+      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ hitters anytime</span>`;
+    } else if (d === oooNext) {
       cls = "on-clock";
       label = `${d} <span style="font-size:10px;opacity:0.85;">↑ next</span>`;
     } else if (d === spAnytime && data.non_sp_free) {
@@ -2575,6 +2584,7 @@ async function renderPool() {
       pool: data.pool,
       remainingByDrafter: data.remaining_by_drafter || {},
       nonSpFree: !!data.non_sp_free,
+      hitterFreeDrafter: data.hitter_free_drafter || null,
     };
     drawPool();
   } catch (e) {
@@ -2668,10 +2678,11 @@ function drawPool() {
           <td>${p.role}</td>
           <td class="muted" style="font-size:11px;">${stat}</td>
           <td>${(() => {
-            // In non-SP free-for-all mode, eligible_slots is the union across
-            // all drafters. Filter to slots THIS user actually has open.
+            // In either free-for-all mode (non-SP or lone-hitter-needer),
+            // eligible_slots is the union across all drafters. Filter to
+            // slots THIS user actually has open.
             let pickable = p.eligible_slots;
-            if (poolCache.nonSpFree && state.identity && poolCache.remainingByDrafter) {
+            if ((poolCache.nonSpFree || poolCache.hitterFreeDrafter) && state.identity && poolCache.remainingByDrafter) {
               const mine = new Set(poolCache.remainingByDrafter[state.identity] || []);
               pickable = p.eligible_slots.filter((s) => mine.has(s));
             }
