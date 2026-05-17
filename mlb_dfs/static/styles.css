@@ -866,3 +866,25 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   border-color: var(--border);
 }
 .matchup-chip.past:hover { background: transparent; border-color: var(--border); }
+
+/* Refresh button progress states */
+#refresh.loading {
+  background: rgba(96,165,250,0.15); color: var(--accent);
+  cursor: progress; opacity: 0.95;
+}
+#refresh.loading::after {
+  /* subtle pulse so the user knows it's working */
+  content: ""; display: inline-block; width: 8px; height: 8px;
+  margin-left: 4px; border-radius: 50%; background: var(--accent);
+  animation: refresh-pulse 1s infinite ease-in-out;
+}
+@keyframes refresh-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+#refresh.done {
+  background: rgba(52,211,153,0.15); color: var(--accent-2); border-color: var(--accent-2);
+}
+#refresh.failed {
+  background: rgba(239,68,68,0.15); color: var(--bad); border-color: var(--bad);
+}

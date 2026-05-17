@@ -171,14 +171,44 @@ $$("nav button").forEach((b) => {
 
 $("#refresh").addEventListener("click", async () => {
   // Bust the server-side projections cache so updated probable SPs / lineups show up.
+  // Refresh is slow (20-30s server recompute), so give the user explicit
+  // progress feedback: disable the button, swap label, show ✓ when done.
+  const btn = $("#refresh");
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.classList.add("loading");
+  btn.textContent = "⏳ Refreshing…";
   const d = $("#date").value;
-  try { await api(`/api/projections?date=${d}&refresh=true`); } catch {}
+  const t0 = performance.now();
+  let ok = true;
+  try {
+    await api(`/api/projections?date=${d}&refresh=true`);
+  } catch (e) {
+    ok = false;
+    console.error("refresh failed:", e);
+  }
   // Reset client-side caches for the same reason.
   projCache = { date: null, data: [] };
   poolCache = { draftId: null, pool: [] };
   state._slateDate = null;
   state.slateGames = [];
-  await refresh();
+  try {
+    await refresh();
+  } catch (e) {
+    ok = false;
+    console.error("post-refresh render failed:", e);
+  }
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+  btn.disabled = false;
+  btn.classList.remove("loading");
+  btn.classList.add(ok ? "done" : "failed");
+  btn.textContent = ok ? `✓ Done (${elapsed}s)` : `⚠ Failed — try again`;
+  // After a moment, revert to the original label so the button is ready
+  // for the next press without a stale state.
+  setTimeout(() => {
+    btn.classList.remove("done", "failed");
+    btn.textContent = originalLabel;
+  }, ok ? 2500 : 5000);
 });
 
 // Changelog modal — fetches /api/changelog and renders it in a modal overlay.
