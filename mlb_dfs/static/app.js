@@ -3833,11 +3833,13 @@ function renderSchedule(data) {
         : (scheduleLocks[day.date]
             ? ` <span class="muted" style="font-size:11px;">— 🔒 swapped</span>`
             : "");
-      // Per-day "🌙 Late" / "☀️ Early" — shown only if this day has more
-      // games scheduled than the slate cap AND it's not in the past. Past
-      // days can't be retroactively edited.
-      const hasAlternates = (day.all_games || []).length > day.selected_games.length;
-      const dayActionBtns = (!isPast && hasAlternates)
+      // Per-day "🌙 Late" / "☀️ Early" — shown for any non-past day with at
+      // least one scheduled game. When MLB only has ≤6 games on the slate
+      // (no alternates) the buttons effectively pin all of them in that
+      // time order — still useful as a "lock this day" affordance so
+      // downstream days don't drift across rebuilds.
+      const hasGames = (day.all_games || []).length >= 1;
+      const dayActionBtns = (!isPast && hasGames)
         ? `<button class="sched-early-day" data-date="${day.date}" title="Lock this day to the 6 earliest start-times; rest of the week rebalances">☀️ Early</button>
            <button class="sched-late-day" data-date="${day.date}" title="Lock this day to the 6 latest start-times; rest of the week rebalances">🌙 Late</button>`
         : "";
