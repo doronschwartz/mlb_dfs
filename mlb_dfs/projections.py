@@ -593,7 +593,8 @@ def project_hitter(
     if sb_note:
         notes.append(sb_note)
 
-    proj = base_pg * sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor
+    chain_product = sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor
+    proj = base_pg * chain_product
     # Post-matchup HOT/COLD residual correction. Bayesian day-level audit
     # (18 days, n=5,102) revealed two highly-significant biases that the
     # streak override at 0.85 weight COULD NOT close because the Statcast
@@ -604,14 +605,17 @@ def project_hitter(
     # Symmetric multipliers close roughly half of each residual without
     # overshooting. If a HOT/COLD player has bias still > 0.7 σ from zero
     # in a future audit, ratchet these further (1.07→1.10 / 0.85→0.80).
+    hot_cold_factor = 1.0
     if form_tag == "HOT":
-        proj *= 1.07
+        hot_cold_factor = 1.07
+        proj *= hot_cold_factor
         notes.append("HOT post-matchup boost x1.07 (close +1.11 residual)")
     elif form_tag == "COLD":
         # v9.7: tightened from 0.85 to 0.80 after 14-day audit (n=1195)
         # showed COLD still over-projecting by -0.67 (5σ). 0.80 closes
         # roughly half of the remaining residual without overshooting.
-        proj *= 0.80
+        hot_cold_factor = 0.80
+        proj *= hot_cold_factor
         notes.append("COLD post-matchup shrink x0.80 (close residual -0.67)")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
@@ -693,6 +697,8 @@ def project_hitter(
             "season_xwoba": season_xwoba,
             "iso_factor": round(iso_factor, 3),
             "sb_factor": round(sb_factor, 3),
+            "hot_cold_factor": round(hot_cold_factor, 3),
+            "chain_product": round(chain_product * hot_cold_factor, 4),
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
@@ -902,7 +908,8 @@ def project_pitcher(
         framing_factor = 1.0 + max(-0.03, min(catcher_framing_runs * 0.005, 0.03))
         notes.append(f"catcher framing x{framing_factor:.3f} (rv_tot {catcher_framing_runs:+.1f})")
 
-    proj = base * opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor * framing_factor
+    chain_product = opp_factor * qoc_factor * park_factor * vegas_factor * rolling_factor * ump_factor * lineup_factor * tto_factor * defense_factor * framing_factor
+    proj = base * chain_product
 
     # Vegas K-prop adjustment (v9.5): pitcher_strikeouts market lines are the
     # sharpest single signal for the biggest fantasy event a pitcher has —
@@ -935,11 +942,14 @@ def project_pitcher(
     #   COLD pitcher bias -5.9 (n=43, 6.2σ from zero) → x0.80
     #   HOT pitcher  bias modest (small n, ~+1 if any) → x1.05 (lighter than
     #     hitter HOT because pitcher form swings are noisier per start).
+    hot_cold_factor = 1.0
     if form_tag == "COLD":
-        proj *= 0.80
+        hot_cold_factor = 0.80
+        proj *= hot_cold_factor
         notes.append("COLD post-matchup shrink x0.80 (close residual -5.9)")
     elif form_tag == "HOT":
-        proj *= 1.05
+        hot_cold_factor = 1.05
+        proj *= hot_cold_factor
         notes.append("HOT post-matchup boost x1.05")
 
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
@@ -1007,6 +1017,10 @@ def project_pitcher(
             "defense_factor": round(defense_factor, 3),
             "framing_factor": round(framing_factor, 3),
             "catcher_framing_rv": catcher_framing_runs,
+            "ump_factor": round(ump_factor, 3),
+            "lineup_factor": round(lineup_factor, 3),
+            "hot_cold_factor": round(hot_cold_factor, 3),
+            "chain_product": round(chain_product * hot_cold_factor, 4),
             "ip_per_start": round(ip_total_l14 / max(int(starts_14), 1), 2) if starts_14 else None,
             "is_opener": is_opener,
             "k9_season": round(_safe_float(seasn.get("strikeoutsPer9Inn")), 1) or None,
@@ -1493,7 +1507,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-18-v9.10" # pitcher COLD x0.80 + ELITE/POOR QoC weight 0.25→0.20
+MODEL_REV = "2026-05-18-v9.10.1" # full-transparency tooltip: hot_cold_factor + chain_product + missing factors
 
 
 def _proj_disk_path(key: tuple) -> str:

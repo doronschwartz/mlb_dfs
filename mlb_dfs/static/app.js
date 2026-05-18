@@ -1652,37 +1652,76 @@ function projTooltip(p) {
     const det = detail ? ` <span class="muted">${detail}</span>` : "";
     return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${factor.toFixed(2)}${det}</span></div>`;
   };
+  // Hot/cold post-matchup multiplier (v9.7 hitter / v9.10 pitcher). Stored
+  // as `hot_cold_factor` so the tooltip can show the exact applied value.
+  const hotColdRow = () => {
+    const f = c.hot_cold_factor;
+    if (f == null || Math.abs(f - 1.0) < 0.005) return "";
+    const cls = f > 1.0 ? "pos" : "neg";
+    const tag = c.form_tag || "";
+    const label = tag === "HOT" ? `HOT post-matchup` : tag === "COLD" ? `COLD post-matchup` : `Post-matchup`;
+    return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${f.toFixed(2)}</span></div>`;
+  };
+  // Reconciliation row: shows the exact factor product (chain × hot_cold) so
+  // a user multiplying the displayed factors can verify the final projection.
+  // Pre-rounding chain_product comes from the projection engine and matches
+  // the math the model actually did, even if some rows showed ×1.00 because
+  // a sub-factor was 0.997 etc.
+  const chainTotalRow = () => {
+    if (c.chain_product == null || c.base_pg == null && c.base_per_start == null) return "";
+    return `<div class="bk-row" style="border-top:1px dashed var(--border);padding-top:4px;margin-top:4px;"><span class="bk-label muted">Chain total (base × all factors)</span><span class="bk-total muted">×${c.chain_product.toFixed(3)}</span></div>`;
+  };
   if (p.role === "hitter") {
     if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
-    if (c.sp_factor != null) rows.push(factorRow2("Opp SP", c.sp_factor));
-    if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
-    rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
-    rows.push(factorRow2(`Vegas implied`, c.vegas_factor, c.implied_team_total ? `${c.implied_team_total.toFixed(1)} R` : ""));
-    rows.push(factorRow2("Order PA", c.order_factor, c.batting_order ? `#${c.batting_order}` : ""));
-    rows.push(factorRow2("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : ""));
-    rows.push(factorRow2("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : ""));
-    rows.push(factorRow2("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
+    // All chain factors render ALWAYS (×1.00 shows as "neutral") so the user
+    // can audit every step and the displayed math reconciles to the final.
+    if (c.sp_factor != null) rows.push(factorRow2Always("Opp SP", c.sp_factor, "", "no signal"));
+    if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
+    rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
+    rows.push(factorRow2Always("Vegas implied", c.vegas_factor, c.implied_team_total ? `${c.implied_team_total.toFixed(1)} R` : "", "no Vegas line"));
+    rows.push(factorRow2Always("Order PA", c.order_factor, c.batting_order ? `#${c.batting_order}` : "", "lineup not posted"));
+    rows.push(factorRow2Always("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : "", "no platoon edge"));
+    rows.push(factorRow2Always("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : "", "league-avg pen"));
+    rows.push(factorRow2Always("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : "", "no rolling signal"));
     rows.push(factorRow2Always("ISO form (v9.3)", c.iso_factor, "", "no power surge/slump"));
     rows.push(factorRow2Always("SB threat (v9.3)", c.sb_factor, "", "not an SB threat"));
+    const hcRow = hotColdRow();
+    if (hcRow) rows.push(hcRow);
+    rows.push(chainTotalRow());
     if (c.barrel_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Barrel %</span><span class="bk-total">${c.barrel_pct.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct ?? 8.8).toFixed(1)})</span></span></div>`);
     if (c.hardhit_pct != null) rows.push(`<div class="bk-row"><span class="bk-label">Hard-hit %</span><span class="bk-total">${c.hardhit_pct.toFixed(0)} <span class="muted">(lg ${(c.lg_hardhit_pct ?? 40).toFixed(0)})</span></span></div>`);
   } else {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
     if (c.is_opener) rows.push(`<div class="bk-row"><span class="bk-label">Role</span><span class="bk-total neg">OPENER (${c.ip_per_start ?? "?"} IP/start)</span></div>`);
     else if (c.ip_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Avg IP/start</span><span class="bk-total muted">${c.ip_per_start.toFixed(1)}</span></div>`);
-    if (c.opp_factor != null) rows.push(factorRow2("Opp run-env", c.opp_factor));
-    if (c.qoc_factor != null) rows.push(factorRow2("QoC residual", c.qoc_factor));
-    rows.push(factorRow2("Park", c.park_factor, c.park_venue || ""));
-    rows.push(factorRow2("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : ""));
-    rows.push(factorRow2("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : ""));
+    if (c.opp_factor != null) rows.push(factorRow2Always("Opp run-env", c.opp_factor, "", "neutral offense"));
+    if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
+    rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
+    rows.push(factorRow2Always("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : "", "no Vegas line"));
+    rows.push(factorRow2Always("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : "", "no rolling signal"));
+    rows.push(factorRow2Always("HP ump", c.ump_factor, "", "neutral ump"));
+    rows.push(factorRow2Always("Opp lineup", c.lineup_factor, "", "lineup not posted"));
+    rows.push(factorRow2Always("Catcher framing (v9.8)", c.framing_factor, c.catcher_framing_rv != null ? `rv ${c.catcher_framing_rv >= 0 ? "+" : ""}${c.catcher_framing_rv.toFixed(1)}` : "", "no framing data"));
     rows.push(factorRow2Always("TTO penalty (v9.3)", c.tto_factor, c.ip_per_start ? `${c.ip_per_start} IP/start` : "", "short starter — no TTO3"));
     rows.push(factorRow2Always("Team defense (v9.3)", c.defense_factor, "", "league-avg fielding"));
+    const hcRow = hotColdRow();
+    if (hcRow) rows.push(hcRow);
+    rows.push(chainTotalRow());
+    // K-prop adjustment (v9.5) is ADDITIVE, not multiplicative — applied
+    // after the factor chain, so it doesn't fit in the chain_product. Show
+    // as a +/- pts row with the Vegas K line for context.
+    if (c.k_prop_adj != null && Math.abs(c.k_prop_adj) >= 0.05) {
+      const cls = c.k_prop_adj > 0 ? "pos" : "neg";
+      const sign = c.k_prop_adj > 0 ? "+" : "";
+      const det = c.vegas_k_line ? ` <span class="muted">Vegas ${c.vegas_k_line.toFixed(1)} K</span>` : "";
+      rows.push(`<div class="bk-row"><span class="bk-label">K-prop adj (v9.5)</span><span class="bk-total ${cls}">${sign}${c.k_prop_adj.toFixed(2)} pts${det}</span></div>`);
+    }
     if (c.k9_season != null) rows.push(`<div class="bk-row"><span class="bk-label">K/9 (season)</span><span class="bk-total">${c.k9_season.toFixed(1)}</span></div>`);
     if (c.xera != null) rows.push(`<div class="bk-row"><span class="bk-label">xERA</span><span class="bk-total">${c.xera.toFixed(2)}</span></div>`);
     if (c.xwoba_against != null) rows.push(`<div class="bk-row"><span class="bk-label">xwOBA agst</span><span class="bk-total">${c.xwoba_against.toFixed(3)}</span></div>`);
     if (c.barrel_pct_allowed != null) rows.push(`<div class="bk-row"><span class="bk-label">brl-allowed %</span><span class="bk-total">${c.barrel_pct_allowed.toFixed(1)} <span class="muted">(lg ${(c.lg_barrel_pct_allowed ?? 8.0).toFixed(1)})</span></span></div>`);
   }
-  // Drop empty strings (factors at 1.0).
+  // Drop empty strings (factors at 1.0 in the legacy hide-on-neutral path).
   for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === "") rows.splice(i, 1);
   const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
