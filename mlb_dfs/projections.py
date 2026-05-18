@@ -1549,7 +1549,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-18-v9.11" # rolling_factor: replace broken Savant-range with K%-rate shift from MLB Stats API
+MODEL_REV = "2026-05-18-v9.11.1" # cache bust after ODDS_API_KEY rotation — Vegas signal flowing again
 
 
 def _proj_disk_path(key: tuple) -> str:
