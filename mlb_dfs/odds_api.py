@@ -37,6 +37,15 @@ BASE = "https://api.the-odds-api.com/v4"
 _CACHE: dict[str, tuple[float, object]] = {}
 _TTL_SEC = 600  # 10 min
 
+# Last-error tracker per endpoint family — surfaced via /api/diag/odds so a
+# silent 401 (dead key) or rate-limit can't burn a whole day undetected like
+# 2026-05-18 did.
+_LAST_ERROR: dict[str, tuple[float, str]] = {}
+
+
+def last_errors() -> dict:
+    return {k: {"at": v[0], "err": v[1]} for k, v in _LAST_ERROR.items()}
+
 # Saved-odds-per-day directory. Lives on the Fly volume next to drafts/.
 ODDS_DIR = os.environ.get(
     "MLB_DFS_ODDS_DIR",
@@ -146,7 +155,12 @@ def get_team_totals(date_iso: str) -> dict[str, float]:
             "/sports/baseball_mlb/odds",
             params={"markets": "totals,spreads", "regions": "us", "oddsFormat": "american"},
         )
-    except Exception:
+    except Exception as e:
+        import logging
+        # Used to be a silent return — that hid a 401 (dead key) for hours of
+        # projections silently going Vegas-less. Log loudly now.
+        logging.error("odds_api.get_team_totals fetch failed: %s", e)
+        _LAST_ERROR["team_totals"] = (time.time(), str(e))
         return {}
     out: dict[str, float] = {}
     for ev in events:
@@ -209,7 +223,13 @@ def get_pitcher_strikeout_lines(date_iso: str) -> dict[str, dict]:
     """
     if not is_configured():
         return {}
-    events = _get("/sports/baseball_mlb/events")
+    try:
+        events = _get("/sports/baseball_mlb/events")
+    except Exception as e:
+        import logging
+        logging.error("odds_api.get_pitcher_strikeout_lines events fetch failed: %s", e)
+        _LAST_ERROR["k_props_events"] = (time.time(), str(e))
+        return {}
     today_events = [
         e for e in events
         if _commence_et_date(e.get("commence_time", "")) == date_iso

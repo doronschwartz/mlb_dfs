@@ -1682,7 +1682,7 @@ function projTooltip(p) {
     rows.push(factorRow2Always("Order PA", c.order_factor, c.batting_order ? `#${c.batting_order}` : "", "lineup not posted"));
     rows.push(factorRow2Always("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : "", "no platoon edge"));
     rows.push(factorRow2Always("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : "", "league-avg pen"));
-    rows.push(factorRow2Always("Rolling xwOBA", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : "", "no rolling signal"));
+    rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", c.rolling_pa_l14 ? `min 30 PA — have ${c.rolling_pa_l14}` : "no recent PAs"));
     rows.push(factorRow2Always("ISO form (v9.3)", c.iso_factor, "", "no power surge/slump"));
     rows.push(factorRow2Always("SB threat (v9.3)", c.sb_factor, "", "not an SB threat"));
     const hcRow = hotColdRow();
@@ -1698,7 +1698,7 @@ function projTooltip(p) {
     if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
     rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
     rows.push(factorRow2Always("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : "", "no Vegas line"));
-    rows.push(factorRow2Always("Rolling xwOBA-agst", c.rolling_factor, (c.rolling_xwoba && c.season_xwoba) ? `${c.rolling_xwoba.toFixed(3)} vs szn ${c.season_xwoba.toFixed(3)}` : "", "no rolling signal"));
+    rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", c.rolling_bf_l14 ? `min 30 BF — have ${c.rolling_bf_l14}` : "no recent BF"));
     rows.push(factorRow2Always("HP ump", c.ump_factor, "", "neutral ump"));
     rows.push(factorRow2Always("Opp lineup", c.lineup_factor, "", "lineup not posted"));
     rows.push(factorRow2Always("Catcher framing (v9.8)", c.framing_factor, c.catcher_framing_rv != null ? `rv ${c.catcher_framing_rv >= 0 ? "+" : ""}${c.catcher_framing_rv.toFixed(1)}` : "", "no framing data"));

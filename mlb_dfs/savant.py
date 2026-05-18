@@ -259,21 +259,10 @@ def league_averages(season: int) -> dict:
     return out
 
 
-def batter_expected_range(season: int, start_date: str, end_date: str) -> dict[int, dict]:
-    """Rolling expected stats over a date window. Returns {pid: {est_woba, ...}}.
-    Cached on disk for 24h via the same _csv pipeline."""
-    rows = _csv(
-        f"https://baseballsavant.mlb.com/leaderboard/expected_statistics"
-        f"?type=batter&year={season}&min=5&csv=true"
-        f"&start_date={start_date}&end_date={end_date}"
-    )
-    return _idx(rows)
-
-
-def pitcher_expected_range(season: int, start_date: str, end_date: str) -> dict[int, dict]:
-    rows = _csv(
-        f"https://baseballsavant.mlb.com/leaderboard/expected_statistics"
-        f"?type=pitcher&year={season}&min=5&csv=true"
-        f"&start_date={start_date}&end_date={end_date}"
-    )
-    return _idx(rows)
+# NB: batter_expected_range / pitcher_expected_range used to live here but
+# were RETIRED 2026-05-18 after we discovered Savant's /expected_statistics
+# endpoint silently ignores start_date/end_date params — every window returned
+# season-wide data, making the downstream rolling_factor a no-op for every
+# player. Probed 11 alternate param names (game_date_gt, since, month, splits,
+# etc.) — none filter. The replacement uses MLB Stats API K%-rate shift from
+# byDateRange (which DOES honor the dates) and lives in projections.py.

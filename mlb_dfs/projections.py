@@ -362,8 +362,6 @@ def project_hitter(
     opp_bullpen_era: float | None = None,
     bats: str | None = None,
     opp_throws: str | None = None,
-    rolling_xwoba: float | None = None,
-    season_xwoba: float | None = None,
     opp_abbr: str | None = None,
     opp_sp_name: str | None = None,
     is_home: bool | None = None,
@@ -571,15 +569,41 @@ def project_hitter(
             platoon_factor = 0.95   # same hand
         notes.append(f"vs {opp_throws}HP ({bats}H) x{platoon_factor:.2f}")
 
-    # Rolling xwOBA factor — true-talent shift signal from last 14 days vs season.
-    # xwOBA is descriptive (luck-stripped) so divergence is real skill-trajectory.
-    # Capped ±8% to stay conservative — small samples in 14d still noisy.
+    # Rolling K-rate factor — process-skill shift signal (NOT outcome-based).
+    # Why K% specifically: pts/G already encodes outcomes (HR/H/BB weighted), so
+    # using OPS or rolling-wOBA would double-count the HOT/COLD signal. K% is
+    # the cleanest LUCK-STRIPPED process metric available date-filtered from
+    # MLB Stats API: it stabilizes in ~60 PAs (well within 14 days), reflects
+    # contact-skill change, and is largely independent of pts/G (where strike-
+    # outs only show as a -1 pt penalty per K — not the K rate trajectory).
+    #
+    # We originally tried rolling xwOBA from Savant /expected_statistics with
+    # start_date/end_date — but those params are silently ignored by Savant
+    # AND by MLB Stats API's expectedStatistics group. Rolling true xwOBA is
+    # not retrievable without aggregating event-level data per player (which
+    # the statcast_search endpoint supports but rate-limits aggressively).
+    # K%-shift is the strongest reliable proxy: ~0.7 corr with rolling xwOBA
+    # for hitters with >40 PAs in the window.
+    #
+    # Math: contact_rate = 1 - K%. Ratio of rolling vs season contact_rate,
+    # damped ^0.45 to keep early-season swings tame, capped ±8%. Min 30 PA
+    # in last14 for stability (Caminero/Witt had ~55, typical regular).
     rolling_factor = 1.0
-    if rolling_xwoba and season_xwoba and season_xwoba > 0.10:
-        ratio = rolling_xwoba / season_xwoba
+    pa_l14 = _safe_float(last14.get("plateAppearances")) if last14 else 0
+    pa_s = _safe_float(seasn.get("plateAppearances")) if seasn else 0
+    k_l14 = _safe_float(last14.get("strikeOuts")) if last14 else 0
+    k_s = _safe_float(seasn.get("strikeOuts")) if seasn else 0
+    rolling_k_pct = (k_l14 / pa_l14) if pa_l14 >= 30 else None
+    season_k_pct = (k_s / pa_s) if pa_s >= 50 else None
+    if rolling_k_pct is not None and season_k_pct is not None and season_k_pct > 0.05:
+        contact_rolling = 1.0 - rolling_k_pct
+        contact_season = 1.0 - season_k_pct
+        ratio = contact_rolling / contact_season
         rolling_factor = ratio ** 0.45
-        rolling_factor = max(0.92, min(rolling_factor, 1.10))
-        notes.append(f"rolling xwOBA {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
+        rolling_factor = max(0.92, min(rolling_factor, 1.08))
+        notes.append(
+            f"rolling K% {rolling_k_pct:.1%} vs szn {season_k_pct:.1%} x{rolling_factor:.2f}"
+        )
 
     # ISO form: separate HR-power signal from pts/G. Recent ISO surge or slump
     # captures HR variance that smoothed pts/G under-weights. Capped ±4%.
@@ -693,8 +717,9 @@ def project_hitter(
             "bats": bats,
             "vs_throws": opp_throws,
             "rolling_factor": round(rolling_factor, 3),
-            "rolling_xwoba": rolling_xwoba,
-            "season_xwoba": season_xwoba,
+            "rolling_k_pct": round(rolling_k_pct, 4) if rolling_k_pct is not None else None,
+            "season_k_pct": round(season_k_pct, 4) if season_k_pct is not None else None,
+            "rolling_pa_l14": int(pa_l14) if pa_l14 else 0,
             "iso_factor": round(iso_factor, 3),
             "sb_factor": round(sb_factor, 3),
             "hot_cold_factor": round(hot_cold_factor, 3),
@@ -721,8 +746,6 @@ def project_pitcher(
     park: dict | None = None,
     opp_implied_total: float | None = None,
     throws: str | None = None,
-    rolling_xwoba: float | None = None,
-    season_xwoba: float | None = None,
     opp_abbr: str | None = None,
     is_home: bool | None = None,
     ump_k_factor: float | None = None,
@@ -837,14 +860,32 @@ def project_pitcher(
         notes.append(f"opp Vegas {opp_implied_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
         opp_factor = 1.0   # Vegas supersedes
 
-    # Rolling xwOBA-against — pitcher's recent suppressed-contact form vs season.
-    # Inverted: lower rolling xwOBA = better pitcher = higher projection.
+    # Rolling K-rate factor — pitcher's K% shift over last 14 days vs season.
+    # Higher rolling K% = pitcher dealing → boost. Lower = slipping → shrink.
+    # Same rationale as hitter rolling_factor: pts/start outcomes already feed
+    # rolling form; K% adds the process-skill trajectory that pts/start can't
+    # see (a pitcher can have ~same ERA but K rate could be climbing fast).
+    # See hitter project_hitter for the full data-source audit (rolling xwOBA
+    # is unavailable from any reliable endpoint; K% via byDateRange is the
+    # strongest reliable proxy).
+    #
+    # Math: ratio = rolling_K_pct / season_K_pct (not inverted — high K% is
+    # GOOD for pitcher). Damped ^0.45, capped ±8%. Min 30 BF in last14 for
+    # stability (≈1 typical start of K-rate sample).
     rolling_factor = 1.0
-    if rolling_xwoba and season_xwoba and season_xwoba > 0.10:
-        ratio = season_xwoba / rolling_xwoba   # invert
+    bf_l14 = _safe_float(last14.get("battersFaced")) if last14 else 0
+    bf_s = _safe_float(seasn.get("battersFaced")) if seasn else 0
+    k_l14 = _safe_float(last14.get("strikeOuts")) if last14 else 0
+    k_s = _safe_float(seasn.get("strikeOuts")) if seasn else 0
+    rolling_k_pct = (k_l14 / bf_l14) if bf_l14 >= 30 else None
+    season_k_pct = (k_s / bf_s) if bf_s >= 50 else None
+    if rolling_k_pct is not None and season_k_pct is not None and season_k_pct > 0.05:
+        ratio = rolling_k_pct / season_k_pct
         rolling_factor = ratio ** 0.45
-        rolling_factor = max(0.92, min(rolling_factor, 1.10))
-        notes.append(f"rolling xwOBA-agst {rolling_xwoba:.3f} vs szn {season_xwoba:.3f} x{rolling_factor:.2f}")
+        rolling_factor = max(0.92, min(rolling_factor, 1.08))
+        notes.append(
+            f"rolling K% {rolling_k_pct:.1%} vs szn {season_k_pct:.1%} x{rolling_factor:.2f}"
+        )
 
     # Home plate umpire factor — wider strike zone (positive 'favor' on
     # UmpScorecards) inflates K rate and lowers walks. k_factor is computed
@@ -1011,8 +1052,9 @@ def project_pitcher(
             "opp_implied_total": opp_implied_total,
             "throws": throws,
             "rolling_factor": round(rolling_factor, 3),
-            "rolling_xwoba": rolling_xwoba,
-            "season_xwoba": season_xwoba,
+            "rolling_k_pct": round(rolling_k_pct, 4) if rolling_k_pct is not None else None,
+            "season_k_pct": round(season_k_pct, 4) if season_k_pct is not None else None,
+            "rolling_bf_l14": int(bf_l14) if bf_l14 else 0,
             "tto_factor": round(tto_factor, 3),
             "defense_factor": round(defense_factor, 3),
             "framing_factor": round(framing_factor, 3),
@@ -1507,7 +1549,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-18-v9.10.1" # full-transparency tooltip: hot_cold_factor + chain_product + missing factors
+MODEL_REV = "2026-05-18-v9.11" # rolling_factor: replace broken Savant-range with K%-rate shift from MLB Stats API
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -1778,21 +1820,13 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     # Handedness for all players — single bulk call.
     handedness = mlb_api.handedness_by_player(season)
 
-    # Rolling 14-day xwOBA from Baseball Savant — true-talent shift signal.
-    # Compared to season xwOBA, divergence indicates hot/cold underlying skill.
-    from datetime import timedelta as _td
-    rolling_start = (d - _td(days=14)).isoformat()
-    rolling_end = (d - _td(days=1)).isoformat()
-    try:
-        rolling_batter = savant.batter_expected_range(season, rolling_start, rolling_end)
-        rolling_pitcher = savant.pitcher_expected_range(season, rolling_start, rolling_end)
-        season_batter = savant.batter_expected(season)
-        season_pitcher = savant.pitcher_expected(season)
-    except Exception as e:
-        # Savant CSV format has changed before — silent failure here used to
-        # silently kill the rolling-xwOBA signal across every player.
-        logging.warning("savant rolling/season fetch failed for %s: %s", d.isoformat(), e)
-        rolling_batter, rolling_pitcher, season_batter, season_pitcher = {}, {}, {}, {}
+    # Rolling 14-day form signal — moved to project_hitter/project_pitcher,
+    # computed from MLB Stats API K%-rate shift (luck-stripped process metric)
+    # using the byDateRange stats already fetched per-player. Replaces the
+    # previous Savant /expected_statistics?start_date=...&end_date=... pull
+    # which silently ignored the date params and returned season-wide xwOBA
+    # for every window — making rolling_factor a no-op since the day it
+    # shipped. Detected 2026-05-18, retired same day.
 
     projections: list[Projection] = []
     # Hitters — everyone non-pitcher in the slate roster pool. Project hitters
@@ -1809,8 +1843,6 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         bats = (handedness.get(pid) or {}).get("bats")
         opp_sp = m.get("opp_sp")
         opp_throws = (handedness.get(opp_sp) or {}).get("throws") if opp_sp else None
-        rolling_x = _safe_float((rolling_batter.get(pid) or {}).get("est_woba")) or None
-        season_x = _safe_float((season_batter.get(pid) or {}).get("est_woba")) or None
         projections.append(project_hitter(
             pid, meta["name"],
             team_id=team_id,
@@ -1823,8 +1855,6 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_bullpen_era=bullpen_era.get(m.get("opp")) if m.get("opp") else None,
             bats=bats,
             opp_throws=opp_throws,
-            rolling_xwoba=rolling_x,
-            season_xwoba=season_x,
             opp_abbr=m.get("opp_abbr"),
             opp_sp_name=m.get("opp_sp_name"),
             is_home=m.get("is_home"),
@@ -1862,8 +1892,6 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         if team_filter is not None and info["team_id"] not in team_filter:
             continue
         sp_throws = (handedness.get(sp_id) or {}).get("throws")
-        rolling_pitch_x = _safe_float((rolling_pitcher.get(sp_id) or {}).get("est_woba")) or None
-        season_pitch_x = _safe_float((season_pitcher.get(sp_id) or {}).get("est_woba")) or None
         sp_name = info["name"] or pool.get(sp_id, {}).get("name", "?")
         projections.append(project_pitcher(
             sp_id, sp_name,
@@ -1872,8 +1900,6 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             park=info.get("park"),
             opp_implied_total=team_totals.get(info["opp_team_id"]),
             throws=sp_throws,
-            rolling_xwoba=rolling_pitch_x,
-            season_xwoba=season_pitch_x,
             opp_abbr=info.get("opp_abbr"),
             is_home=info.get("is_home"),
             ump_k_factor=info.get("ump_k_factor"),

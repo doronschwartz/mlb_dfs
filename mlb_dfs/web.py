@@ -608,6 +608,35 @@ def list_drafts_route():
     return {"drafts": draft_mod.list_drafts()}
 
 
+@app.get("/api/diag/odds")
+def diag_odds(date: str | None = None):
+    """Surface odds-api state — was the key working? How many lines today?
+    Added 2026-05-18 after the API key returned 401 for an entire day with
+    every Vegas factor silently degrading to ×1.00. Hit this when you see
+    'no Vegas line' on the tooltip for many players."""
+    from . import odds_api
+    d = date or Date.today().isoformat()
+    state = {
+        "configured": odds_api.is_configured(),
+        "date": d,
+        "last_errors": odds_api.last_errors(),
+    }
+    # Live re-fetch team_totals so the user sees the actual current state, not
+    # cached. This burns 1 odds-api credit per hit but is the whole point of
+    # the diag endpoint.
+    try:
+        tt = odds_api.get_team_totals(d) or {}
+        state["team_totals_count"] = len(tt)
+        state["team_totals_sample"] = dict(list(tt.items())[:3])
+    except Exception as e:
+        state["team_totals_error"] = str(e)
+    # Saved k-prop file on disk
+    saved = odds_api.saved_odds(d)
+    state["saved_kprops_count"] = len(saved.get("pitchers", {})) if saved else 0
+    state["saved_kprops_fetched_at"] = saved.get("fetched_at") if saved else None
+    return state
+
+
 @app.get("/api/calibration")
 def calibration(date: str):
     """For the given date, compare each projected player to their actual
