@@ -365,6 +365,17 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.10 — 2026-05-18",
+                "title": "Full-sample re-tune (n=2389, 8 days)",
+                "changes": [
+                    "Pitcher COLD post-matchup ×0.80. Mirror of the v9.7 hitter shrink. 8-day audit (n=43 cold pitchers) showed a -5.9 bias — projecting ~17, scoring ~11 (6.2σ from zero). Multiplicative shrink after the factor chain closes about half the gap without overshooting",
+                    "Pitcher HOT post-matchup ×1.05 added for symmetry (lighter than hitter ×1.07 because pitcher form swings are noisier per-start)",
+                    "ELITE/POOR STATCAST_WEIGHT 0.25 → 0.20. 8-day audit showed ELITE-QoC still over-projected -0.92 (n=463) and POOR-QoC under-projected +0.93 (n=383); symmetric residuals signal the Statcast prior is pulling too hard on both extremes. Lower weight lets rolling carry more residual half",
+                    "Pre-v9.10 full-sample headline: overall bias +0.04, MAE 4.29 on n=2389 — already well-centered. This tune addresses the two residual buckets that haven't moved in three sample windows",
+                    "MODEL_REV → 2026-05-18-v9.10; cache invalidated, projections regenerate",
+                ],
+            },
+            {
                 "version": "v9.8 — 2026-05-17",
                 "title": "Catcher framing on pitcher projection",
                 "changes": [

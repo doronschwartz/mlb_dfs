@@ -495,7 +495,11 @@ def project_hitter(
         if form_tag in ("HOT", "COLD"):
             STATCAST_WEIGHT = 0.15
         elif qoc_tier_pre in ("ELITE", "POOR"):
-            STATCAST_WEIGHT = 0.25
+            # v9.10: 0.25 → 0.20 after 8-day audit (n=2389) showed ELITE still
+            # over-projecting -0.92 and POOR under-projecting +0.93. Both are
+            # symmetric: Statcast prior is pulling ELITE too high and POOR too
+            # low; backing the weight off lets rolling carry the residual half.
+            STATCAST_WEIGHT = 0.20
         else:
             STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
@@ -920,6 +924,23 @@ def project_pitcher(
                 f"K-prop adj {k_prop_adj:+.2f} pts (Vegas {vegas_k_line:.1f} K vs "
                 f"rolling-implied {expected_K:.1f})"
             )
+
+    # Post-matchup HOT/COLD residual correction (v9.10). Mirror of the hitter
+    # rule shipped in v9.7. 8-day audit (n=43 cold pitchers) showed a -5.9
+    # bias — projecting ~17, scoring ~11. The streak signal already feeds the
+    # base via rolling form, but the Statcast/QoC chain still anchors these
+    # toward true talent and the factor pile inflates the result. Applying a
+    # multiplicative shrink/boost AFTER the chain closes ~half of the gap
+    # without overshooting:
+    #   COLD pitcher bias -5.9 (n=43, 6.2σ from zero) → x0.80
+    #   HOT pitcher  bias modest (small n, ~+1 if any) → x1.05 (lighter than
+    #     hitter HOT because pitcher form swings are noisier per start).
+    if form_tag == "COLD":
+        proj *= 0.80
+        notes.append("COLD post-matchup shrink x0.80 (close residual -5.9)")
+    elif form_tag == "HOT":
+        proj *= 1.05
+        notes.append("HOT post-matchup boost x1.05")
 
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
@@ -1472,7 +1493,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-17-v9.9" # +pitcher whiff% percentile in opposing-SP factor (vs hitter)
+MODEL_REV = "2026-05-18-v9.10" # pitcher COLD x0.80 + ELITE/POOR QoC weight 0.25→0.20
 
 
 def _proj_disk_path(key: tuple) -> str:
