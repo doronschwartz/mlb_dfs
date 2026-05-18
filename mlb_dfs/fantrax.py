@@ -41,12 +41,71 @@ def _read_cookie_header_from_disk() -> str:
         return ""
 
 
+def parse_devtools_dump(text: str) -> str:
+    """Convert a Chrome DevTools 'Application > Cookies' table dump into a
+    proper `Cookie:` header value (NAME=VALUE; NAME2=VALUE2; ...).
+
+    The dump format is tab-separated, one cookie per line, with columns
+    roughly: name, value, domain, path, expires, size, HttpOnly?, Secure?,
+    SameSite, ... Chrome inserts ✓ glyphs in the boolean columns.
+
+    Filters to *.fantrax.com domains only — pasting a fresh dump from a
+    logged-in browser usually includes google.com/doubleclick.net cookies
+    too, and those don't belong in the Fantrax session.
+    """
+    parts: list[str] = []
+    seen: set[str] = set()
+    for line in text.splitlines():
+        line = line.rstrip("\r")
+        if not line.strip():
+            continue
+        cells = line.split("\t")
+        if len(cells) < 3:
+            continue
+        name = cells[0].strip()
+        value = cells[1].strip()
+        domain = cells[2].strip().lower()
+        # Cookie name must be a plausible token, and domain must be Fantrax.
+        if not name or not value:
+            continue
+        if "fantrax.com" not in domain:
+            continue
+        if name in seen:
+            continue  # de-dupe (.fantrax.com vs www.fantrax.com can repeat)
+        seen.add(name)
+        parts.append(f"{name}={value}")
+    return "; ".join(parts)
+
+
+def _looks_like_devtools_dump(text: str) -> bool:
+    """Heuristic: multi-line input with tabs in most lines is a DevTools dump.
+    Raw Cookie headers are typically single-line, semicolon-separated."""
+    lines = [l for l in text.splitlines() if l.strip()]
+    if len(lines) < 2:
+        return False
+    tabbed = sum(1 for l in lines if "\t" in l)
+    return tabbed >= max(2, len(lines) // 2)
+
+
 def save_cookie(cookie: str) -> None:
-    """Persist a pasted `Cookie: ...` header value to disk."""
+    """Persist a Fantrax auth cookie to disk. Accepts either format:
+      1. Raw Cookie header value:  'FX_RM=...; JSESSIONID=...; ...'
+      2. Chrome DevTools dump:     tab-separated rows from Application>Cookies
+
+    DevTools dumps are auto-parsed via parse_devtools_dump (filters to
+    *.fantrax.com, drops google/doubleclick noise, dedupes by name)."""
+    text = cookie.strip()
+    if _looks_like_devtools_dump(text):
+        text = parse_devtools_dump(text)
+        if not text:
+            raise ValueError(
+                "Pasted DevTools dump contained no *.fantrax.com cookies — "
+                "make sure you copied from a logged-in fantrax.com tab."
+            )
     os.makedirs(CACHE_DIR, exist_ok=True)
     tmp = f"{_COOKIE_HEADER_FILE}.tmp"
     with open(tmp, "w") as f:
-        f.write(cookie.strip())
+        f.write(text)
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, _COOKIE_HEADER_FILE)
