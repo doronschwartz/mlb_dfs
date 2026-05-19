@@ -365,6 +365,26 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.12 — 2026-05-19",
+                "title": "Tighten pitcher COLD + add ELITE form_tag boost",
+                "changes": [
+                    "Pitcher COLD post-matchup ×0.80 → ×0.70. 9-day audit (n=48, through 5/18) showed bias still -4.81 after v9.10's tightening — projecting 5.95, scoring 1.14. Cold pitchers' xERA/QoC anchors keep inflating them toward season skill they're not showing. ×0.70 closes more of the residual without overcorrecting on pitcher single-start variance",
+                    "ELITE form_tag boost added: hitter ×1.10, pitcher ×1.07. These are the 'always-on' players (consistent across L3/L7/L14 AND L14 ≥ 9 pts/G — Judge/Acuña/Ohtani-class). 9-day audit (n=23) showed +4.87 bias: they score 17.2 vs proj 12.4. The chain pulls toward season mean but their ceiling is sticky-high. Modest boost since sample is small",
+                    "Tooltip's post-matchup row now labels ELITE form correctly",
+                    "Skipped re-tuning ELITE/POOR QoC weights — 5/18's bad ELITE-QoC reading (-3.30) was on a Vegas-dead day so it's not a clean signal; full-sample direction (-0.92→-1.09) is small and within noise",
+                ],
+            },
+            {
+                "version": "v9.11 — 2026-05-18",
+                "title": "rolling_factor: replace broken Savant range with K-rate shift",
+                "changes": [
+                    "DETECTED BUG: rolling_factor was a silent no-op for every player since the day it shipped. We pulled Savant's /expected_statistics?start_date=...&end_date=... but Savant ignores those date params and returns season-wide xwOBA for every window. Probed 11 alternate param names; none filter. MLB Stats API's expectedStatistics group has the same bug",
+                    "REPLACEMENT: rolling K-rate shift from MLB Stats API byDateRange (which DOES honor dates for standard stats). K% is luck-stripped (process not outcome), stabilizes in ~60 PAs, doesn't overlap with pts/G HOT/COLD the way OPS would. Capped ±8%",
+                    "DETECTED BUG: ODDS_API_KEY returned 401 Unauthorized for hours of projections silently going Vegas-less (0 team_totals, 0 K-prop lines for the entire day). Used to be caught silently — now logs loudly and tracks _LAST_ERROR per endpoint",
+                    "New /api/diag/odds endpoint surfaces the key state so a dead key can't burn another day undetected. Caught the v9.11 key rotation in <1min via this",
+                ],
+            },
+            {
                 "version": "v9.10 — 2026-05-18",
                 "title": "Full-sample re-tune (n=2389, 8 days)",
                 "changes": [

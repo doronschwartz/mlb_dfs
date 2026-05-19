@@ -1659,7 +1659,10 @@ function projTooltip(p) {
     if (f == null || Math.abs(f - 1.0) < 0.005) return "";
     const cls = f > 1.0 ? "pos" : "neg";
     const tag = c.form_tag || "";
-    const label = tag === "HOT" ? `HOT post-matchup` : tag === "COLD" ? `COLD post-matchup` : `Post-matchup`;
+    const label = tag === "HOT" ? `HOT post-matchup`
+                 : tag === "COLD" ? `COLD post-matchup`
+                 : tag === "ELITE" ? `ELITE form post-matchup`
+                 : `Post-matchup`;
     return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${f.toFixed(2)}</span></div>`;
   };
   // Reconciliation row: shows the exact factor product (chain × hot_cold) so

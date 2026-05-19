@@ -641,6 +641,16 @@ def project_hitter(
         hot_cold_factor = 0.80
         proj *= hot_cold_factor
         notes.append("COLD post-matchup shrink x0.80 (close residual -0.67)")
+    elif form_tag == "ELITE":
+        # v9.12: 9-day audit (n=23) showed ELITE form_tag (consistent across
+        # L3/L7/L14 AND L14 ≥ 9 pts/G — Judge/Acuña/Ohtani-class always-on
+        # hitters) under-projected by +4.87. They score 17.2 vs proj 12.4.
+        # The chain pulls these toward season mean; their actual ceiling
+        # is sticky-high. Small boost since n=23 is modest; revisit after
+        # n>100 confirms the magnitude.
+        hot_cold_factor = 1.10
+        proj *= hot_cold_factor
+        notes.append("ELITE form post-matchup boost x1.10 (always-on hitter)")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -985,13 +995,27 @@ def project_pitcher(
     #     hitter HOT because pitcher form swings are noisier per start).
     hot_cold_factor = 1.0
     if form_tag == "COLD":
-        hot_cold_factor = 0.80
+        # v9.10 shipped ×0.80; 9-day audit (n=48) showed bias still -4.81
+        # — projecting 5.95, scoring 1.14. The chain inflates COLD pitchers
+        # because xERA/QoC anchors to season skill they're not currently
+        # showing. v9.12 pushes from 0.80 → 0.70 to close more of the
+        # residual. Half-close arithmetic: actual/proj = 1.14/5.95 = 0.19,
+        # halfway = 0.60. 0.70 is conservative — pitcher single-start
+        # variance is high so don't overcorrect.
+        hot_cold_factor = 0.70
         proj *= hot_cold_factor
-        notes.append("COLD post-matchup shrink x0.80 (close residual -5.9)")
+        notes.append("COLD post-matchup shrink x0.70 (close residual -4.81)")
     elif form_tag == "HOT":
         hot_cold_factor = 1.05
         proj *= hot_cold_factor
         notes.append("HOT post-matchup boost x1.05")
+    elif form_tag == "ELITE":
+        # Same rationale as hitter ELITE — always-on pitchers (consistent
+        # L7/L14/season AND ps_l14 ≥ 18 pts/start) under-projected. Small
+        # boost since pitcher single-start variance is high and n is tiny.
+        hot_cold_factor = 1.07
+        proj *= hot_cold_factor
+        notes.append("ELITE form post-matchup boost x1.07 (always-on pitcher)")
 
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
@@ -1549,7 +1573,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-18-v9.11.1" # cache bust after ODDS_API_KEY rotation — Vegas signal flowing again
+MODEL_REV = "2026-05-19-v9.12" # pitcher COLD 0.80→0.70 + ELITE form_tag boost (1.10 hit / 1.07 pit)
 
 
 def _proj_disk_path(key: tuple) -> str:
