@@ -203,6 +203,7 @@ POSITION_OVERRIDES = {
     656941: "OF",   # Kyle Schwarber — primary DH but historically OF, league treats as OF
     667670: "OF",   # Brent Rooker — primary DH, league treats as OF (historically OF)
     670541: "OF",   # Yordan Alvarez — primary DH, league treats as OF
+    592885: "OF",   # Christian Yelich — DH listed, league treats as OF (career OF)
 }
 
 
