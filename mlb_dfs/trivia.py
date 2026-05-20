@@ -39,7 +39,7 @@ _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Bump when generator logic changes so previously-cached easy questions get
 # regenerated under the new (harder) rules. Drafter answers are preserved.
-_GEN_VERSION = 3
+_GEN_VERSION = 4
 
 
 def _path(date: str) -> Path:
@@ -122,9 +122,10 @@ def _q_hr_leader(hitters: list[dict], season: int, rng: random.Random) -> dict |
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: -x[1])
-    # Take top 6 by HR, pick leader + 3 random distractors from positions 1-5.
-    # This keeps all 4 options as legitimate HR threats (top 6 of the slate).
-    top = scored[:6]
+    # v4: widen pool — top 10 by HR, leader + 3 distractors from positions 1-9.
+    # Includes 3rd-5th tier HR guys whose totals are close to the leader's, so
+    # casual eyeballing won't cut it.
+    top = scored[:10]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -160,9 +161,9 @@ def _q_lowest_era(pitchers: list[dict], season: int, rng: random.Random) -> dict
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: x[1])  # lowest ERA first
-    # Take top 5 (lowest ERAs), leader + 3 close-competitor distractors.
-    # All options are sub-4 ERA territory — has to actually know who's been ace.
-    top = scored[:5]
+    # v4: widen pool — top 8 lowest ERAs. Mid-3s ERA guys masquerade as the
+    # #1 — has to know exact values, not just 'who's been good lately'.
+    top = scored[:8]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -191,9 +192,9 @@ def _q_top_team_total(d: Date, rng: random.Random) -> dict | None:
     if len(entries) < 4:
         return None
     entries.sort(key=lambda x: -x[1])
-    # Take top 5 (highest implied totals), leader + 3 close-competitor distractors.
-    # All options are high-total teams — won't be obvious which is #1.
-    top = entries[:5]
+    # v4: top 8 highest implied totals. Implied totals cluster tightly (4.5-
+    # 5.5 R is the typical band) so 8 candidates is a real challenge.
+    top = entries[:8]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -227,9 +228,10 @@ def _q_barrel_king(hitters: list[dict], season: int, rng: random.Random) -> dict
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: -x[1])
-    # Take top 6 by barrel%, leader + 3 close-competitor distractors.
-    # All options are elite barrel-rate guys, ~3-5 point spread from #1 to #6.
-    top = scored[:6]
+    # v4: widen to top 10 barrel%. The elite-barrel band tightens fast at the
+    # top (15+ barrel% guys all cluster) and top-10 brings in 11-13% guys who
+    # are plausible distractors.
+    top = scored[:10]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -250,17 +252,20 @@ def _q_barrel_king(hitters: list[dict], season: int, rng: random.Random) -> dict
 
 
 def _score_numeric(guess: float, target: float, *, abs_tol: float | None = None) -> float:
-    """Continuous partial-credit scorer for numeric_guess questions. Returns
-    a fraction in [0, 1] that the submit handler multiplies by the question's
-    point value. Bands:
-      exact / within 1%:   1.0
-      within 5%:           0.75
-      within 15%:          0.50
-      within 30%:          0.25
-      else:                0.00
-    When `abs_tol` is provided (small-integer targets like 'career HRs = 4'
-    where % bands are silly), use absolute distance: 0 off = 1.0, 1 off = 0.75,
-    2 off = 0.5, 3 off = 0.25."""
+    """Continuous partial-credit scorer for numeric_guess questions. v4 bands
+    are deliberately tight — 'much much harder' per user direction. Casual
+    guess gets you nothing; you need to actually know the stat.
+      exact / within 0.5%:  1.0
+      within 2%:            0.50
+      within 5%:            0.25
+      within 10%:           0.10
+      else:                 0.00
+    When `abs_tol` is provided (small-integer targets), use absolute distance:
+      0 off:  1.0
+      1 off:  0.5
+      2 off:  0.25
+      else:   0.0
+    """
     try:
         g = float(guess); t = float(target)
     except (TypeError, ValueError):
@@ -268,17 +273,16 @@ def _score_numeric(guess: float, target: float, *, abs_tol: float | None = None)
     if abs_tol is not None:
         diff = abs(g - t)
         if diff < 0.5:   return 1.0
-        if diff <= 1:    return 0.75
-        if diff <= 2:    return 0.50
-        if diff <= 3:    return 0.25
+        if diff <= 1:    return 0.50
+        if diff <= 2:    return 0.25
         return 0.0
     if t == 0:
         return 1.0 if g == 0 else 0.0
     pct = abs(g - t) / abs(t)
-    if pct <= 0.01:  return 1.0
-    if pct <= 0.05:  return 0.75
-    if pct <= 0.15:  return 0.50
-    if pct <= 0.30:  return 0.25
+    if pct <= 0.005: return 1.0
+    if pct <= 0.02:  return 0.50
+    if pct <= 0.05:  return 0.25
+    if pct <= 0.10:  return 0.10
     return 0.0
 
 
@@ -404,7 +408,7 @@ def _q_oldest_player(hitters: list[dict], pitchers: list[dict], season: int, rng
     if len(aged) < 4:
         return None
     aged.sort(key=lambda x: -x[1])
-    top = aged[:5]
+    top = aged[:8]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -450,7 +454,7 @@ def _q_highest_career_war_sp(pitchers: list[dict], season: int, rng: random.Rand
     if len(scored) < 4:
         return None
     scored.sort(key=lambda x: -x[1])
-    top = scored[:5]
+    top = scored[:8]
     leader = top[0]
     distractors = rng.sample(top[1:], min(3, len(top) - 1))
     options = [leader] + distractors
@@ -467,6 +471,108 @@ def _q_highest_career_war_sp(pitchers: list[dict], season: int, rng: random.Rand
     }
 
 
+def _q_exact_ops(hitters: list[dict], season: int, rng: random.Random) -> dict | None:
+    """Numeric guess: a regular's 2026 OPS to 3 decimals. With v4 bands you
+    need to be within 2% (~.015 on a .700-.850 OPS) for half credit. Very
+    hard — has to know slash lines, not just 'who's good'."""
+    pool = list(hitters)
+    rng.shuffle(pool)
+    for cand in pool[:25]:
+        try:
+            s = mlb_api.player_stats(cand["player_id"], group="hitting", season=season)
+            ops_str = s.get("ops")
+            pa = int(float(s.get("plateAppearances") or 0))
+            if not ops_str or pa < 100:
+                continue
+            ops = float(ops_str)
+            if ops < 0.500 or ops > 1.200:
+                continue
+            return {
+                "id": "qn",
+                "kind": "numeric_ops",
+                "prompt": f"What's {cand['name']}'s 2026 OPS? (enter as .XXX × 1000 — e.g. .812 = 812)",
+                "input": "number",
+                "correct_value": int(round(ops * 1000)),
+                "explainer": f"{cand['name']} has a .{int(round(ops*1000)):03d} OPS in {pa} PA this season.",
+                "scoring": "percent",
+            }
+        except Exception:
+            continue
+    return None
+
+
+def _q_exact_era(pitchers: list[dict], season: int, rng: random.Random) -> dict | None:
+    """Numeric guess: a starter's 2026 ERA × 100 (so 3.42 ERA → guess 342).
+    Within 2% = 0.5pt — has to actually know the stat. Pitchers tonight only
+    (so it's tied to who's actually pitching, makes it fresher than random)."""
+    pool = list({p["player_id"]: p for p in pitchers}.values())
+    rng.shuffle(pool)
+    for cand in pool[:15]:
+        try:
+            s = mlb_api.player_stats(cand["player_id"], group="pitching", season=season)
+            ip = float(s.get("inningsPitched") or 0)
+            era_str = s.get("era")
+            if not era_str or ip < 15:
+                continue
+            era = float(era_str)
+            if era < 0.50 or era > 9.00:
+                continue
+            return {
+                "id": "qn",
+                "kind": "numeric_era",
+                "prompt": f"What's {cand['name']}'s 2026 ERA? (×100 — e.g. 3.42 ERA = 342)",
+                "input": "number",
+                "correct_value": int(round(era * 100)),
+                "explainer": f"{cand['name']}'s ERA is {era:.2f} over {ip:.1f} IP.",
+                "scoring": "percent",
+            }
+        except Exception:
+            continue
+    return None
+
+
+def _q_combined_career_hrs(hitters: list[dict], season: int, rng: random.Random) -> dict | None:
+    """Numeric guess: combined career HRs for 3 random vets on the slate.
+    Mental math + memory — adding three players' totals is genuinely hard
+    when you have to do it without looking. Within 2% = half credit."""
+    pool = list(hitters)
+    rng.shuffle(pool)
+    selected: list[tuple[dict, int]] = []
+    for cand in pool[:40]:
+        if len(selected) >= 3:
+            break
+        try:
+            data = mlb_api._get(
+                f"/people/{cand['player_id']}/stats",
+                params={"stats": "career", "group": "hitting"},
+            )
+            splits = []
+            for grp in data.get("stats", []) or []:
+                splits.extend(grp.get("splits", []) or [])
+            if not splits:
+                continue
+            hrs = int(float((splits[0].get("stat") or {}).get("homeRuns") or 0))
+            games = int(float((splits[0].get("stat") or {}).get("gamesPlayed") or 0))
+            if hrs >= 60 and games >= 300:
+                selected.append((cand, hrs))
+        except Exception:
+            continue
+    if len(selected) < 3:
+        return None
+    total = sum(h for _, h in selected)
+    names = ", ".join(c["name"] for c, _ in selected)
+    breakdown = ", ".join(f"{c['name']} {h}" for c, h in selected)
+    return {
+        "id": "qn",
+        "kind": "numeric_combined_career_hrs",
+        "prompt": f"Combined CAREER HRs for {names}?",
+        "input": "number",
+        "correct_value": total,
+        "explainer": f"Total: {total} ({breakdown}).",
+        "scoring": "percent",
+    }
+
+
 # Generator registry — picked at random each day so the question kinds vary.
 _GENERATORS = [
     ("hr_leader", _q_hr_leader),
@@ -476,6 +582,9 @@ _GENERATORS = [
     ("numeric_career_hrs", _q_career_hrs),
     ("numeric_career_k", _q_career_strikeouts),
     ("numeric_slate_hr_total", _q_slate_total_hrs_season),
+    ("numeric_ops", _q_exact_ops),
+    ("numeric_era", _q_exact_era),
+    ("numeric_combined_career_hrs", _q_combined_career_hrs),
     ("oldest_on_slate", _q_oldest_player),
     ("career_wins_sp", _q_highest_career_war_sp),
 ]
@@ -487,29 +596,35 @@ def _generate(date_str: str) -> dict:
     rng = random.Random(date_str)  # deterministic per date
     hitters, pitchers = _slate_players(d)
     questions: list[dict] = []
-    # v3 shape: aim for 4 questions, mixing kinds. ALWAYS try to include
-    # 1 numeric-guess (partial credit, "close counts") for the fun + skill
-    # angle. Cap MC questions at 3 so the quiz doesn't feel same-y.
-    # First slot: numeric guess — try each numeric generator in random order.
+    # v4 shape: 5 questions/day with TWO numeric-guess (tight bands now —
+    # 0.5%/2%/5%/10%). Numeric kinds rotate so users see fresh angles —
+    # exact OPS, exact ERA, combined career HRs, slate-total HRs, etc.
     numeric_pool = [
         lambda: _q_career_hrs(hitters, season, rng),
         lambda: _q_career_strikeouts(pitchers, season, rng),
         lambda: _q_slate_total_hrs_season(hitters, season, rng),
+        lambda: _q_exact_ops(hitters, season, rng),
+        lambda: _q_exact_era(pitchers, season, rng),
+        lambda: _q_combined_career_hrs(hitters, season, rng),
     ]
     rng.shuffle(numeric_pool)
+    seen_numeric_kinds: set[str] = set()
     for gen in numeric_pool:
+        if len(questions) >= 2:
+            break
         try:
             q = gen()
-            if q:
+            if q and q.get("kind") not in seen_numeric_kinds:
+                seen_numeric_kinds.add(q["kind"])
                 questions.append(q)
-                break
         except Exception as e:
             logging.warning("trivia numeric generator failed: %s", e)
-    # Always include the Vegas team-total MC (cheap, reliable, daily variety).
+    # Always try to include the Vegas team-total MC (cheap, reliable).
     q_tt = _q_top_team_total(d, rng)
     if q_tt:
         questions.append(q_tt)
-    # Round out with 2-3 more MC questions from the wider pool.
+    # Round out with 2-3 more MC questions from the wider pool. Top-8/10
+    # distractor windows make these meaningfully harder than v3.
     mc_pool = [
         lambda: _q_hr_leader(hitters, season, rng),
         lambda: _q_lowest_era(pitchers, season, rng),
@@ -518,12 +633,14 @@ def _generate(date_str: str) -> dict:
         lambda: _q_highest_career_war_sp(pitchers, season, rng),
     ]
     rng.shuffle(mc_pool)
+    seen_mc_kinds: set[str] = set()
     for gen in mc_pool:
-        if len(questions) >= 4:
+        if len(questions) >= 5:
             break
         try:
             q = gen()
-            if q:
+            if q and q.get("kind") not in seen_mc_kinds:
+                seen_mc_kinds.add(q["kind"])
                 questions.append(q)
         except Exception as e:
             logging.warning("trivia mc generator failed: %s", e)
