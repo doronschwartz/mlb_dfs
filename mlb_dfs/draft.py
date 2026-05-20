@@ -486,9 +486,22 @@ def _slot_priority(slot: str) -> int:
     return {"SP": 0, "IF": 1, "OF": 2, "UTIL": 3, "BN": 4}.get(slot, 5)
 
 
-def _slot_eligible(slot: str, projection: Projection) -> bool:
+def _slot_eligible(slot: str, projection) -> bool:
     pos = (projection.position or "").upper()
     role = projection.role
+    # Re-resolve via live override rules when we have a player_id. Picks
+    # taken BEFORE an override was added (manual entry OR auto-detect via
+    # career fielding) carry the stale stored position. Without this
+    # re-check, a Yandy-class player stuck in UTIL can't be moved to IF
+    # even after we've added IF eligibility to the rules. Cached lookup,
+    # cheap for non-DH (early-returns). `resolve_position` is in mlb_api
+    # — imported here to avoid a top-level circular import.
+    pid = getattr(projection, "player_id", None)
+    if pid is not None:
+        from . import mlb_api as _mlb
+        resolved = _mlb.resolve_position(pid, pos)
+        if resolved:
+            pos = resolved.upper()
     if slot == "SP":
         return role == "pitcher"
     if role == "pitcher":
