@@ -204,7 +204,90 @@ POSITION_OVERRIDES = {
     667670: "OF",   # Brent Rooker — primary DH, league treats as OF (historically OF)
     670541: "OF",   # Yordan Alvarez — primary DH, league treats as OF
     592885: "OF",   # Christian Yelich — DH listed, league treats as OF (career OF)
+    650490: "IF",   # Yandy Díaz — DH listed, career 1B (398g) + 3B (290g) = IF
 }
+
+
+# Auto-detect override for DH-listed players: look at career fielding games,
+# pick the non-DH position with the most games. Caches 7d on disk — career
+# fielding totals change slowly. Manual POSITION_OVERRIDES still wins (they
+# capture league judgement calls the heuristic can't make, e.g. a player who
+# has more career DH games than fielding games but the league still wants OF).
+from . import disk_cache as _disk_cache  # noqa: E402
+
+_IF_POSITIONS = {"1B", "2B", "3B", "SS", "C"}
+_OF_POSITIONS = {"LF", "CF", "RF", "OF"}
+
+
+@_disk_cache.cached_disk(7 * 86400, namespace="mlb_career_field")
+def _career_fielding_games(pid: int) -> dict[str, int]:
+    """{position_abbr: career games at that position} for a player. Empty
+    dict if anything goes wrong. Cached 7d — career fielding moves slowly
+    and an extra week's lag won't matter for slot eligibility."""
+    try:
+        data = _get(
+            f"/people/{pid}",
+            params={"hydrate": "stats(group=fielding,type=career)"},
+        )
+    except Exception:
+        return {}
+    out: dict[str, int] = {}
+    for person in data.get("people", []) or []:
+        for grp in person.get("stats", []) or []:
+            for sp in grp.get("splits", []) or []:
+                pos = ((sp.get("position") or {}).get("abbreviation") or "").upper()
+                if not pos:
+                    continue
+                try:
+                    g = int(sp.get("stat", {}).get("games", 0) or 0)
+                except (TypeError, ValueError):
+                    g = 0
+                if g > 0:
+                    out[pos] = out.get(pos, 0) + g
+    return out
+
+
+def auto_dh_position(pid: int, mlb_position: str | None) -> str | None:
+    """If MLB lists this player as DH, look at career fielding and return
+    'IF' / 'OF' if they have ≥50 career games at infield/outfield positions.
+    Falls back to None — the caller keeps mlb_position (probably DH).
+    Returns None for non-DH players so the existing primaryPosition takes
+    precedence (DH-only players' historical position would otherwise mask
+    a current real position change). Min 50 games avoids flagging cameo
+    appearances (Yandy's 3 LF games shouldn't make him OF-eligible)."""
+    if (mlb_position or "").upper() != "DH":
+        return None
+    games = _career_fielding_games(pid)
+    if not games:
+        return None
+    # Best non-DH position by games played; require ≥50 to be meaningful
+    best_pos, best_g = None, 0
+    for pos, g in games.items():
+        if pos == "DH":
+            continue
+        if g > best_g:
+            best_pos, best_g = pos, g
+    if best_pos is None or best_g < 50:
+        return None
+    if best_pos in _IF_POSITIONS or best_pos == "IF":
+        return "IF"
+    if best_pos in _OF_POSITIONS:
+        return "OF"
+    return None
+
+
+def resolve_position(pid: int, mlb_position: str | None) -> str | None:
+    """Single entry point for slot-eligibility position resolution:
+      1. Manual POSITION_OVERRIDES (league judgement calls)
+      2. Auto-detect from career fielding when MLB lists DH
+      3. Fall back to whatever MLB returned
+    """
+    if pid in POSITION_OVERRIDES:
+        return POSITION_OVERRIDES[pid]
+    auto = auto_dh_position(pid, mlb_position)
+    if auto:
+        return auto
+    return mlb_position
 
 
 _HANDEDNESS_CACHE: dict[int, tuple[float, dict]] = {}
@@ -277,7 +360,7 @@ def players_in_slate(d: Date) -> dict[int, dict]:
             pool[pid] = {
                 "id": pid,
                 "name": person.get("fullName"),
-                "position": POSITION_OVERRIDES.get(pid, pos),
+                "position": resolve_position(pid, pos),
                 "positionType": (r.get("position") or {}).get("type"),
                 "teamId": tid,
             }
@@ -293,7 +376,7 @@ def players_in_slate(d: Date) -> dict[int, dict]:
         pool[pid] = {
             "id": pid,
             "name": add.get("name", f"player_{pid}"),
-            "position": POSITION_OVERRIDES.get(pid, pos),
+            "position": resolve_position(pid, pos),
             "positionType": "Pitcher" if pos in ("SP","RP","P") else "Hitter",
             "teamId": tid,
         }
