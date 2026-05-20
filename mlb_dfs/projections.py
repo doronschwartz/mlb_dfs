@@ -1611,17 +1611,47 @@ def _proj_from_dict(d: dict) -> "Projection":
     )
 
 
+def _schedule_sp_fingerprint(d: Date) -> str:
+    """Fingerprint of today's probable pitchers — used to invalidate the
+    projection cache when MLB updates probableStarter mid-day. Without this,
+    a 6h cache could hold a Matz-less projection for hours after MLB lists
+    him as the Rays' starter, and TB hitters' opp_sp signal stays wrong.
+    Cheap hash of (gamePk, home_sp_id, away_sp_id) tuples."""
+    try:
+        games = mlb_api.schedule(d)
+    except Exception:
+        return ""
+    sigs = []
+    for g in games:
+        gpk = g.get("gamePk")
+        if gpk is None:
+            continue
+        teams = g.get("teams") or {}
+        hsp = ((teams.get("home") or {}).get("probablePitcher") or {}).get("id")
+        asp = ((teams.get("away") or {}).get("probablePitcher") or {}).get("id")
+        sigs.append((gpk, hsp, asp))
+    sigs.sort()
+    import hashlib
+    return hashlib.md5(repr(sigs).encode()).hexdigest()[:16]
+
+
 def project_slate_cached(
     d: Date, *, team_filter: set[int] | None = None, force_refresh: bool = False
 ) -> list["Projection"]:
     """Memoized per date (full slate). team_filter is applied downstream so
     projections-tab and draft-tab share one cache entry — first hit pays the
     ~50 MLB API calls, the rest are instant. 6h TTL, persisted to disk so
-    redeploys don't force a recompute."""
+    redeploys don't force a recompute.
+
+    The cache also tracks a probable-pitcher fingerprint: when MLB updates a
+    probable starter (Matz announced 2h after our cache was built, e.g.),
+    fingerprint flips and the cache is forced to recompute. Without this,
+    the slate stays missing the new SP until the 6h TTL expires."""
     key = (d.isoformat(), None)
     now = time.time()
     full: list["Projection"] | None = None
     if not force_refresh:
+        live_fp = _schedule_sp_fingerprint(d)
         cached = _PROJ_CACHE.get(key)
         if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
             full = cached[1]
@@ -1636,8 +1666,17 @@ def project_slate_cached(
                     # tune model_rev=v2 then read back projections written
                     # under v1 from disk. Force a recompute on stale rev.
                     if isinstance(raw, dict) and raw.get("model_rev") == MODEL_REV:
-                        full = [_proj_from_dict(x) for x in raw.get("projections", [])]
-                        _PROJ_CACHE[key] = (os.path.getmtime(path), full)
+                        # Also reject when the probable-SP fingerprint has
+                        # changed since the cache was written — a new
+                        # probable pitcher should immediately appear.
+                        if live_fp and raw.get("sched_fp") and raw.get("sched_fp") != live_fp:
+                            logging.info(
+                                "projection cache for %s busted: probable-SP fingerprint changed",
+                                d.isoformat(),
+                            )
+                        else:
+                            full = [_proj_from_dict(x) for x in raw.get("projections", [])]
+                            _PROJ_CACHE[key] = (os.path.getmtime(path), full)
             except Exception:
                 full = None
     if full is None:
@@ -1663,6 +1702,7 @@ def project_slate_cached(
                     tmp = path + ".tmp"
                     payload = {
                         "model_rev": MODEL_REV,
+                        "sched_fp": _schedule_sp_fingerprint(d),
                         "projections": [_proj_to_dict(p) for p in full],
                     }
                     with open(tmp, "w") as f:
