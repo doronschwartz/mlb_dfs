@@ -363,6 +363,28 @@ function renderTrivia() {
     const picked = triviaState.picked[q.id];
     const correct = triviaState.lastResult && triviaState.lastResult.correct ? triviaState.lastResult.correct[q.id] : null;
     const explainer = triviaState.lastResult && triviaState.lastResult.explainers ? triviaState.lastResult.explainers[q.id] : null;
+    const perQ = triviaState.lastResult && triviaState.lastResult.per_q ? triviaState.lastResult.per_q[q.id] : null;
+    // Numeric guess question (v3): single number input, partial credit on submit.
+    const isNumeric = q.input === "number" || (q.kind || "").startsWith("numeric_");
+    if (isNumeric) {
+      const userVal = picked;
+      let resultLine = "";
+      if (triviaState.submitted) {
+        const pct = perQ != null ? Math.round(perQ * 100) : 0;
+        const cls = pct >= 100 ? "correct" : pct >= 50 ? "picked" : "wrong";
+        resultLine = `<div class="trivia-numeric-result ${cls}">You: ${userVal ?? "—"} · Actual: <strong>${correct}</strong> · ${pct}% credit</div>`;
+      }
+      return `<div class="trivia-q">
+        <div class="trivia-q-prompt">${i+1}. ${q.prompt} <span class="muted" style="font-size:11px;">(close counts — partial credit)</span></div>
+        <div class="trivia-numeric-wrap">
+          <input type="number" inputmode="numeric" class="trivia-numeric" data-qid="${q.id}"
+                 value="${userVal ?? ""}" ${triviaState.submitted ? "disabled" : ""}
+                 placeholder="Enter your best guess">
+        </div>
+        ${resultLine}
+        ${explainer ? `<div class="trivia-explainer">${explainer}</div>` : ""}
+      </div>`;
+    }
     return `<div class="trivia-q">
       <div class="trivia-q-prompt">${i+1}. ${q.prompt}</div>
       <div class="trivia-options">
@@ -389,19 +411,47 @@ function renderTrivia() {
   const scoreLine = document.createElement("div");
   scoreLine.className = "trivia-submit";
   if (triviaState.submitted && triviaState.lastResult) {
-    scoreLine.innerHTML = `<div class="trivia-score">${drafter} scored ${triviaState.lastResult.score}/${triviaState.lastResult.total}</div>`;
+    // Score may be fractional thanks to numeric-guess partial credit.
+    const sc = Number(triviaState.lastResult.score || 0);
+    const tot = triviaState.lastResult.total || qs.length;
+    const scStr = Math.abs(sc - Math.round(sc)) < 0.01 ? sc.toFixed(0) : sc.toFixed(2);
+    scoreLine.innerHTML = `<div class="trivia-score">${drafter} scored ${scStr}/${tot}</div>`;
   } else {
-    const allPicked = qs.every(q => triviaState.picked[q.id] != null);
+    // Allow submit when every question has SOME answer (numeric: a number, MC: an index).
+    const allPicked = qs.every(q => {
+      const v = triviaState.picked[q.id];
+      if (v == null || v === "") return false;
+      return true;
+    });
     scoreLine.innerHTML = `<button id="trivia-submit-btn" class="btn-pick" ${allPicked ? "" : "disabled"}>Submit answers</button>`;
   }
   out.appendChild(scoreLine);
-  // Wire option clicks
+  // Wire option clicks (MC questions)
   out.querySelectorAll(".trivia-option").forEach(btn => {
     btn.addEventListener("click", () => {
       if (triviaState.submitted) return;
       const qid = btn.dataset.qid, idx = parseInt(btn.dataset.idx, 10);
       triviaState.picked[qid] = idx;
       renderTrivia();
+    });
+  });
+  // Wire numeric input changes — no re-render on every keystroke (would
+  // re-focus and lose the cursor), just sync state on input.
+  out.querySelectorAll(".trivia-numeric").forEach(inp => {
+    inp.addEventListener("input", () => {
+      if (triviaState.submitted) return;
+      const qid = inp.dataset.qid;
+      const raw = inp.value.trim();
+      triviaState.picked[qid] = raw === "" ? null : Number(raw);
+      // Just re-enable/disable the submit button — no full re-render.
+      const sub = document.getElementById("trivia-submit-btn");
+      if (sub) {
+        const allPicked = qs.every(q => {
+          const v = triviaState.picked[q.id];
+          return v != null && v !== "";
+        });
+        sub.disabled = !allPicked;
+      }
     });
   });
   // Wire submit
