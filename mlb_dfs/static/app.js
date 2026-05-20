@@ -1678,7 +1678,18 @@ function projTooltip(p) {
     if (c.base_pg != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/G</span><span class="bk-total">${c.base_pg.toFixed(2)}</span></div>`);
     // All chain factors render ALWAYS (×1.00 shows as "neutral") so the user
     // can audit every step and the displayed math reconciles to the final.
-    if (c.sp_factor != null) rows.push(factorRow2Always("Opp SP", c.sp_factor, "", "no signal"));
+    // Opp SP factor: when Vegas implied total is set, sp_factor is reset to
+    // 1.0 in the chain to avoid double-counting (Vegas already prices in the
+    // opposing SP). Show the RAW computed value with an "(absorbed by Vegas)"
+    // annotation so the tooltip math is auditable — vs the old behavior of
+    // showing ×1.00 here and contradicting it with the note line.
+    if (c.sp_absorbed_by_vegas && c.sp_factor_raw != null && Math.abs(c.sp_factor_raw - 1.0) >= 0.005) {
+      const f = c.sp_factor_raw;
+      const cls = f > 1.0 ? "pos" : "neg";
+      rows.push(`<div class="bk-row"><span class="bk-label">Opp SP</span><span class="bk-total ${cls}">×${f.toFixed(2)} <span class="muted">(folded into Vegas)</span></span></div>`);
+    } else if (c.sp_factor != null) {
+      rows.push(factorRow2Always("Opp SP", c.sp_factor, "", "no signal"));
+    }
     if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
     rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
     rows.push(factorRow2Always("Vegas implied", c.vegas_factor, c.implied_team_total ? `${c.implied_team_total.toFixed(1)} R` : "", "no Vegas line"));
@@ -1697,7 +1708,14 @@ function projTooltip(p) {
     if (c.base_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Base 14d pts/start</span><span class="bk-total">${c.base_per_start.toFixed(2)}</span></div>`);
     if (c.is_opener) rows.push(`<div class="bk-row"><span class="bk-label">Role</span><span class="bk-total neg">OPENER (${c.ip_per_start ?? "?"} IP/start)</span></div>`);
     else if (c.ip_per_start != null) rows.push(`<div class="bk-row"><span class="bk-label">Avg IP/start</span><span class="bk-total muted">${c.ip_per_start.toFixed(1)}</span></div>`);
-    if (c.opp_factor != null) rows.push(factorRow2Always("Opp run-env", c.opp_factor, "", "neutral offense"));
+    // Opp run-env factor: same Vegas-supersedes pattern as hitter sp_factor.
+    if (c.opp_absorbed_by_vegas && c.opp_factor_raw != null && Math.abs(c.opp_factor_raw - 1.0) >= 0.005) {
+      const f = c.opp_factor_raw;
+      const cls = f > 1.0 ? "pos" : "neg";
+      rows.push(`<div class="bk-row"><span class="bk-label">Opp run-env</span><span class="bk-total ${cls}">×${f.toFixed(2)} <span class="muted">(folded into Vegas)</span></span></div>`);
+    } else if (c.opp_factor != null) {
+      rows.push(factorRow2Always("Opp run-env", c.opp_factor, "", "neutral offense"));
+    }
     if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
     rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
     rows.push(factorRow2Always("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : "", "no Vegas line"));

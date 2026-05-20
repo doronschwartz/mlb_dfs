@@ -540,11 +540,14 @@ def project_hitter(
     # the market's full pricing of opposing pitcher quality, lineup, park,
     # weather, umpire, etc. Falls back to SP-only factor when no odds posted.
     vegas_factor = 1.0
+    sp_factor_raw = sp_factor   # preserve audit trail for tooltip even when Vegas overrides
+    sp_absorbed_by_vegas = False
     if implied_team_total and implied_team_total > 0:
         vegas_factor = (implied_team_total / 4.5) ** 0.55
         vegas_factor = max(0.82, min(vegas_factor, 1.22))
         notes.append(f"Vegas implied {implied_team_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
         sp_factor = 1.0   # Vegas supersedes — don't double-count
+        sp_absorbed_by_vegas = True
     # If no Vegas, sp_factor stays as computed above and is the matchup signal.
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
@@ -699,6 +702,8 @@ def project_hitter(
         components={
             "base_pg": round(base_pg, 2),
             "sp_factor": round(sp_factor, 3),
+            "sp_factor_raw": round(sp_factor_raw, 3),
+            "sp_absorbed_by_vegas": sp_absorbed_by_vegas,
             "qoc_factor": round(qoc_factor, 3),
             "qoc_tier": qoc_tier,
             "form_tag": form_tag,
@@ -864,11 +869,14 @@ def project_pitcher(
     # Same logic as hitters: if Vegas exists, it's the comprehensive market
     # signal. Drop opp_factor (opponent runs/game) which is just a noisier proxy.
     vegas_factor = 1.0
+    opp_factor_raw = opp_factor   # preserve audit trail for tooltip
+    opp_absorbed_by_vegas = False
     if opp_implied_total and opp_implied_total > 0:
         vegas_factor = (4.5 / opp_implied_total) ** 0.55
         vegas_factor = max(0.82, min(vegas_factor, 1.22))
         notes.append(f"opp Vegas {opp_implied_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
         opp_factor = 1.0   # Vegas supersedes
+        opp_absorbed_by_vegas = True
 
     # Rolling K-rate factor — pitcher's K% shift over last 14 days vs season.
     # Higher rolling K% = pitcher dealing → boost. Lower = slipping → shrink.
@@ -1053,6 +1061,8 @@ def project_pitcher(
         components={
             "base_per_start": round(base, 2),
             "opp_factor": round(opp_factor, 3),
+            "opp_factor_raw": round(opp_factor_raw, 3),
+            "opp_absorbed_by_vegas": opp_absorbed_by_vegas,
             "qoc_factor": round(qoc_factor, 3),
             "qoc_tier": qoc_tier,
             "form_tag": form_tag,
@@ -1573,7 +1583,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-19-v9.12" # pitcher COLD 0.80→0.70 + ELITE form_tag boost (1.10 hit / 1.07 pit)
+MODEL_REV = "2026-05-20-v9.12.1" # surface sp_factor_raw / opp_factor_raw so Vegas-absorbed values appear in tooltip
 
 
 def _proj_disk_path(key: tuple) -> str:
