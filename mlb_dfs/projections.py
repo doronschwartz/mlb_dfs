@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
 
-from . import mlb_api, odds_api, savant, weather as weather_mod
+from . import injuries, mlb_api, odds_api, savant, weather as weather_mod
 from .scoring import HITTER_POINTS, PITCHER_POINTS
 
 # Team ID → abbr (small static map; MLB IDs are stable)
@@ -746,6 +746,7 @@ def project_hitter(
             "opp_abbr": opp_abbr,
             "opp_sp_name": opp_sp_name,
             "is_home": is_home,
+            "injury": injuries.lookup(name),
         },
         notes=notes,
     )
@@ -1108,6 +1109,7 @@ def project_pitcher(
             "rolling_cats": rolling_cats,
             "opp_abbr": opp_abbr,
             "is_home": is_home,
+            "injury": injuries.lookup(name),
         },
         notes=notes,
     )
@@ -1583,7 +1585,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-20-v9.12.1" # surface sp_factor_raw / opp_factor_raw so Vegas-absorbed values appear in tooltip
+MODEL_REV = "2026-05-20-v9.13" # ESPN injury feed: D2D + IL flags surfaced for every player
 
 
 def _proj_disk_path(key: tuple) -> str:

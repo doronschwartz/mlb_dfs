@@ -109,6 +109,25 @@ function lineupBadge(status) {
   return "";
 }
 
+// Injury badge — surfaces ESPN injury-report data attached to projections.
+// Day-To-Day (still active, banged up) and IL placements are both flagged so
+// users see at a glance if a player has a recent injury concern. Hover gives
+// the type + return date + news comment.
+function injuryBadge(inj) {
+  if (!inj || !inj.status) return "";
+  const s = (inj.status || "").toLowerCase();
+  let label, cls;
+  if (s.includes("day-to-day")) { label = "D2D"; cls = "d2d"; }
+  else if (s.includes("10-day")) { label = "10-IL"; cls = "il"; }
+  else if (s.includes("15-day")) { label = "15-IL"; cls = "il"; }
+  else if (s.includes("60-day")) { label = "60-IL"; cls = "il"; }
+  else return "";
+  const detail = [inj.type, inj.return_date ? `back ~${inj.return_date}` : null]
+    .filter(Boolean).join(" · ");
+  const tip = `${inj.status}${detail ? " — " + detail : ""}${inj.comment ? "\n\n" + inj.comment : ""}`;
+  return `<span class="injury-tag ${cls}" title="${escapeAttr(tip)}">🤕 ${label}</span>`;
+}
+
 function buildRosterGrid(picks) {
   const byType = { IF: [], OF: [], UTIL: [], BN: [], SP: [] };
   picks.forEach((p) => byType[p.slot]?.push(p));
@@ -1744,7 +1763,16 @@ function projTooltip(p) {
   }
   // Drop empty strings (factors at 1.0 in the legacy hide-on-neutral path).
   for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === "") rows.splice(i, 1);
-  const pitfalls = (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
+  // Injury report row at the top of pitfalls — louder than a plain pitfall
+  // because a D2D/IL flag changes the EV materially (Yandy on a 0.05 zeroed
+  // projection if he's scratched, e.g.) and we want the user to see it.
+  const inj = c.injury;
+  const injHtml = inj && inj.status ? (() => {
+    const det = [inj.type, inj.return_date ? `back ~${inj.return_date}` : null].filter(Boolean).join(" · ");
+    const cmt = inj.comment ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${escapeAttr(inj.comment).slice(0, 200)}</div>` : "";
+    return `<div class="bk-row bk-pitfall" style="flex-direction:column;align-items:stretch;">🤕 <b>${inj.status}</b>${det ? " — " + det : ""}${cmt}</div>`;
+  })() : "";
+  const pitfalls = injHtml + (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
   const formB = formBadge(c.form_tag);
   return `<div class="breakdown-tooltip">
@@ -1828,7 +1856,7 @@ function renderProjectionsTable() {
       (p) => `
       <tr class="${p.role} score-row">
         <td>${p.projected_points.toFixed(2)}</td>
-        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
+        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)} ${injuryBadge((p.components||{}).injury)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
         <td>${p.position ?? "-"}</td>
         <td>${p.role}</td>
         <td class="notes">${(p.notes || []).join(" · ")}</td>
@@ -2189,7 +2217,7 @@ async function renderDraft(prefetchedData) {
         <div class="slot-label">${label}</div>
         <div class="slot-body">
           <div class="slot-line1">
-            <div class="slot-name player-cell"><span class="name-trigger">${pick.name} ${formBadge((pick.components||{}).form_tag)}</span>${_oppFromComponents(pick)}${projTooltip(pick)}</div>
+            <div class="slot-name player-cell"><span class="name-trigger">${pick.name} ${formBadge((pick.components||{}).form_tag)} ${injuryBadge((pick.components||{}).injury)}</span>${_oppFromComponents(pick)}${projTooltip(pick)}</div>
             <span class="slot-proj">${pick.projected.toFixed(1)}</span>
           </div>
           <div class="slot-line2">${meta.join("")}</div>
@@ -2270,7 +2298,7 @@ function renderDraftedTable(data) {
       <tr class="${p.role || ""} score-row">
         <td>${p.drafter}</td>
         <td>${p.slot}</td>
-        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
+        <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)} ${injuryBadge((p.components||{}).injury)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
         <td>${(p.projected ?? 0).toFixed(2)}</td>
         <td>${p.position ?? "-"}</td>
         <td class="muted" style="font-size:11px;">${stat}</td>
@@ -2732,7 +2760,7 @@ function drawPool() {
         <tr class="${p.role} score-row">
           <td>${p.projected_points.toFixed(2)}</td>
           <td>${dynCell}</td>
-          <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
+          <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)} ${injuryBadge((p.components||{}).injury)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
           <td>${p.position ?? "-"}</td>
           <td class="pool-status">${lineupBadge(p.lineup_status)}</td>
           <td>${p.role}</td>

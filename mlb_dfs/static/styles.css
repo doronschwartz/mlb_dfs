@@ -295,6 +295,13 @@ tr.benched-out td:nth-child(2), tr.benched-out td:nth-child(4) { text-decoration
 .lineup-tag.in    { background: rgba(52,211,153,0.18); color: var(--accent-2); }
 .lineup-tag.out   { background: rgba(239,68,68,0.18);  color: var(--bad); }
 .lineup-tag.pending { background: rgba(245,158,11,0.18); color: var(--warn); }
+.injury-tag {
+  display: inline-block; border-radius: 8px; padding: 0 6px;
+  font-size: 10px; margin-left: 4px; vertical-align: middle; font-weight: 600;
+  cursor: help;
+}
+.injury-tag.d2d { background: rgba(245,158,11,0.22); color: var(--warn); }
+.injury-tag.il  { background: rgba(239,68,68,0.22);  color: var(--bad); }
 .promoted-tag {
   display: inline-block; background: rgba(52,211,153,0.22); color: var(--accent-2);
   border-radius: 8px; padding: 0 6px; font-size: 10px; margin-left: 4px;
