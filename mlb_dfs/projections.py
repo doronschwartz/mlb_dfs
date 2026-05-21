@@ -494,10 +494,12 @@ def project_hitter(
             STATCAST_WEIGHT = 0.15
         elif qoc_tier_pre in ("ELITE", "POOR"):
             # v9.10: 0.25 → 0.20 after 8-day audit (n=2389) showed ELITE still
-            # over-projecting -0.92 and POOR under-projecting +0.93. Both are
-            # symmetric: Statcast prior is pulling ELITE too high and POOR too
-            # low; backing the weight off lets rolling carry the residual half.
-            STATCAST_WEIGHT = 0.20
+            # over-projecting -0.92 and POOR under-projecting +0.93.
+            # v9.14: 0.20 → 0.15 after 11-day audit (n=3357) showed both still
+            # off in the same direction (ELITE -0.87, POOR +0.72). Same logic
+            # — prior > rolling for ELITE, prior < rolling for POOR, so less
+            # prior weight closes both. Keep stepping until residuals tighten.
+            STATCAST_WEIGHT = 0.15
         else:
             STATCAST_WEIGHT = 0.40
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
@@ -654,6 +656,15 @@ def project_hitter(
         hot_cold_factor = 1.10
         proj *= hot_cold_factor
         notes.append("ELITE form post-matchup boost x1.10 (always-on hitter)")
+    elif form_tag == "STEADY":
+        # v9.14: STEADY form_tag (consistent L3/L7/L14 AND L14 ≥ 7.5 pts/G but
+        # below the ELITE 9.0 cutoff) was under-projected by +2.12 across 67
+        # hitters cumulative. Smaller magnitude than ELITE so a lighter boost.
+        # Same logic — chain regresses toward mean, but a steady 8 pts/G
+        # producer keeps producing close to that line.
+        hot_cold_factor = 1.05
+        proj *= hot_cold_factor
+        notes.append("STEADY form post-matchup boost x1.05")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1004,16 +1015,14 @@ def project_pitcher(
     #     hitter HOT because pitcher form swings are noisier per start).
     hot_cold_factor = 1.0
     if form_tag == "COLD":
-        # v9.10 shipped ×0.80; 9-day audit (n=48) showed bias still -4.81
-        # — projecting 5.95, scoring 1.14. The chain inflates COLD pitchers
-        # because xERA/QoC anchors to season skill they're not currently
-        # showing. v9.12 pushes from 0.80 → 0.70 to close more of the
-        # residual. Half-close arithmetic: actual/proj = 1.14/5.95 = 0.19,
-        # halfway = 0.60. 0.70 is conservative — pitcher single-start
-        # variance is high so don't overcorrect.
-        hot_cold_factor = 0.70
+        # v9.10 shipped ×0.80; v9.12 → ×0.70 closed ~0.8 pts. 11-day audit
+        # (n=65) shows residual still -4.04 — projecting 5.28, scoring 1.24.
+        # v9.14: push to ×0.65. Casts the COLD bucket at ~3.4 pts mean
+        # projection, close to the actual 1.24 ceiling. Each step closes
+        # less because the chain components below the multiplier dominate.
+        hot_cold_factor = 0.65
         proj *= hot_cold_factor
-        notes.append("COLD post-matchup shrink x0.70 (close residual -4.81)")
+        notes.append("COLD post-matchup shrink x0.65 (close residual -4.04)")
     elif form_tag == "HOT":
         hot_cold_factor = 1.05
         proj *= hot_cold_factor
@@ -1585,7 +1594,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-20-v9.13" # ESPN injury feed: D2D + IL flags surfaced for every player
+MODEL_REV = "2026-05-21-v9.14" # tighten ELITE/POOR QoC weight 0.20→0.15 + STEADY x1.05 + pitcher COLD x0.65
 
 
 def _proj_disk_path(key: tuple) -> str:

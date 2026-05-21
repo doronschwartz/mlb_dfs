@@ -1731,6 +1731,7 @@ function projTooltip(p) {
     const label = tag === "HOT" ? `HOT post-matchup`
                  : tag === "COLD" ? `COLD post-matchup`
                  : tag === "ELITE" ? `ELITE form post-matchup`
+                 : tag === "STEADY" ? `STEADY form post-matchup`
                  : `Post-matchup`;
     return `<div class="bk-row"><span class="bk-label">${label}</span><span class="bk-total ${cls}">×${f.toFixed(2)}</span></div>`;
   };
