@@ -1009,11 +1009,22 @@ def project_pitcher(
     # the lineup effect, our additive contribution stays in noise range; if
     # Vegas hasn't moved, this contributes a meaningful but bounded signal.
     lineup_factor = 1.0
+    lineup_factor_raw = 1.0
+    lineup_absorbed_by_vegas = False
     if opp_lineup_avg_pg and opp_lineup_avg_pg > 0:
         ratio = LEAGUE_AVG_HITTER_POINTS_PER_GAME / opp_lineup_avg_pg
-        lineup_factor = ratio ** 0.18
-        lineup_factor = max(0.94, min(lineup_factor, 1.07))
-        notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
+        lineup_factor_raw = ratio ** 0.18
+        lineup_factor_raw = max(0.94, min(lineup_factor_raw, 1.07))
+        # v9.15.1: Vegas implied total already prices in opposing lineup
+        # quality. Letting lineup_factor multiply on top of vegas_factor was
+        # a 1-5% double-count for pitchers facing strong-offense teams.
+        # Suppress to 1.0 in the chain when Vegas is set; raw stays visible
+        # in the tooltip so the user can audit what we'd have applied.
+        if opp_implied_total and opp_implied_total > 0:
+            lineup_absorbed_by_vegas = True
+        else:
+            lineup_factor = lineup_factor_raw
+            notes.append(f"opp lineup x{lineup_factor:.2f} (posted {opp_lineup_avg_pg:.2f} vs lg {LEAGUE_AVG_HITTER_POINTS_PER_GAME:.2f})")
 
     # Catcher framing factor (v9.8): elite framing catchers steal extra
     # strikes for their pitcher, generating ~0.3-0.5 extra K per start.
@@ -1154,6 +1165,8 @@ def project_pitcher(
             "catcher_framing_rv": catcher_framing_runs,
             "ump_factor": round(ump_factor, 3),
             "lineup_factor": round(lineup_factor, 3),
+            "lineup_factor_raw": round(lineup_factor_raw, 3),
+            "lineup_absorbed_by_vegas": lineup_absorbed_by_vegas,
             "hot_cold_factor": round(hot_cold_factor, 3),
             "chain_product": round(chain_product * hot_cold_factor, 4),
             "ip_per_start": round(ip_total_l14 / max(int(starts_14), 1), 2) if starts_14 else None,
@@ -1643,7 +1656,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-21-v9.15" # SP fallback via Savant xERA + bullpen-absorbed surfacing + park breakdown
+MODEL_REV = "2026-05-21-v9.15.1" # pitcher lineup_factor reset to 1.0 when opp Vegas set — closes double-count
 
 
 def _proj_disk_path(key: tuple) -> str:

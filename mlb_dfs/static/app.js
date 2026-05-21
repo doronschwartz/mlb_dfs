@@ -1823,7 +1823,16 @@ function projTooltip(p) {
     rows.push(factorRow2Always("Opp Vegas", c.vegas_factor, c.opp_implied_total ? `${c.opp_implied_total.toFixed(1)} R` : "", "no Vegas line"));
     rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", c.rolling_bf_l14 ? `min 30 BF — have ${c.rolling_bf_l14}` : "no recent BF"));
     rows.push(factorRow2Always("HP ump", c.ump_factor, "", "neutral ump"));
-    rows.push(factorRow2Always("Opp lineup", c.lineup_factor, "", "lineup not posted"));
+    // Opp lineup: same Vegas-supersedes pattern. When Vegas opp implied total
+    // is set, lineup_factor is reset to 1.0 in the chain (Vegas already prices
+    // in lineup quality). Show raw with "folded into Vegas" annotation.
+    if (c.lineup_absorbed_by_vegas && c.lineup_factor_raw != null && Math.abs(c.lineup_factor_raw - 1.0) >= 0.005) {
+      const f = c.lineup_factor_raw;
+      const cls = f > 1.0 ? "pos" : "neg";
+      rows.push(`<div class="bk-row"><span class="bk-label">Opp lineup</span><span class="bk-total ${cls}">×${f.toFixed(2)} <span class="muted">(folded into Vegas)</span></span></div>`);
+    } else {
+      rows.push(factorRow2Always("Opp lineup", c.lineup_factor, "", "lineup not posted"));
+    }
     rows.push(factorRow2Always("Catcher framing (v9.8)", c.framing_factor, c.catcher_framing_rv != null ? `rv ${c.catcher_framing_rv >= 0 ? "+" : ""}${c.catcher_framing_rv.toFixed(1)}` : "", "no framing data"));
     rows.push(factorRow2Always("TTO penalty (v9.3)", c.tto_factor, c.ip_per_start ? `${c.ip_per_start} IP/start` : "", "short starter — no TTO3"));
     rows.push(factorRow2Always("Team defense (v9.3)", c.defense_factor, "", "league-avg fielding"));
