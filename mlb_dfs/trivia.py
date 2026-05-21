@@ -656,13 +656,40 @@ def _generate(date_str: str) -> dict:
     }
 
 
+def _is_future_date(date_str: str) -> bool:
+    """True if date_str is AFTER today in ET. Used to gate trivia
+    generation — slate signals (probable pitchers, Vegas implied totals,
+    lineups) aren't reliably available until the day-of, so generating a
+    quiz for tomorrow today locks in stale data that won't match what
+    actually happens. Better UX: tell the user to come back."""
+    from zoneinfo import ZoneInfo
+    today_et = datetime.now(ZoneInfo("America/New_York")).date()
+    try:
+        return Date.fromisoformat(date_str) > today_et
+    except Exception:
+        return False
+
+
 def for_date(date_str: str, force: bool = False) -> dict:
     """Return today's trivia. Generates + persists on first call. Idempotent
     after that (subsequent answers update the same record).
 
     Auto-regenerates if the cached file's generator_version is missing or older
     than the current _GEN_VERSION. Drafter answers from the old file are
-    preserved so the leaderboard isn't lost."""
+    preserved so the leaderboard isn't lost.
+
+    For FUTURE dates: returns a 'not_yet_available' sentinel instead of
+    generating. Probable pitchers, lineups, and Vegas implied totals all
+    arrive close to game time — generating a quiz today for tomorrow's
+    slate would lock in signals that aren't actually valid yet."""
+    if _is_future_date(date_str):
+        return {
+            "date": date_str,
+            "not_yet_available": True,
+            "reason": "Slate isn't finalized yet — probable pitchers, lineups, and Vegas lines come in closer to game time. Come back on the day of the slate.",
+            "questions": [],
+            "answers": {},
+        }
     existing = _load(date_str) if not force else None
     if existing and existing.get("questions"):
         if int(existing.get("generator_version") or 1) >= _GEN_VERSION:
@@ -687,9 +714,16 @@ def for_date(date_str: str, force: bool = False) -> dict:
     return data
 
 
+class TriviaNotYetAvailable(Exception):
+    pass
+
+
 def submit_answer(date_str: str, drafter: str, answers: dict) -> dict:
     """Record a drafter's answers. Returns {score, total, correct, ...}.
     Answers from a given drafter overwrite prior answers for the same day.
+
+    Raises TriviaNotYetAvailable for future dates — quiz isn't generated yet
+    so there's nothing meaningful to score against.
 
     Two question shapes:
       MC: answers[qid] is the option index (0-3); +1 for exact match.
@@ -698,6 +732,8 @@ def submit_answer(date_str: str, drafter: str, answers: dict) -> dict:
     Score is summed as a float and stored. Leaderboard keeps floats.
     """
     data = for_date(date_str)
+    if data.get("not_yet_available"):
+        raise TriviaNotYetAvailable(data.get("reason") or "Trivia not yet available for this date")
     questions = data.get("questions") or []
     score_total = 0.0
     correct_map: dict[str, object] = {}     # qid -> correct_index OR correct_value
@@ -822,6 +858,14 @@ def public_view(date_str: str) -> dict:
     radio buttons) and the `kind` (for display label / scoring rules).
     """
     data = for_date(date_str)
+    if data.get("not_yet_available"):
+        return {
+            "date": data.get("date"),
+            "not_yet_available": True,
+            "reason": data.get("reason"),
+            "questions": [],
+            "submissions": [],
+        }
     questions = []
     for q in data.get("questions") or []:
         clean_q = {

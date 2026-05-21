@@ -347,6 +347,18 @@ function renderTrivia() {
   const out = $("#trivia-questions");
   const subOut = $("#trivia-submissions");
   if (!out || !triviaState.data) return;
+  // Future-date slate isn't finalized yet (no probable pitchers / Vegas /
+  // lineups). Show a clear "come back" message instead of generating a
+  // quiz against stale signals.
+  if (triviaState.data.not_yet_available) {
+    const reason = triviaState.data.reason || "Slate isn't finalized yet — come back on the day of the slate.";
+    out.innerHTML = `<div class="trivia-q-prompt muted" style="text-align:center;padding:18px 12px;line-height:1.5;">🗓️ <strong>Quiz not ready yet for ${triviaState.data.date}</strong><br><span style="font-size:12px;">${reason}</span></div>`;
+    if (subOut) subOut.innerHTML = "";
+    // Also hide the drafter picker since there's nothing to do.
+    const sel = $("#trivia-drafter");
+    if (sel) sel.disabled = true;
+    return;
+  }
   const qs = triviaState.data.questions;
   const drafter = triviaState.drafterSelected;
   const submissions = (triviaState.data && triviaState.data.submissions) || [];

@@ -329,7 +329,9 @@ def get_trivia_result(date: str, drafter: str):
 
 class TriviaSubmission(BaseModel):
     drafter: str
-    answers: dict[str, int]   # {"q1": 0, "q2": 2, ...}
+    # v4: answers carry MC option indices (int) AND numeric-guess values
+    # (int or float), so the dict value type is loose.
+    answers: dict[str, object]   # {"q1": 0, "q2": 250, ...}
 
 
 @app.post("/api/trivia/{date}/answer")
@@ -337,7 +339,12 @@ def post_trivia_answer(date: str, req: TriviaSubmission):
     from . import trivia as trivia_mod
     if not req.drafter:
         raise HTTPException(400, "drafter required")
-    return trivia_mod.submit_answer(date, req.drafter, req.answers)
+    try:
+        return trivia_mod.submit_answer(date, req.drafter, req.answers)
+    except trivia_mod.TriviaNotYetAvailable as e:
+        # 425 Too Early — slate signals (probables / lineups / Vegas) aren't
+        # ready yet, so there's no valid quiz to score against.
+        raise HTTPException(425, str(e))
 
 
 @app.get("/api/trivia/leaderboard/season")
