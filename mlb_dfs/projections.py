@@ -442,6 +442,7 @@ def project_hitter(
     # more than ERA implies. Weighted 0.45/0.25/0.30.
     sp_factor = 1.0
     opposing_sp_stats: dict | None = None
+    sp_factor_source = None  # "season" | "savant_fallback" | None
     if opposing_sp_id:
         sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season, as_of=as_of)
         opposing_sp_stats = sp_season
@@ -467,7 +468,34 @@ def project_hitter(
                 sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
                 detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f}"
             sp_factor = max(0.6, min(sp_factor, 1.45))
+            sp_factor_source = "season"
             notes.append(f"opposing SP adj x{sp_factor:.2f} ({detail})")
+        else:
+            # v9.15: short-sample fallback. Rookies, post-TJ returnees, openers
+            # often have <20 IP — bailing to ×1.00 silently leaks signal we
+            # actually have via Savant's descriptive metrics (xERA + xwOBA-
+            # against stabilize MUCH faster than ERA on small samples; whiff%
+            # percentile is forward-looking K-skill). Use these if available.
+            sp_qoc = savant.lookup_pitcher_qoc(opposing_sp_id, season) or None
+            sp_expected = savant.lookup_pitcher(opposing_sp_id, season) or None
+            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
+            xera = _safe_float((sp_expected or {}).get("xera")) if sp_expected else None
+            xwoba_a = _safe_float((sp_expected or {}).get("est_woba")) if sp_expected else None
+            whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40 if pp and pp.get("whiff") is not None else 1.0
+            if xera or xwoba_a or (pp and pp.get("whiff") is not None):
+                # Tighter clamp than the season branch (±10% vs ±45%) — small-
+                # sample data is noisier so don't let it swing the projection.
+                xera_part = (xera / 4.20) if xera else 1.0
+                xwoba_part = (xwoba_a / 0.320) if xwoba_a else 1.0
+                sp_factor = xera_part * 0.40 + xwoba_part * 0.30 + whiff_part * 0.30
+                sp_factor = max(0.90, min(sp_factor, 1.10))
+                sp_factor_source = "savant_fallback"
+                detail_bits = []
+                if xera: detail_bits.append(f"xERA {xera:.2f}")
+                if xwoba_a: detail_bits.append(f"xwOBA-agst {xwoba_a:.3f}")
+                if pp and pp.get("whiff") is not None: detail_bits.append(f"whiff%-tile {pp['whiff']:.0f}")
+                detail_bits.append(f"only {int(ip)} IP — Savant fallback")
+                notes.append(f"opposing SP adj x{sp_factor:.2f} ({', '.join(detail_bits)})")
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
     brl = _safe_float((qoc or {}).get("brl_percent"))
@@ -517,6 +545,7 @@ def project_hitter(
     # handedness bias to the HR component (e.g., NYY short porch boosts LHB
     # ~+18%, slightly hurts RHB).
     park_factor = 1.0
+    park_breakdown = None
     if park:
         run_env = park.get("run_env", 1.0)
         hr_f = park.get("hr_factor", 1.0)
@@ -527,6 +556,15 @@ def project_hitter(
         park_factor = max(0.82, min(park_factor, 1.22))
         hand_note = f", {bats}H bias x{hand_bias:.2f}" if hand_bias != 1.0 else ""
         notes.append(f"park {venue} x{park_factor:.2f} (run {run_env:.2f}, HR {hr_f:.2f}{hand_note})")
+        # Surface the underlying components so the tooltip can show what's
+        # driving even a near-neutral combined factor (e.g. WSH: 1.02 run
+        # env + 0.97 weather-suppressed HR cancel to 1.003 — looks 'neutral'
+        # but we DID use the data, not 'no signal').
+        park_breakdown = {
+            "run_env": round(run_env, 3),
+            "hr_factor": round(hr_f, 3),     # already weather-blended upstream
+            "hand_bias": round(hand_bias, 3),
+        }
 
     # Batting-order PA factor: leadoff hitters get ~4.6 PA/game, #9 gets ~3.7.
     # That's a ~22% PA spread top to bottom. Only applies when lineup is posted.
@@ -553,14 +591,21 @@ def project_hitter(
     # If no Vegas, sp_factor stays as computed above and is the matchup signal.
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
-    # ONLY fires when Vegas is unavailable. Vegas implied total already prices
-    # in opposing bullpen quality alongside everything else; stacking
-    # bullpen_factor on top of vegas_factor is double-counting the same signal.
+    # ONLY applied to the chain when Vegas is unavailable — Vegas implied
+    # total already prices in opposing bullpen quality. But we COMPUTE the
+    # raw value either way so the tooltip can show what the bullpen signal
+    # looks like (folded into Vegas vs the headline factor).
     bullpen_factor = 1.0
-    if opp_bullpen_era and opp_bullpen_era > 0 and (not implied_team_total or implied_team_total <= 0):
-        bullpen_factor = (opp_bullpen_era / 4.20) ** 0.30
-        bullpen_factor = max(0.93, min(bullpen_factor, 1.08))
-        notes.append(f"opp bullpen ERA {opp_bullpen_era:.2f} x{bullpen_factor:.2f} (no Vegas)")
+    bullpen_factor_raw = 1.0
+    bullpen_absorbed_by_vegas = False
+    if opp_bullpen_era and opp_bullpen_era > 0:
+        bullpen_factor_raw = (opp_bullpen_era / 4.20) ** 0.30
+        bullpen_factor_raw = max(0.93, min(bullpen_factor_raw, 1.08))
+        if implied_team_total and implied_team_total > 0:
+            bullpen_absorbed_by_vegas = True
+        else:
+            bullpen_factor = bullpen_factor_raw
+            notes.append(f"opp bullpen ERA {opp_bullpen_era:.2f} x{bullpen_factor:.2f} (no Vegas)")
 
     # Handedness platoon factor: opposite-hand matchup is +5% (well-documented
     # ~30 pt wOBA advantage); same-hand is -5%; switch hitters always opposite.
@@ -715,6 +760,7 @@ def project_hitter(
             "sp_factor": round(sp_factor, 3),
             "sp_factor_raw": round(sp_factor_raw, 3),
             "sp_absorbed_by_vegas": sp_absorbed_by_vegas,
+            "sp_factor_source": sp_factor_source,  # "season" | "savant_fallback" | None
             "qoc_factor": round(qoc_factor, 3),
             "qoc_tier": qoc_tier,
             "form_tag": form_tag,
@@ -732,12 +778,15 @@ def project_hitter(
             "lg_barrel_pct": LG_BARREL_PCT_HITTER(season),
             "lg_hardhit_pct": LG_HARDHIT_PCT_HITTER(season),
             "park_factor": round(park_factor, 3),
+            "park_breakdown": park_breakdown,
             "park_venue": (park or {}).get("venue") if park else None,
             "order_factor": round(order_factor, 3),
             "batting_order": batting_order,
             "vegas_factor": round(vegas_factor, 3),
             "implied_team_total": implied_team_total,
             "bullpen_factor": round(bullpen_factor, 3),
+            "bullpen_factor_raw": round(bullpen_factor_raw, 3),
+            "bullpen_absorbed_by_vegas": bullpen_absorbed_by_vegas,
             "opp_bullpen_era": opp_bullpen_era,
             "platoon_factor": round(platoon_factor, 3),
             "bats": bats,
@@ -1594,7 +1643,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-21-v9.14" # tighten ELITE/POOR QoC weight 0.20→0.15 + STEADY x1.05 + pitcher COLD x0.65
+MODEL_REV = "2026-05-21-v9.15" # SP fallback via Savant xERA + bullpen-absorbed surfacing + park breakdown
 
 
 def _proj_disk_path(key: tuple) -> str:

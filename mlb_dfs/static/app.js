@@ -1751,21 +1751,53 @@ function projTooltip(p) {
     // Opp SP factor: when Vegas implied total is set, sp_factor is reset to
     // 1.0 in the chain to avoid double-counting (Vegas already prices in the
     // opposing SP). Show the RAW computed value with an "(absorbed by Vegas)"
-    // annotation so the tooltip math is auditable — vs the old behavior of
-    // showing ×1.00 here and contradicting it with the note line.
+    // annotation. Also surface when fallback fired (low-IP SP → Savant xERA).
     if (c.sp_absorbed_by_vegas && c.sp_factor_raw != null && Math.abs(c.sp_factor_raw - 1.0) >= 0.005) {
       const f = c.sp_factor_raw;
       const cls = f > 1.0 ? "pos" : "neg";
-      rows.push(`<div class="bk-row"><span class="bk-label">Opp SP</span><span class="bk-total ${cls}">×${f.toFixed(2)} <span class="muted">(folded into Vegas)</span></span></div>`);
+      const src = c.sp_factor_source === "savant_fallback" ? " · Savant fallback (low IP)" : "";
+      rows.push(`<div class="bk-row"><span class="bk-label">Opp SP</span><span class="bk-total ${cls}">×${f.toFixed(2)} <span class="muted">(folded into Vegas${src})</span></span></div>`);
     } else if (c.sp_factor != null) {
-      rows.push(factorRow2Always("Opp SP", c.sp_factor, "", "no signal"));
+      const src = c.sp_factor_source === "savant_fallback" ? "Savant fallback (low IP)" : "no signal";
+      rows.push(factorRow2Always("Opp SP", c.sp_factor, "", src));
     }
     if (c.qoc_factor != null) rows.push(factorRow2Always("QoC residual", c.qoc_factor, "", "neutral"));
-    rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
+    // Park: when combined factor is near-1.0 but the breakdown shows real
+    // components (e.g. WSH: 1.02 run env + 0.97 weather-suppressed HR cancel
+    // to 1.003), show "neutral net" with the underlying values so the user
+    // can see the model DID look at the park — it just balanced out.
+    {
+      const pf = c.park_factor;
+      const pb = c.park_breakdown;
+      const isNeutral = pf != null && Math.abs(pf - 1.0) < 0.005;
+      const hasRealBreakdown = pb && (Math.abs((pb.run_env ?? 1) - 1) >= 0.005 || Math.abs((pb.hr_factor ?? 1) - 1) >= 0.005 || Math.abs((pb.hand_bias ?? 1) - 1) >= 0.005);
+      if (isNeutral && hasRealBreakdown) {
+        const parts = [];
+        if (Math.abs((pb.run_env ?? 1) - 1) >= 0.005) parts.push(`run ${pb.run_env.toFixed(2)}`);
+        if (Math.abs((pb.hr_factor ?? 1) - 1) >= 0.005) parts.push(`HR ${pb.hr_factor.toFixed(2)}`);
+        if (Math.abs((pb.hand_bias ?? 1) - 1) >= 0.005) parts.push(`${c.bats || ""}H bias ${pb.hand_bias.toFixed(2)}`);
+        const venueStr = c.park_venue ? `${c.park_venue} · ` : "";
+        rows.push(`<div class="bk-row"><span class="bk-label">Park</span><span class="bk-total muted">×1.00 <span style="font-size:11px;">(${venueStr}neutral net — ${parts.join(" · ")})</span></span></div>`);
+      } else {
+        rows.push(factorRow2Always("Park", c.park_factor, c.park_venue || "", "neutral park"));
+      }
+    }
     rows.push(factorRow2Always("Vegas implied", c.vegas_factor, c.implied_team_total ? `${c.implied_team_total.toFixed(1)} R` : "", "no Vegas line"));
     rows.push(factorRow2Always("Order PA", c.order_factor, c.batting_order ? `#${c.batting_order}` : "", "lineup not posted"));
     rows.push(factorRow2Always("Platoon", c.platoon_factor, (c.bats && c.vs_throws) ? `${c.bats}H vs ${c.vs_throws}HP` : "", "no platoon edge"));
-    rows.push(factorRow2Always("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : "", "league-avg pen"));
+    // Bullpen: same Vegas-supersedes pattern as Opp SP. When Vegas is set the
+    // chain factor is 1.0 but the raw bullpen-implied factor still tells you
+    // what we'd otherwise have applied — surface it with the "folded into
+    // Vegas" annotation so the tooltip doesn't claim "league-avg pen" when
+    // we actually know the opposing pen ERA.
+    if (c.bullpen_absorbed_by_vegas && c.bullpen_factor_raw != null && Math.abs(c.bullpen_factor_raw - 1.0) >= 0.005) {
+      const f = c.bullpen_factor_raw;
+      const cls = f > 1.0 ? "pos" : "neg";
+      const det = c.opp_bullpen_era ? ` <span class="muted">${c.opp_bullpen_era.toFixed(2)} ERA · folded into Vegas</span>` : ` <span class="muted">(folded into Vegas)</span>`;
+      rows.push(`<div class="bk-row"><span class="bk-label">Opp bullpen</span><span class="bk-total ${cls}">×${f.toFixed(2)}${det}</span></div>`);
+    } else {
+      rows.push(factorRow2Always("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : "", "league-avg pen"));
+    }
     rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", c.rolling_pa_l14 ? `min 30 PA — have ${c.rolling_pa_l14}` : "no recent PAs"));
     rows.push(factorRow2Always("ISO form (v9.3)", c.iso_factor, "", "no power surge/slump"));
     rows.push(factorRow2Always("SB threat (v9.3)", c.sb_factor, "", "not an SB threat"));
