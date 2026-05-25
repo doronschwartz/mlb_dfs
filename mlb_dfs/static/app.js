@@ -702,7 +702,8 @@ function dynastyBreakdownHtml(v) {
   if (c.traj_note) why.push(`Trajectory (multi-yr): ${c.traj_note} → ×${(c.traj_mult ?? 1).toFixed(2)}.`);
   if (c.young_note) why.push(`Upside: ${c.young_note}.`);
   if (c.multipos_note) why.push(`Flexibility: ${c.multipos_note}.`);
-  if (c.injury_note) why.push(`Injury: ${c.injury_note} → ×${(c.injury_mult ?? 1).toFixed(2)}.`);
+  if (c.durability_note) why.push(`Durability (multi-yr): ${c.durability_note} → ×${(c.durability_mult ?? 1).toFixed(2)}.`);
+  if (c.injury_note) why.push(`Injury (now): ${c.injury_note} → ×${(c.injury_mult ?? 1).toFixed(2)}.`);
 
   return `<div style="padding:12px 14px;">
     <div style="font-weight:700;margin-bottom:8px;">${v.name} — dynasty value ${v.dynasty_score.toFixed(0)}

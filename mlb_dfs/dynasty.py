@@ -299,6 +299,92 @@ def _resolve_id(name: str) -> int | None:
 _SPORTID_LEVEL = {1: "MLB", 11: "AAA", 12: "AA", 13: "A+", 14: "A", 16: "RK"}
 
 
+@disk_cache.cached_disk(86400, namespace="durability_yby")
+def _games_by_year(pid: int, group: str) -> dict:
+    """{season_year: games_played} at MLB level (sportId 1), from yearByYear.
+    For pitchers we also capture starts. One call, cached 24h."""
+    out: dict[str, dict] = {}
+    try:
+        data = mlb_api._get(
+            f"/people/{pid}/stats",
+            params={"stats": "yearByYear", "group": group, "sportId": 1},
+        )
+        for s in data.get("stats", []) or []:
+            for sp in s.get("splits", []) or []:
+                yr = sp.get("season")
+                st = sp.get("stat", {}) or {}
+                if yr:
+                    out[yr] = {
+                        "games": int(float(st.get("gamesPlayed") or 0)),
+                        "starts": int(float(st.get("gamesStarted") or 0)),
+                        "ip": float(st.get("inningsPitched") or 0) if st.get("inningsPitched") else 0,
+                    }
+    except Exception:
+        pass
+    return out
+
+
+_DURABILITY_CACHE: dict[int, dict[str, dict]] = {}
+
+
+def _durability(season: int) -> dict[str, dict]:
+    """{normalized_name: {mult, note, avg}} — multi-year durability tendency
+    from games played over the two prior completed seasons. This turns the
+    injury signal from a current-status snapshot into a real track record:
+    a chronically banged-up player (few games/season) gets a standing dynasty
+    discount even when healthy today. Neutral (1.0) for players without 2 yrs
+    of MLB history (prospects, recent call-ups) — we can't assess them."""
+    if season in _DURABILITY_CACHE:
+        return _DURABILITY_CACHE[season]
+    prior_years = [str(season - 1), str(season - 2)]
+    targets = []
+    for nname, cons in _consensus().items():
+        # Skip clear prospects (no MLB track record to assess).
+        if (cons.get("level") or "").strip().upper() not in ("", "MLB"):
+            continue
+        targets.append((nname, cons))
+
+    def _one(item):
+        nname, cons = item
+        pid = _resolve_id(cons["name"])
+        if not pid:
+            return None
+        role = _role_for(cons["pos"])
+        group = "pitching" if role == "pitcher" else "hitting"
+        gby = _games_by_year(pid, group)
+        if role == "pitcher":
+            starts = [gby[y]["starts"] for y in prior_years if y in gby and gby[y]["starts"] > 0]
+            if len(starts) < 1:
+                return None
+            avg = sum(starts) / len(starts)
+            # 30+ starts = iron man; scale down for missed time
+            if avg >= 28: mult, note = 1.0, ""
+            elif avg >= 24: mult, note = 0.98, f"~{avg:.0f} starts/yr"
+            elif avg >= 18: mult, note = 0.95, f"durability risk (~{avg:.0f} starts/yr)"
+            else: mult, note = 0.91, f"injury-prone (~{avg:.0f} starts/yr)"
+        else:
+            games = [gby[y]["games"] for y in prior_years if y in gby and gby[y]["games"] > 0]
+            if len(games) < 1:
+                return None
+            avg = sum(games) / len(games)
+            if avg >= 145: mult, note = 1.0, ""
+            elif avg >= 130: mult, note = 0.98, f"~{avg:.0f} G/yr"
+            elif avg >= 110: mult, note = 0.95, f"durability risk (~{avg:.0f} G/yr)"
+            else: mult, note = 0.91, f"injury-prone (~{avg:.0f} G/yr)"
+        return (nname, {"mult": mult, "note": note, "avg": round(avg, 1)})
+
+    out: dict[str, dict] = {}
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for r in ex.map(_one, targets):
+                if r:
+                    out[r[0]] = r[1]
+    except Exception as e:
+        logging.warning("durability build failed: %s", e)
+    _DURABILITY_CACHE[season] = out
+    return out
+
+
 @disk_cache.cached_disk(86400, namespace="milb_line")
 def _milb_line(pid: int, season: int, sportid: int, group: str) -> dict:
     """One season stat line for a player at a given level. Cached 24h."""
@@ -744,6 +830,9 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     luck = _statcast_luck(season).get(nname)
     luck_mult, luck_note = _luck_multiplier(luck, role)
     inj_mult, inj_note = _injury_factor(cons["name"], role)
+    dur = _durability(season).get(nname)
+    dur_mult = dur["mult"] if dur else 1.0
+    dur_note = dur["note"] if dur else ""
     eta_mult, eta_note = _eta_factor(cons.get("eta"), season)
     multipos_mult, multipos_note = _multipos_factor(cons["pos"])
     young_mult, young_note = _young_ascending_factor(
@@ -778,7 +867,7 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         yr_age = (age + k) if age else None
         yr_factor = _age_factor(yr_age, role) if yr_age else cur_age_factor
         yr_value = (peak_value * yr_factor * pos_mult * luck_mult * inj_mult
-                    * eta_mult * multipos_mult * young_mult * traj_mult)
+                    * eta_mult * multipos_mult * young_mult * traj_mult * dur_mult)
         discounted = yr_value * (DISCOUNT ** k)
         dynasty_score += discounted
         curve.append({
@@ -806,6 +895,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
             "luck_note": luck_note,
             "injury_mult": round(inj_mult, 3),
             "injury_note": inj_note,
+            "durability_mult": round(dur_mult, 3),
+            "durability_note": dur_note,
             "eta_mult": round(eta_mult, 3),
             "eta_note": eta_note,
             "multipos_mult": round(multipos_mult, 3),

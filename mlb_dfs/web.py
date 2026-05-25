@@ -412,6 +412,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.4 — 2026-05-25",
+                "title": "Dynasty: multi-year durability tendency",
+                "changes": [
+                    "Durability factor from games-played over the two prior completed seasons — turns the injury signal from a current-status snapshot into a real track record. Hitters: ≥145 G/yr ×1.0 down to ×0.91 for <110; pitchers by starts/yr. Examples: Trout ×0.91 (~80 G/yr), Acuña ×0.91 (~72 post-ACL), Buxton ×0.95, Cole ×0.91 (~17 starts); iron men (José Ramírez, Judge) stay ×1.0.",
+                    "Complements the current-injury factor: a chronically banged-up star gets a standing dynasty discount even when healthy today — something the consensus is slow to price. Neutral for players without 2 yrs of MLB history.",
+                    "373 players assessed; per-player yearByYear cached 24h + parallelized.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.3 — 2026-05-25",
                 "title": "Dynasty: multi-year Statcast skill + trajectory + gentler pitcher aging",
                 "changes": [
