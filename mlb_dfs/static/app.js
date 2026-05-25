@@ -614,7 +614,7 @@ function dynastyBreakdownHtml(v) {
     baseHtml = `<div style="font-size:12px;line-height:1.7;">
       <div><b>Base value ${c.rank_base.toFixed(0)}</b> = ${100 - blend}% consensus + ${blend}% our skill model:</div>
       <div style="margin-left:12px;">• Consensus rank <b>#${v.consensus_rank}</b> → value <b>${c.consensus_value.toFixed(0)}</b> <span class="muted">(market prior, exp-decay of rank)</span></div>
-      <div style="margin-left:12px;">• Our skill rank <b>#${sk.skill_rank}</b> (z ${sk.skill_z >= 0 ? "+" : ""}${sk.skill_z.toFixed(2)}) → value <b>${sk.talent_value.toFixed(0)}</b> <span class="muted">(from Statcast below)</span></div>
+      <div style="margin-left:12px;">• Our skill rank <b>#${sk.skill_rank}</b> (z ${sk.skill_z >= 0 ? "+" : ""}${sk.skill_z.toFixed(2)}) → value <b>${sk.talent_value.toFixed(0)}</b> <span class="muted">(from ${sk.is_prospect ? "MiLB production" : "Statcast"} below)</span></div>
     </div>`;
   } else {
     baseHtml = `<div style="font-size:12px;line-height:1.7;">
@@ -623,9 +623,30 @@ function dynastyBreakdownHtml(v) {
     </div>`;
   }
 
-  // 2) Statcast skill table — the full slew, with league context + z color.
+  // 2) Skill table. Prospects (MiLB) show production + age-vs-level; MLB
+  //    players show the full Statcast slew with z-scores.
   let skillHtml = "";
-  if (sk && sk.comps) {
+  if (sk && sk.is_prospect && sk.comps) {
+    const m = sk.comps;
+    const avl = m.age_vs_level;
+    const avlStr = avl == null ? "" : (avl > 0 ? `<span class="edge-pos">${avl} yrs young for level</span>` : avl < 0 ? `<span class="edge-neg">${-avl} yrs old for level</span>` : "age-typical");
+    if (v.role === "pitcher") {
+      skillHtml = sectionTitle(`Minor-league production (${m.level})`) + `<table style="font-size:12px;">
+        <tr><td class="muted" style="padding-right:10px;">Level</td><td style="font-weight:600;">${m.level}</td><td class="muted" style="padding-left:10px;">${avlStr}</td></tr>
+        <tr><td class="muted">K-BB%</td><td style="text-align:right;font-weight:600;">${m.kbb_pct != null ? m.kbb_pct + "%" : "—"}</td><td></td></tr>
+        <tr><td class="muted">ERA</td><td style="text-align:right;">${m.era != null ? m.era.toFixed(2) : "—"}</td><td></td></tr>
+        <tr><td class="muted">sample</td><td style="text-align:right;" class="muted">${m.bf} BF</td><td></td></tr>
+      </table>`;
+    } else {
+      skillHtml = sectionTitle(`Minor-league production (${m.level})`) + `<table style="font-size:12px;">
+        <tr><td class="muted" style="padding-right:10px;">Level</td><td style="font-weight:600;">${m.level}</td><td class="muted" style="padding-left:10px;">${avlStr}</td></tr>
+        <tr><td class="muted">OPS</td><td style="text-align:right;font-weight:600;">${m.ops != null ? m.ops.toFixed(3) : "—"}</td><td class="muted" style="padding-left:10px;font-size:11px;">MiLB avg ~.700</td></tr>
+        <tr><td class="muted">AVG / HR</td><td style="text-align:right;">${m.avg ?? "—"} / ${m.hr ?? "—"}</td><td></td></tr>
+        <tr><td class="muted">sample</td><td style="text-align:right;" class="muted">${m.pa} PA</td><td></td></tr>
+      </table>
+      <div class="muted" style="font-size:11px;margin-top:2px;">Production haircut to an MLB-equivalent by level, then boosted for being young-for-level.</div>`;
+    }
+  } else if (sk && sk.comps) {
     const m = sk.comps;
     const row = (label, val, fmt, lg, z) => {
       if (val == null) return "";

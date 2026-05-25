@@ -25,12 +25,14 @@ are already cached 6-24h by savant.py.
 from __future__ import annotations
 
 import csv
+import logging
 import math
 import os
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date as Date
 
-from . import savant
+from . import disk_cache, mlb_api, savant
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _CSV = os.path.join(_DATA_DIR, "dynasty_top500.csv")
@@ -263,6 +265,159 @@ def _luck_multiplier(rec: dict | None, role: str) -> tuple[float, str]:
 
 _SKILL_CACHE: dict[int, dict[str, dict]] = {}
 
+# ---- minor-league prospect stats --------------------------------------------
+# Prospects have no MLB Statcast, so they'd fall back to 100% consensus. We
+# pull their MiLB production (the CSV tells us their level → one sportId, so
+# it's 1 search + 1 stats call each, parallelized + cached 24h on disk) and
+# build an MLB-equivalent skill read: production haircut by level, plus the
+# single biggest prospect signal — age relative to level (an 18yo holding his
+# own in AA is far more valuable than a 24yo doing the same).
+
+_LEVEL_SPORTID = {"AAA": 11, "AA": 12, "A+": 13, "A": 14, "RK": 16, "ROOKIE": 16,
+                  "CPX": 16, "DSL": 16, "MLB": 1}
+# MLB-equivalence haircut on MiLB production.
+_LEVEL_FACTOR = {"MLB": 1.0, "AAA": 0.80, "AA": 0.62, "A+": 0.45, "A": 0.32,
+                 "RK": 0.20, "ROOKIE": 0.20, "CPX": 0.18, "DSL": 0.15}
+# Typical age for the level — young-for-level is the dominant prospect signal.
+_LEVEL_EXP_AGE = {"MLB": 27, "AAA": 24, "AA": 23, "A+": 22, "A": 21,
+                  "RK": 19, "ROOKIE": 19, "CPX": 19, "DSL": 18}
+
+
+@disk_cache.cached_disk(7 * 86400, namespace="mlb_player_id")
+def _resolve_id(name: str) -> int | None:
+    """Name → MLB Stats API player id (cached 7d). First search hit."""
+    try:
+        data = mlb_api._get("/people/search", params={"names": name})
+        ppl = data.get("people", []) or []
+        return ppl[0]["id"] if ppl else None
+    except Exception:
+        return None
+
+
+_SPORTID_LEVEL = {1: "MLB", 11: "AAA", 12: "AA", 13: "A+", 14: "A", 16: "RK"}
+
+
+@disk_cache.cached_disk(86400, namespace="milb_line")
+def _milb_line(pid: int, season: int, sportid: int, group: str) -> dict:
+    """One season stat line for a player at a given level. Cached 24h."""
+    try:
+        data = mlb_api._get(
+            f"/people/{pid}/stats",
+            params={"stats": "season", "season": season, "group": group, "sportId": sportid},
+        )
+        for s in data.get("stats", []) or []:
+            sp = s.get("splits", []) or []
+            if sp:
+                return sp[0].get("stat", {}) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _milb_best_level(pid: int, season: int, group: str) -> tuple[str, dict] | None:
+    """Find a prospect's PRIMARY current level by querying each level and
+    taking the one with the most PA/BF. Robust to promotions + stale CSV
+    levels (a 'AA' prospect who's now in AAA or the majors is caught). Each
+    per-level call is disk-cached, so this is cheap after the first build."""
+    key = "plateAppearances" if group == "hitting" else "battersFaced"
+    best = None  # (pa, level, stat)
+    for sid, level in _SPORTID_LEVEL.items():
+        stat = _milb_line(pid, season, sid, group)
+        if not stat:
+            continue
+        try:
+            pa = float(stat.get(key) or 0)
+        except (TypeError, ValueError):
+            pa = 0
+        if pa > 0 and (best is None or pa > best[0]):
+            best = (pa, level, stat)
+    if best is None:
+        return None
+    return best[1], best[2]
+
+
+def _prospect_skill_z(level: str, role: str, age: float | None, stat: dict) -> tuple[float, dict] | None:
+    """MLB-equivalent skill z for a prospect from one MiLB line. None if the
+    sample is too small to trust."""
+    lf = _LEVEL_FACTOR.get(level, 0.4)
+    exp_age = _LEVEL_EXP_AGE.get(level, 22)
+    age_bonus = ((exp_age - age) * 0.10) if age else 0.0  # +0.10z per year young-for-level
+    if role == "hitter":
+        pa = float(stat.get("plateAppearances") or 0)
+        if pa < 40:
+            return None
+        try:
+            ops = float(stat.get("ops") or 0)
+        except (TypeError, ValueError):
+            ops = 0
+        if ops <= 0:
+            return None
+        prod_z = (ops - 0.700) / 0.130  # MiLB OPS baseline ~.700, sd ~.130
+        comps = {"level": level, "pa": int(pa), "ops": round(ops, 3),
+                 "avg": stat.get("avg"), "hr": stat.get("homeRuns"),
+                 "age_vs_level": round(exp_age - age, 1) if age else None}
+    else:
+        bf = float(stat.get("battersFaced") or 0)
+        ip = float(stat.get("inningsPitched") or 0) if stat.get("inningsPitched") else 0
+        if bf < 40:
+            return None
+        try:
+            k = float(stat.get("strikeOuts") or 0); bb = float(stat.get("baseOnBalls") or 0)
+            era = float(stat.get("era") or 0) if stat.get("era") else None
+        except (TypeError, ValueError):
+            return None
+        kbb = (k - bb) / bf  # K-BB rate
+        prod_z = (kbb - 0.13) / 0.07  # MiLB K-BB% baseline ~13%, sd ~7%
+        if era is not None:
+            prod_z += max(-1.0, min((3.80 - era) / 1.20, 1.0)) * 0.4  # ERA tilt
+        comps = {"level": level, "bf": int(bf), "era": era,
+                 "kbb_pct": round(kbb * 100, 1),
+                 "age_vs_level": round(exp_age - age, 1) if age else None}
+    skill_z = lf * prod_z + age_bonus
+    # Cap so a dominant low-level line can't outrank MLB MVPs outright.
+    skill_z = max(-1.5, min(skill_z, 1.6))
+    return round(skill_z, 3), comps
+
+
+def _prospect_skills(season: int) -> dict[str, dict]:
+    """{normalized_name: {role, skill_z, comps, is_prospect}} for consensus
+    players carrying a minor-league Level. Parallelized + per-call disk-cached."""
+    targets = []
+    for nname, cons in _consensus().items():
+        lvl = (cons.get("level") or "").strip().upper()
+        if not lvl or lvl == "MLB":
+            continue  # MLB players handled by the Statcast path
+        targets.append((nname, cons, lvl))
+
+    def _one(item):
+        nname, cons, _csv_lvl = item
+        pid = _resolve_id(cons["name"])
+        if not pid:
+            return None
+        role = _role_for(cons["pos"])
+        group = "pitching" if role == "pitcher" else "hitting"
+        # Detect their ACTUAL current level (handles promotions / stale CSV).
+        found = _milb_best_level(pid, season, group)
+        if not found:
+            return None
+        level, stat = found
+        res = _prospect_skill_z(level, role, cons.get("age"), stat)
+        if not res:
+            return None
+        z, comps = res
+        return (nname, {"role": role, "skill_z": z, "comps": comps,
+                        "is_prospect": True, "actual_level": level})
+
+    out: dict[str, dict] = {}
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for r in ex.map(_one, targets):
+                if r:
+                    out[r[0]] = r[1]
+    except Exception as e:
+        logging.warning("prospect skill build failed: %s", e)
+    return out
+
 # (mean, sd) baselines for z-scoring. Tuned to ~2026 mid-season qualified pops.
 _HIT_BASE = {
     "xwoba": (0.315, 0.040), "xslg": (0.410, 0.075), "xba": (0.245, 0.025),
@@ -376,6 +531,15 @@ def _skill_scores(season: int) -> dict[str, dict]:
     except Exception:
         pass
 
+    # Fold in minor-league prospects (MiLB production → MLB-equivalent z).
+    # Don't overwrite a player who already has an MLB Statcast read.
+    try:
+        for nname, rec in _prospect_skills(season).items():
+            if nname not in out:
+                out[nname] = rec
+    except Exception as e:
+        logging.warning("prospect merge failed: %s", e)
+
     # Pool-wide rank by skill_z (desc), assign skill_rank.
     ordered = sorted(out.items(), key=lambda kv: -kv[1]["skill_z"])
     for i, (_nm, rec) in enumerate(ordered, start=1):
@@ -418,6 +582,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
             "skill_z": skill["skill_z"],
             "talent_value": round(talent_value, 1),
             "comps": skill["comps"],
+            "is_prospect": skill.get("is_prospect", False),
+            "actual_level": skill.get("actual_level"),
         }
     else:
         base = cons_value
