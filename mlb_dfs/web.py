@@ -412,6 +412,21 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.19 — 2026-05-25",
+                "title": "Lineup eligibility fallback + \"what makes up this number\"",
+                "changes": [
+                    "Ask Algo lineup: when no Fantrax roster is attached, the slot optimizer was benching almost everyone — eligibility was only built from a pulled Fantrax roster, so without one every hitter fell through to the 2 position-agnostic UT slots (and pitchers to the 2 P slots). Now falls back to each player's primary MLB position (LF→OF, 1B→1B, SP→SP, …) so real slots fill and only true overflow benches.",
+                    "Projection tooltip now decomposes the fantasy-point number into the expected stat line behind it — e.g. \"0.23 HR × 10 = +2.33, 0.12 SB × 3 = +0.35\" — scaled so the events sum exactly to the projection. Pitchers show outs/K/QS/ER/H/BB. Click/hover the projection number to see what a 9 is actually made of.",
+                ],
+            },
+            {
+                "version": "v9.18 — 2026-05-25",
+                "title": "Thin-sample Statcast shrinkage — tested, rejected",
+                "changes": [
+                    "Hypothesis: thin L14 windows (games<10) should lean harder on the Statcast prior. A/B replay over 5 days (n=1355) de-tuned the model on every metric — overall MAE 4.040→4.045, even the thin subset it targeted MAE 3.438→3.458. Not shipped; fixed tier weights win. Logged so it isn't re-attempted blind.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.5 — 2026-05-25",
                 "title": "Dynasty: proper Bayesian sample-size shrinkage",
                 "changes": [
@@ -943,6 +958,29 @@ def _matchup_elapsed_fraction(sub_caption: str, today: Date) -> float:
     return max(0.0, min(1.0, elapsed_days / total_days))
 
 
+# Fallback eligibility from a player's primary MLB position, used when no
+# Fantrax roster was pulled (otherwise eligibility_map is empty and the slot
+# optimizer can only fill the position-agnostic UT/P slots — benching everyone
+# else). Maps an MLB position abbreviation to the set of Fantrax slots it can
+# legally fill. Single-position only; a pulled Fantrax roster supplies the
+# richer multi-position eligibility.
+_POS_SLOT_MAP = {
+    "C": {"C"}, "1B": {"1B"}, "2B": {"2B"}, "3B": {"3B"}, "SS": {"SS"},
+    "LF": {"OF"}, "CF": {"OF"}, "RF": {"OF"}, "OF": {"OF"},
+    "DH": set(),  # UT-only
+    "SP": {"SP"}, "RP": {"RP"}, "P": {"SP", "RP", "P"},
+}
+
+
+def _pos_to_slots(pos: str | None) -> set[str]:
+    if not pos:
+        return set()
+    out: set[str] = set()
+    for tok in str(pos).upper().replace(",", " ").replace("/", " ").split():
+        out |= _POS_SLOT_MAP.get(tok.strip(), set())
+    return out
+
+
 @app.post("/api/lineup")
 def lineup_advice(req: LineupRequest):
     """For each pasted player name, look up our daily projection + Statcast.
@@ -1319,6 +1357,11 @@ def lineup_advice(req: LineupRequest):
                     r["recommendation"] = "BN"
                     continue
                 elig = eligibility_map.get(r["input"].lower(), set())
+                if not elig:
+                    # No Fantrax roster attached — fall back to the player's
+                    # primary MLB position so the optimizer can fill real slots
+                    # (C/1B/OF/SP/...) instead of dumping everyone into UT/P.
+                    elig = _pos_to_slots(r.get("position"))
                 # Try slot priorities in order, take first that the player is
                 # eligible for AND has remaining capacity.
                 placed = False

@@ -2118,11 +2118,30 @@ function projTooltip(p) {
       <table style="border-collapse:collapse;"><tr>${cells}</tr></table>
     </div>`;
   }
+  // "What makes up this number" — decompose the projected fantasy points into
+  // the expected stat line (e.g. 0.20 HR, 0.05 SB) × the scoring weight for
+  // each event. Events are scaled so the contributions sum to the projection,
+  // so a 9 reads literally as "the line worth ~9 DK pts."
+  let decompHtml = "";
+  const pd = c.point_decomp;
+  if (pd && pd.lines && pd.lines.length) {
+    const drows = pd.lines.map(l => {
+      const cls = l.pts < 0 ? "neg" : "pos";
+      const sign = l.pts >= 0 ? "+" : "";
+      return `<div class="bk-row"><span class="bk-label">${l.label} <span class="muted" style="font-size:10px;">${l.n}/g × ${l.pts_each}</span></span><span class="bk-total ${cls}">${sign}${l.pts.toFixed(2)}</span></div>`;
+    }).join("");
+    decompHtml = `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">
+      <div class="bk-label muted" style="font-size:11px;margin-bottom:2px;">What makes up this number — expected line × DK points</div>
+      ${drows}
+      <div class="bk-row" style="border-top:1px solid var(--border);padding-top:3px;margin-top:3px;"><span class="bk-label"><b>Total</b></span><span class="bk-total"><b>${pd.total.toFixed(2)} pts</b></span></div>
+    </div>`;
+  }
   return `<div class="breakdown-tooltip">
     <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
     <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
     ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (±1σ)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
+    ${decompHtml}
     ${catsHtml}
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
   </div>`;

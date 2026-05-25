@@ -388,10 +388,13 @@ def project_hitter(
     # is reasonable; else season; else league average.
     if games_14 >= 5:
         rolling_cats = _per_game_hitter_cats(last14)
+        rolling_events = _per_game_hitter_events(last14)
     elif games_season >= 10:
         rolling_cats = _per_game_hitter_cats(seasn)
+        rolling_events = _per_game_hitter_events(seasn)
     else:
         rolling_cats = dict(LG_HITTER_RATES)
+        rolling_events = None
 
     weighted = _weighted_pg_hitter(
         pts_g_3=(pg_3, int(games_3)),
@@ -833,6 +836,7 @@ def project_hitter(
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
             "rolling_cats": rolling_cats,
+            "point_decomp": _point_decomp_hitter(rolling_events, proj) if rolling_events else None,
             "opp_abbr": opp_abbr,
             "opp_sp_name": opp_sp_name,
             "is_home": is_home,
@@ -876,10 +880,13 @@ def project_pitcher(
     # Per-start category rates for H2H Cat valuation.
     if starts_14 >= 1:
         rolling_cats = _per_start_pitcher_cats(last14)
+        rolling_events = _per_start_pitcher_events(last14)
     elif starts_season >= 3:
         rolling_cats = _per_start_pitcher_cats(seasn)
+        rolling_events = _per_start_pitcher_events(seasn)
     else:
         rolling_cats = dict(LG_PITCHER_RATES)
+        rolling_events = None
 
     weighted_ps = _weighted_ps_pitcher(
         ps_g_7=(ps_l7, int(starts_7)),
@@ -1208,6 +1215,7 @@ def project_pitcher(
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
             "rolling_cats": rolling_cats,
+            "point_decomp": _point_decomp_pitcher(rolling_events, proj) if rolling_events else None,
             "opp_abbr": opp_abbr,
             "is_home": is_home,
             "injury": injuries.lookup(name),
@@ -1383,6 +1391,70 @@ def _per_game_hitter_points(stats: dict) -> float:
         + _safe_float(stats.get("strikeOuts")) * p["strikeOut"]
     )
     return pts / g
+
+
+def _per_game_hitter_events(stats: dict) -> dict:
+    """Per-game expected event counts (the raw stat line behind the points).
+    Mirrors the events HITTER_POINTS scores, so summing n×pts reproduces
+    _per_game_hitter_points exactly."""
+    g = max(_safe_float(stats.get("gamesPlayed")), 1.0)
+    h = _safe_float(stats.get("hits"))
+    d = _safe_float(stats.get("doubles"))
+    t = _safe_float(stats.get("triples"))
+    hr = _safe_float(stats.get("homeRuns"))
+    singles = max(h - d - t - hr, 0)
+    return {
+        "1B": singles / g,
+        "2B": d / g,
+        "3B": t / g,
+        "HR": hr / g,
+        "R": _safe_float(stats.get("runs")) / g,
+        "RBI": _safe_float(stats.get("rbi")) / g,
+        "BB": _safe_float(stats.get("baseOnBalls")) / g,
+        "HBP": _safe_float(stats.get("hitByPitch")) / g,
+        "SB": _safe_float(stats.get("stolenBases")) / g,
+        "GIDP": _safe_float(stats.get("groundIntoDoublePlay")) / g,
+        "K": _safe_float(stats.get("strikeOuts")) / g,
+    }
+
+
+# Map each decomposition event to the scoring weight + a friendly label, in
+# the order we want to display them (positive events first, drags last).
+_HITTER_DECOMP_KEYS = [
+    ("1B", "single", "Singles"),
+    ("2B", "double", "Doubles"),
+    ("3B", "triple", "Triples"),
+    ("HR", "homeRun", "Home runs"),
+    ("R", "run", "Runs"),
+    ("RBI", "rbi", "RBI"),
+    ("BB", "baseOnBalls", "Walks"),
+    ("HBP", "hitByPitch", "HBP"),
+    ("SB", "stolenBase", "Stolen bases"),
+    ("K", "strikeOut", "Strikeouts"),
+    ("GIDP", "groundIntoDoublePlay", "GIDP"),
+]
+
+
+def _point_decomp_hitter(events: dict, proj_points: float) -> dict | None:
+    """Turn a per-game event line into the "what makes up this number" view:
+    each event × its scoring weight, scaled uniformly so the contributions
+    sum to the actual projection (the projection is top-down pts/G × factors,
+    so we scale the representative line to match). Returns None if the raw
+    line is empty/degenerate."""
+    raw_pts = sum(events.get(ek, 0.0) * HITTER_POINTS[sk] for ek, sk, _ in _HITTER_DECOMP_KEYS)
+    if raw_pts <= 0.5:   # degenerate (league fallback, or net-negative line)
+        return None
+    scale = proj_points / raw_pts
+    lines = []
+    for ek, sk, label in _HITTER_DECOMP_KEYS:
+        n = events.get(ek, 0.0) * scale
+        if abs(n) < 0.005:
+            continue
+        w = HITTER_POINTS[sk]
+        lines.append({"label": label, "key": ek, "n": round(n, 2),
+                      "pts_each": w, "pts": round(n * w, 2)})
+    return {"raw_pts": round(raw_pts, 2), "scale": round(scale, 3),
+            "lines": lines, "total": round(proj_points, 2)}
 
 
 # --- H2H Categories support ---------------------------------------------
@@ -1656,6 +1728,54 @@ def _per_start_pitcher_points(stats: dict) -> float:
     return pts / gs
 
 
+def _per_start_pitcher_events(stats: dict) -> dict:
+    """Per-start expected event counts behind the SP points (outs, K, ER,
+    hits, BB, HBP) plus QS rate. Mirrors _per_start_pitcher_points."""
+    gs = max(_safe_float(stats.get("gamesStarted")), 1.0)
+    ip = _safe_float(stats.get("inningsPitched"))
+    outs = int(ip) * 3 + round((ip - int(ip)) * 10)
+    return {
+        "outs": outs / gs,
+        "K": _safe_float(stats.get("strikeOuts")) / gs,
+        "ER": _safe_float(stats.get("earnedRuns")) / gs,
+        "H": _safe_float(stats.get("hits")) / gs,
+        "BB": _safe_float(stats.get("baseOnBalls")) / gs,
+        "HBP": _safe_float(stats.get("hitBatsmen")) / gs,
+        "QS": _safe_float(stats.get("qualityStarts")) / gs,
+    }
+
+
+_PITCHER_DECOMP_KEYS = [
+    ("outs", "out", "Outs (IP×3)"),
+    ("K", "strikeOut", "Strikeouts"),
+    ("QS", "qualityStart", "Quality start"),
+    ("ER", "earnedRun", "Earned runs"),
+    ("H", "hitAllowed", "Hits allowed"),
+    ("BB", "walkIssued", "Walks"),
+    ("HBP", "hitBatsman", "HBP"),
+]
+
+
+def _point_decomp_pitcher(events: dict, proj_points: float) -> dict | None:
+    """SP version of _point_decomp_hitter — scales the representative
+    per-start line so its scored points sum to the projection."""
+    raw_pts = sum(events.get(ek, 0.0) * PITCHER_POINTS[sk] for ek, sk, _ in _PITCHER_DECOMP_KEYS)
+    if raw_pts <= 0.5:
+        return None
+    scale = proj_points / raw_pts
+    lines = []
+    for ek, sk, label in _PITCHER_DECOMP_KEYS:
+        n = events.get(ek, 0.0) * scale
+        if abs(n) < 0.005:
+            continue
+        w = PITCHER_POINTS[sk]
+        dp = 1 if ek == "outs" else 2
+        lines.append({"label": label, "key": ek, "n": round(n, dp),
+                      "pts_each": w, "pts": round(n * w, 2)})
+    return {"raw_pts": round(raw_pts, 2), "scale": round(scale, 3),
+            "lines": lines, "total": round(proj_points, 2)}
+
+
 # Two-tier cache: in-memory (instant) + disk (survives redeploys/restarts).
 # Projections are based on rolling stat windows that only meaningfully change
 # after games complete overnight, so we hold them for 6h.
@@ -1686,7 +1806,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-25-v9.17" # order_factor normalized vs season PA/G (was double-counting leadoff)
+MODEL_REV = "2026-05-25-v9.19" # add point_decomp component (expected stat line behind the FP number)
 
 
 def _proj_disk_path(key: tuple) -> str:
