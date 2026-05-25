@@ -188,6 +188,9 @@ $$("nav button").forEach((b) => {
     if (b.dataset.tab === "hof") {
       loadHallOfFame().catch(() => {});
     }
+    if (b.dataset.tab === "dynasty") {
+      loadDynasty().catch(() => {});
+    }
     refresh();
   });
 });
@@ -526,6 +529,91 @@ async function showTriviaLeaderboard() {
   }
 }
 $("#trivia-leaderboard-btn")?.addEventListener("click", showTriviaLeaderboard);
+
+// ---------- Dynasty ----------
+// Our rankings (consensus re-shaped by age curve / scarcity / Statcast luck),
+// multi-year value, and the trade analyzer. Loads on first tab entry.
+let dynastyCache = null;
+
+async function loadDynasty(force = false) {
+  const out = $("#dynasty-out");
+  if (!out) return;
+  if (dynastyCache && !force) { renderDynasty(); return; }
+  out.innerHTML = '<div class="muted">Loading our dynasty board…</div>';
+  try {
+    const data = await api(`/api/dynasty/rankings?limit=500`);
+    dynastyCache = data.rankings || [];
+    renderDynasty();
+  } catch (e) {
+    out.innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+}
+
+function renderDynasty() {
+  const out = $("#dynasty-out");
+  if (!out || !dynastyCache) return;
+  const q = ($("#dyn-search")?.value || "").toLowerCase().trim();
+  const rows = dynastyCache.filter(v => !q || v.name.toLowerCase().includes(q));
+  const body = rows.slice(0, 250).map(v => {
+    const d = v.rank_delta;
+    const deltaCls = d > 0 ? "edge-pos" : d < 0 ? "edge-neg" : "muted";
+    const deltaStr = d === 0 ? "—" : (d > 0 ? `▲${d}` : `▼${-d}`);
+    const luck = v.components.luck_note;
+    const luckCls = luck.startsWith("buy") ? "edge-pos" : luck.startsWith("sell") ? "edge-neg" : "muted";
+    const ageStr = v.age != null ? v.age : "?";
+    return `<tr class="score-row">
+      <td style="font-weight:700;">${v.our_rank}</td>
+      <td class="player-cell">${v.name}</td>
+      <td>${v.pos}</td>
+      <td style="text-align:right;">${ageStr}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${v.dynasty_score.toFixed(0)}</td>
+      <td style="text-align:right;" class="muted">#${v.consensus_rank}</td>
+      <td style="text-align:right;" class="${deltaCls}">${deltaStr}</td>
+      <td style="font-size:11px;" class="${luckCls}">${luck || ""}</td>
+    </tr>`;
+  }).join("");
+  out.innerHTML = `<table style="width:100%;font-size:13px;">
+    <thead><tr>
+      <th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
+      <th style="text-align:right;" title="Our dynasty value: multi-year, age-adjusted, scarcity- and luck-weighted">Dyn value</th>
+      <th style="text-align:right;" title="FantraxHQ consensus Roto rank">Cons</th>
+      <th style="text-align:right;" title="Spots we differ from consensus (▲ = we're higher on them)">Δ</th>
+      <th>Statcast read</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+  </table>
+  <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,250)} of ${rows.length}. Search to narrow.</div>`;
+}
+
+async function evaluateDynastyTrade() {
+  const out = $("#dyn-trade-out");
+  const parse = (id) => ($(id)?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const a = parse("#dyn-side-a"), b = parse("#dyn-side-b");
+  if (!a.length || !b.length) { out.innerHTML = `<div class="muted">Add at least one player to each side.</div>`; return; }
+  out.innerHTML = `<div class="muted">Evaluating…</div>`;
+  try {
+    const r = await api(`/api/dynasty/trade`, { method: "POST", body: JSON.stringify({ side_a: a, side_b: b }) });
+    const sideHtml = (label, s) => {
+      const players = s.players.map(p => `<li>${p.name} <span class="muted">(${p.pos}, ${p.age ?? "?"}) — ${p.dynasty_score.toFixed(0)}</span></li>`).join("");
+      const miss = s.missing.length ? `<div class="muted" style="font-size:11px;">⚠ not in top-500: ${s.missing.join(", ")}</div>` : "";
+      return `<div><b>Side ${label}</b> — total <b>${s.total.toFixed(0)}</b>${s.avg_age ? ` · avg age ${s.avg_age}` : ""}
+        <ul style="margin:4px 0 0 16px;padding:0;font-size:12px;">${players}</ul>${miss}</div>`;
+    };
+    const ctx = r.context.map(c => `<li>${c}</li>`).join("");
+    out.innerHTML = `
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;">${r.verdict} <span class="muted" style="font-weight:400;font-size:12px;">(value gap ${Math.abs(r.diff).toFixed(0)})</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">${sideHtml("A", r.side_a)}${sideHtml("B", r.side_b)}</div>
+      ${ctx ? `<ul style="margin:8px 0 0 16px;padding:0;font-size:12px;color:var(--muted);">${ctx}</ul>` : ""}`;
+  } catch (e) {
+    out.innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("#dyn-refresh")?.addEventListener("click", () => loadDynasty(true));
+  $("#dyn-search")?.addEventListener("input", () => dynastyCache && renderDynasty());
+  $("#dyn-trade-btn")?.addEventListener("click", evaluateDynastyTrade);
+});
 
 // ---------- Hall of Fame ----------
 // All-time records, per-drafter aggregates, head-to-head, season titles.

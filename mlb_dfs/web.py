@@ -147,6 +147,46 @@ def health():
     return {"ok": True}
 
 
+# ---- Dynasty: our rankings, predictions, trade analyzer ---------------------
+
+@app.get("/api/dynasty/rankings")
+def dynasty_our_rankings(limit: int = 500, season: int | None = None):
+    """OUR dynasty rankings — consensus prior re-shaped by age curve, position
+    scarcity, and Statcast luck. Each row carries our_rank vs consensus_rank
+    so the UI can show where we disagree with the market."""
+    from . import dynasty
+    yr = season or Date.today().year
+    return {"season": yr, "rankings": dynasty.rankings(yr, limit=limit)}
+
+
+@app.get("/api/dynasty/player/{name}")
+def dynasty_player(name: str, season: int | None = None):
+    """Full dynasty valuation + multi-year projection curve for one player."""
+    from . import dynasty
+    yr = season or Date.today().year
+    v = dynasty.dynasty_value(dynasty._norm(name), yr)
+    if not v:
+        raise HTTPException(404, f"'{name}' not in the dynasty pool (top-500 consensus)")
+    return v
+
+
+class DynastyTradeRequest(BaseModel):
+    side_a: list[str]
+    side_b: list[str]
+    season: int | None = None
+
+
+@app.post("/api/dynasty/trade")
+def dynasty_trade(req: DynastyTradeRequest):
+    """Evaluate a dynasty trade — per-side value, winner, fairness verdict,
+    and win-now/rebuild + consolidation context."""
+    from . import dynasty
+    if not req.side_a or not req.side_b:
+        raise HTTPException(400, "both sides need at least one player")
+    yr = req.season or Date.today().year
+    return dynasty.evaluate_trade(req.side_a, req.side_b, yr)
+
+
 class AskAlgoRequest(BaseModel):
     names: list[str]
     date: str | None = None

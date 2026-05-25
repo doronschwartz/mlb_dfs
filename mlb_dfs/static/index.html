@@ -22,6 +22,7 @@
       <button data-tab="lineup">Lineup</button>
       <button data-tab="ask">🎯 Ask Algo</button>
       <button data-tab="hof">🏆 Hall of Fame</button>
+      <button data-tab="dynasty">👑 Dynasty</button>
     </nav>
     <div class="date-row">
       <label>Date <input id="date" type="date" /></label>
@@ -351,6 +352,38 @@
         <button id="hof-refresh" type="button">↻ Refresh</button>
       </div>
       <div id="hof-out"><div class="muted">Loading…</div></div>
+    </section>
+
+    <section id="tab-dynasty" class="tab">
+      <h2>👑 Dynasty <span class="muted" style="font-size:13px;font-weight:400;">— our rankings, multi-year value & trade analyzer</span></h2>
+      <p class="muted" style="font-size:12px;margin:0 0 10px;">
+        FantraxHQ consensus re-shaped by our data: explicit <b>age curves</b> (a 23yo beats a 31yo at the same talent),
+        <b>position scarcity</b> (C/SS premium), and <b>Statcast luck</b> (xwOBA/xERA flags buy-low / sell-high).
+        <b>Δ</b> = how many spots we differ from the consensus (green = we're higher on them than the market).
+      </p>
+
+      <div class="dynasty-trade" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <h3 style="margin:0 0 8px;">⚖️ Trade Analyzer</h3>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;">
+          <div>
+            <div class="muted" style="font-size:11px;margin-bottom:4px;">Side A gives (one player per line)</div>
+            <textarea id="dyn-side-a" rows="4" placeholder="Elly De La Cruz" style="width:100%;font-size:12px;font-family:ui-monospace,Menlo,monospace;"></textarea>
+          </div>
+          <div style="align-self:center;font-weight:700;color:var(--muted);">⇄</div>
+          <div>
+            <div class="muted" style="font-size:11px;margin-bottom:4px;">Side B gives</div>
+            <textarea id="dyn-side-b" rows="4" placeholder="Aaron Judge&#10;Cal Raleigh" style="width:100%;font-size:12px;font-family:ui-monospace,Menlo,monospace;"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:8px;"><button id="dyn-trade-btn" class="btn-pick">Evaluate trade</button></div>
+        <div id="dyn-trade-out" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="dynasty-controls" style="margin-bottom:8px;">
+        <input id="dyn-search" type="text" placeholder="Search player…" style="font-size:13px;padding:5px 8px;width:220px;">
+        <button id="dyn-refresh" type="button">↻ Refresh</button>
+      </div>
+      <div id="dynasty-out"><div class="muted">Loading our dynasty board…</div></div>
     </section>
   </main>
 
