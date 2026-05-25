@@ -412,6 +412,43 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.2 — 2026-05-25",
+                "title": "Dynasty: injury risk, prospect ETA, multi-pos & young-upside factors",
+                "changes": [
+                    "Injury-risk discount baked into dynasty value from the ESPN feed's current status: 60-day IL ×0.90, 15-day ×0.95, 10-day ×0.97, day-to-day ×0.99. Pitchers carry an extra ×0.97 standing arm-risk haircut (kept light — the steeper pitcher age curve already prices some of it).",
+                    "Prospect ETA factor: the CSV ETA column is a signal the consensus rank under-weights — a 2026 arrival is worth more than a 2028 lottery ticket (sooner value + less time for bust risk). Already-up = ×1.0, ~−5% per year out, floor ×0.82.",
+                    "Multi-position eligibility premium: 2-position ×1.03, 3+ ×1.06 (DH/util don't count). Lineup flexibility covers injuries and unlocks roster construction.",
+                    "Young-ascending bonus: the age curve assumes a fixed peak from current production, but a ≤23yo already posting elite Statcast is likely still climbing — up to +8% for a 20yo with +1.5z skill.",
+                    "All five new levers show in the click-to-expand breakdown's 'why they're here' list.",
+                ],
+            },
+            {
+                "version": "Dynasty v1.1 — 2026-05-25",
+                "title": "Dynasty: skill model + minor-league prospect stats",
+                "changes": [
+                    "Our data now DRIVES the board, not just nudges it. base_value = 50% FantraxHQ consensus + 50% our Statcast skill-rank (xwOBA/xSLG/barrel%/hard-hit% for hitters; xERA/xwOBA-against/barrels-allowed for pitchers), z-scored and pooled. 100% consensus fallback when no qualifying sample.",
+                    "Minor-league prospects get a real read: we resolve their MLB id, detect their ACTUAL current level (robust to promotions — a 'AA' prospect now in the majors is valued on his MLB line), and convert MiLB production to MLB-equivalent (level haircut + age-vs-level bonus, the dominant prospect signal).",
+                    "Luck-logic audit: sample-gated (120 PA / 80 BF), magnitude halved to ±5%, role-aware (two-way bat no longer clobbered by a tiny IP line), and elite underlying skill no longer mislabeled 'sell-high'.",
+                    "Click any ranking row → full breakdown: consensus×skill blend math, the Statcast/MiLB skill table with league context + z-scores, the 6-year projected value path, and a plain-English why.",
+                ],
+            },
+            {
+                "version": "Dynasty v1.0 — 2026-05-25",
+                "title": "Dynasty rankings, multi-year value & trade analyzer",
+                "changes": [
+                    "New 👑 Dynasty tab: our rankings re-shape the FantraxHQ consensus with explicit age curves (6-year discounted value path), position scarcity (C/SS/2B premium, 1B/DH/RP discount, two-way premium), and a Statcast luck tilt. Shows our-rank vs consensus-rank disagreement (Δ).",
+                    "Trade analyzer: per-side dynasty value, fairness verdict, consolidation premium (best player in a capped-roster deal > raw sum), and win-now-vs-rebuild context from the age profiles.",
+                    "Endpoints: GET /api/dynasty/rankings, GET /api/dynasty/player/{name}, POST /api/dynasty/trade.",
+                ],
+            },
+            {
+                "version": "v9.17 — 2026-05-25",
+                "title": "Fix order_factor double-count",
+                "changes": [
+                    "Batting-order PA factor was an absolute per-spot multiplier (leadoff ×1.10), but base_pg is points-per-GAME which already embeds a hitter's typical PA volume — so a career leadoff hitter got an unearned +10%. Corrected: normalize today's expected PA (by lineup spot) against the player's own season PA/game, clamped ±12%. A leadoff regular now reads ~1.0; a usual-#7 hitter slotted leadoff gets the real boost.",
+                ],
+            },
+            {
                 "version": "v9.12 — 2026-05-19",
                 "title": "Tighten pitcher COLD + add ELITE form_tag boost",
                 "changes": [

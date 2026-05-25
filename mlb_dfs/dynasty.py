@@ -32,7 +32,7 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date as Date
 
-from . import disk_cache, mlb_api, savant
+from . import disk_cache, injuries, mlb_api, savant
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _CSV = os.path.join(_DATA_DIR, "dynasty_top500.csv")
@@ -553,6 +553,75 @@ def _skill_scores(season: int) -> dict[str, dict]:
 _SKILL_BLEND = 0.50
 
 
+def _injury_factor(name: str, role: str) -> tuple[float, str]:
+    """Dynasty injury-risk discount. We don't have multi-year IL history, but
+    the ESPN feed's CURRENT status is a reasonable proxy: a guy on the 60-day
+    IL right now carries real dynasty risk, a day-to-day tweak almost none.
+    Pitchers carry a small standing arm-risk haircut on top (TJ attrition) —
+    kept light since the steeper pitcher age curve already prices some of it."""
+    mult, note = 1.0, ""
+    rec = injuries.lookup(name)
+    if rec:
+        s = (rec.get("status") or "").lower()
+        typ = rec.get("type") or ""
+        if "60-day" in s:
+            mult, note = 0.90, f"on 60-day IL ({typ}) — dynasty risk"
+        elif "15-day" in s:
+            mult, note = 0.95, f"on 15-day IL ({typ})"
+        elif "10-day" in s:
+            mult, note = 0.97, f"on 10-day IL ({typ})"
+        elif "day-to-day" in s:
+            mult, note = 0.99, f"day-to-day ({typ})"
+    if role == "pitcher":
+        mult *= 0.97  # standing arm-injury risk premium for pitchers
+        note = (note + " · " if note else "") + "pitcher arm-risk haircut"
+    return mult, note
+
+
+def _multipos_factor(pos: str) -> tuple[float, str]:
+    """Multi-position eligibility is real dynasty value — a 2B/SS/OF fills
+    holes, covers injuries, and unlocks roster construction. Small premium
+    by count of distinct real positions (DH/util don't count as flexibility)."""
+    parts = {p.strip().upper() for p in (pos or "").replace("/", ",").split(",") if p.strip()}
+    real = parts - {"DH", "UT", "UTIL", "TWP"}
+    n = len(real)
+    if n >= 3:
+        return 1.06, f"{n}-position eligible (flexibility premium)"
+    if n == 2:
+        return 1.03, f"{n}-position eligible"
+    return 1.0, ""
+
+
+def _young_ascending_factor(age: float | None, skill_z: float | None) -> tuple[float, str]:
+    """The age curve credits a fixed peak derived from CURRENT production, but
+    a very young player already posting elite skill is likely still ASCENDING
+    — their true peak is probably higher than today's line. Modest bonus for
+    age ≤ 23 with above-average skill; bigger the younger + better they are."""
+    if age is None or skill_z is None or age > 23 or skill_z < 0.4:
+        return 1.0, ""
+    # up to +8% for a 20yo with +1.5z skill
+    bonus = min(0.08, (24 - age) * 0.015 + (skill_z - 0.4) * 0.03)
+    if bonus < 0.01:
+        return 1.0, ""
+    return 1.0 + bonus, f"young & ascending (age {age:.0f}, skill z+{skill_z:.1f}) ×{1+bonus:.2f}"
+
+
+def _eta_factor(eta: str, season: int) -> tuple[float, str]:
+    """For prospects, how soon they'll contribute. The CSV ETA column is a
+    free signal the consensus rank under-weights: a 2026 arrival is worth
+    more than a 2028 lottery ticket (sooner value + less time for the bust
+    risk to bite). Already-up / this-year = 1.0; each extra year out ~ -5%."""
+    try:
+        yr = int((eta or "").strip())
+    except (TypeError, ValueError):
+        return 1.0, ""
+    years_out = yr - season
+    if years_out <= 0:
+        return 1.0, ""
+    mult = max(0.82, 1.0 - 0.05 * years_out)
+    return mult, f"ETA {yr} ({years_out}y out) ×{mult:.2f}"
+
+
 # ---- dynasty value -----------------------------------------------------------
 
 def _role_for(pos: str) -> str:
@@ -590,6 +659,11 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     pos_mult = _pos_scarcity(cons["pos"])
     luck = _statcast_luck(season).get(nname)
     luck_mult, luck_note = _luck_multiplier(luck, role)
+    inj_mult, inj_note = _injury_factor(cons["name"], role)
+    eta_mult, eta_note = _eta_factor(cons.get("eta"), season)
+    multipos_mult, multipos_note = _multipos_factor(cons["pos"])
+    young_mult, young_note = _young_ascending_factor(
+        cons.get("age"), skill["skill_z"] if skill else None)
     age = cons.get("age")
 
     # Multi-year projection: de-age the consensus value to a peak-talent
@@ -605,7 +679,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     for k in range(HORIZON):
         yr_age = (age + k) if age else None
         yr_factor = _age_factor(yr_age, role) if yr_age else cur_age_factor
-        yr_value = peak_value * yr_factor * pos_mult * luck_mult
+        yr_value = (peak_value * yr_factor * pos_mult * luck_mult * inj_mult
+                    * eta_mult * multipos_mult * young_mult)
         discounted = yr_value * (DISCOUNT ** k)
         dynasty_score += discounted
         curve.append({
@@ -631,6 +706,14 @@ def dynasty_value(nname: str, season: int) -> dict | None:
             "pos_scarcity": pos_mult,
             "luck_mult": round(luck_mult, 3),
             "luck_note": luck_note,
+            "injury_mult": round(inj_mult, 3),
+            "injury_note": inj_note,
+            "eta_mult": round(eta_mult, 3),
+            "eta_note": eta_note,
+            "multipos_mult": round(multipos_mult, 3),
+            "multipos_note": multipos_note,
+            "young_mult": round(young_mult, 3),
+            "young_note": young_note,
             "age_factor": round(cur_age_factor, 3),
         },
         "projection_curve": curve,

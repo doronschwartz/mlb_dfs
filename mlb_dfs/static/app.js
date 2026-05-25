@@ -698,6 +698,10 @@ function dynastyBreakdownHtml(v) {
   if (c.pos_scarcity > 1.0) why.push(`Position <b>${v.pos}</b> scarce → ×${c.pos_scarcity.toFixed(2)} premium.`);
   else if (c.pos_scarcity < 1.0) why.push(`Position <b>${v.pos}</b> replaceable → ×${c.pos_scarcity.toFixed(2)}.`);
   if (c.luck_note) why.push(`Regression read: ${c.luck_note} → ×${c.luck_mult.toFixed(2)}.`);
+  if (c.eta_note) why.push(`Prospect timing: ${c.eta_note}.`);
+  if (c.young_note) why.push(`Upside: ${c.young_note}.`);
+  if (c.multipos_note) why.push(`Flexibility: ${c.multipos_note}.`);
+  if (c.injury_note) why.push(`Injury: ${c.injury_note} → ×${(c.injury_mult ?? 1).toFixed(2)}.`);
 
   return `<div style="padding:12px 14px;">
     <div style="font-weight:700;margin-bottom:8px;">${v.name} — dynasty value ${v.dynasty_score.toFixed(0)}
