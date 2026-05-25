@@ -115,16 +115,18 @@ def _age_factor(age: float, role: str) -> float:
     if not age or age <= 0:
         return 1.0
     if role == "pitcher":
-        peak = 26.0
-        # gentle rise to peak, ~3.5%/yr decline after
+        peak = 27.0
+        # Softened (v1.3): 0.040/yr decline was brutal — it buried established
+        # aces (Skubal at 29 → ×0.88). Aces hold dynasty value into the early
+        # 30s; 0.028/yr is closer to how the market prices them.
         if age <= peak:
             return max(0.85, 1.0 - 0.015 * (peak - age))
-        return max(0.40, 1.0 - 0.040 * (age - peak))
+        return max(0.40, 1.0 - 0.028 * (age - peak))
     # hitter
     peak = 27.0
     if age <= peak:
         return max(0.86, 1.0 - 0.018 * (peak - age))
-    return max(0.45, 1.0 - 0.030 * (age - peak))
+    return max(0.45, 1.0 - 0.028 * (age - peak))
 
 
 # Position scarcity multiplier on dynasty value. Catcher + premium infield are
@@ -435,101 +437,173 @@ def _z(val, mean, sd):
     return (val - mean) / sd
 
 
+# Multi-year window: current + 2 prior seasons. Each year weighted by
+# recency × sample, so a 40-IP injured 2026 doesn't override two elite
+# full seasons (the Skubal fix), but a true breakout still moves because
+# recency is weighted up.
+_YEAR_RECENCY = {0: 1.30, 1: 1.00, 2: 0.70}  # offset from current → weight
+
+
+def _flip_name(lf: str) -> str:
+    if "," in lf:
+        last, first = [s.strip() for s in lf.split(",", 1)]
+        return f"{first} {last}"
+    return lf
+
+
+def _sf(row, key):
+    try:
+        v = row.get(key)
+        return float(v) if v not in (None, "", "null") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _skill_scores(season: int) -> dict[str, dict]:
-    """{normalized_name: {role, skill_z, skill_rank, comps}} from bulk Statcast.
-    skill_rank is the pool-wide rank by composite z (hitters+pitchers pooled,
-    z-scores are role-relative so a +2z arm ≈ a +2z bat)."""
+    """{normalized_name: {role, skill_z, skill_rank, comps, traj}} from MULTI-
+    YEAR bulk Statcast (current + 2 prior). Per-metric values are a sample×
+    recency-weighted blend across years — stable true talent that doesn't
+    crater on one down/injured season. Also computes a trajectory delta
+    (this year vs prior baseline) for the ascending/declining factor."""
     if season in _SKILL_CACHE:
         return _SKILL_CACHE[season]
     out: dict[str, dict] = {}
+    years = [season - off for off in (0, 1, 2)]
 
-    def _flip(lf):
-        if "," in lf:
-            last, first = [s.strip() for s in lf.split(",", 1)]
-            return f"{first} {last}"
-        return lf
-
-    def _f(row, key):
-        try:
-            v = row.get(key)
-            return float(v) if v not in (None, "", "null") else None
-        except (TypeError, ValueError):
+    def _wavg(per_year):
+        """per_year: list of (value, weight). Returns weighted mean or None."""
+        pairs = [(v, w) for v, w in per_year if v is not None and w > 0]
+        if not pairs:
             return None
+        return sum(v * w for v, w in pairs) / sum(w for _, w in pairs)
 
-    # ---- hitters: join expected (xwoba/xslg/xba/pa) with statcast (qoc) ----
+    # ---------- hitters ----------
     try:
-        exp = savant.batter_expected(season)
-        qoc = savant.batter_statcast(season)
-        for pid, row in exp.items():
-            pa = _f(row, "pa") or 0
-            if pa < 120:
+        exp_by_year = {y: savant.batter_expected(y) for y in years}
+        qoc_by_year = {y: savant.batter_statcast(y) for y in years}
+        # pid universe across years
+        pids = set()
+        for y in years:
+            pids |= set(exp_by_year[y].keys())
+        for pid in pids:
+            metrics = {k: [] for k in ("xwoba", "xslg", "xba", "barrel", "hardhit", "sweetspot")}
+            total_sample = 0.0
+            name = ""
+            recent_xwoba = prior_xwoba = None
+            for off, y in enumerate(years):
+                row = exp_by_year[y].get(pid)
+                if not row:
+                    continue
+                pa = _sf(row, "pa") or 0
+                if pa < 40:
+                    continue
+                rw = _YEAR_RECENCY[off]
+                wt = pa * rw
+                q = qoc_by_year[y].get(pid, {})
+                vals = {
+                    "xwoba": _sf(row, "est_woba"), "xslg": _sf(row, "est_slg"),
+                    "xba": _sf(row, "est_ba"), "barrel": _sf(q, "brl_percent"),
+                    "hardhit": _sf(q, "ev95percent"), "sweetspot": _sf(q, "anglesweetspotpercent"),
+                }
+                for k, v in vals.items():
+                    metrics[k].append((v, wt))
+                total_sample += pa if off == 0 else 0  # report current-year sample
+                if not name:
+                    name = _flip_name(row.get("last_name, first_name", ""))
+                if off == 0:
+                    recent_xwoba = vals["xwoba"]
+                else:
+                    prior_xwoba = vals["xwoba"] if prior_xwoba is None else prior_xwoba
+            wm = {k: _wavg(metrics[k]) for k in metrics}
+            if wm["xwoba"] is None:
                 continue
-            xwoba = _f(row, "est_woba")
-            if xwoba is None:
-                continue
-            q = qoc.get(pid, {})
-            comps = {
-                "xwoba": xwoba, "xslg": _f(row, "est_slg"), "xba": _f(row, "est_ba"),
-                "barrel": _f(q, "brl_percent"), "hardhit": _f(q, "ev95percent"),
-                "sweetspot": _f(q, "anglesweetspotpercent"), "pa": int(pa),
-            }
             zs = {
-                "xwoba": _z(comps["xwoba"], *_HIT_BASE["xwoba"]),
-                "xslg": _z(comps["xslg"], *_HIT_BASE["xslg"]),
-                "xba": _z(comps["xba"], *_HIT_BASE["xba"]),
-                "barrel": _z(comps["barrel"], *_HIT_BASE["barrel"]),
-                "hardhit": _z(comps["hardhit"], *_HIT_BASE["hardhit"]),
-                "sweetspot": _z(comps["sweetspot"], *_HIT_BASE["sweetspot"]),
+                "xwoba": _z(wm["xwoba"], *_HIT_BASE["xwoba"]),
+                "xslg": _z(wm["xslg"], *_HIT_BASE["xslg"]),
+                "xba": _z(wm["xba"], *_HIT_BASE["xba"]),
+                "barrel": _z(wm["barrel"], *_HIT_BASE["barrel"]),
+                "hardhit": _z(wm["hardhit"], *_HIT_BASE["hardhit"]),
+                "sweetspot": _z(wm["sweetspot"], *_HIT_BASE["sweetspot"]),
             }
             w = {"xwoba": 0.45, "xslg": 0.12, "xba": 0.08, "barrel": 0.18,
                  "hardhit": 0.12, "sweetspot": 0.05}
             num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
             den = sum(w[k] for k in w if zs[k] is not None)
-            if den <= 0:
+            if den <= 0 or not name:
                 continue
-            skill_z = num / den
-            out[_norm(_flip(row.get("last_name, first_name", "")))] = {
-                "role": "hitter", "skill_z": round(skill_z, 3), "comps": comps,
-            }
-    except Exception:
-        pass
+            traj = (recent_xwoba - prior_xwoba) if (recent_xwoba is not None and prior_xwoba is not None) else None
+            comps = {k: (round(wm[k], 3) if k in ("xwoba","xslg","xba") and wm[k] is not None
+                         else round(wm[k],1) if wm[k] is not None else None) for k in wm}
+            comps["pa"] = int(total_sample)
+            comps["multi_year"] = len([1 for v, _w in metrics["xwoba"] if v is not None])
+            out[_norm(name)] = {"role": "hitter", "skill_z": round(num / den, 3),
+                                "comps": comps, "traj": round(traj, 3) if traj is not None else None}
+    except Exception as e:
+        logging.warning("multi-year hitter skill failed: %s", e)
 
-    # ---- pitchers: expected (xera/xwoba-against) + statcast (qoc allowed) ----
+    # ---------- pitchers ----------
     try:
-        pexp = savant.pitcher_expected(season)
-        pqoc = savant.pitcher_statcast(season)
-        for pid, row in pexp.items():
-            pa = _f(row, "pa") or 0
-            if pa < 80:
+        pexp_by_year = {y: savant.pitcher_expected(y) for y in years}
+        pqoc_by_year = {y: savant.pitcher_statcast(y) for y in years}
+        pids = set()
+        for y in years:
+            pids |= set(pexp_by_year[y].keys())
+        for pid in pids:
+            metrics = {k: [] for k in ("xera", "xwoba_against", "barrel_allowed", "hardhit_allowed")}
+            total_sample = 0.0
+            name = ""
+            recent_xera = prior_xera = None
+            for off, y in enumerate(years):
+                row = pexp_by_year[y].get(pid)
+                if not row:
+                    continue
+                pa = _sf(row, "pa") or 0
+                if pa < 40:
+                    continue
+                rw = _YEAR_RECENCY[off]
+                wt = pa * rw
+                q = pqoc_by_year[y].get(pid, {})
+                vals = {
+                    "xera": _sf(row, "xera"), "xwoba_against": _sf(row, "est_woba"),
+                    "barrel_allowed": _sf(q, "brl_percent"), "hardhit_allowed": _sf(q, "ev95percent"),
+                }
+                for k, v in vals.items():
+                    metrics[k].append((v, wt))
+                if off == 0:
+                    total_sample = pa
+                    recent_xera = vals["xera"]
+                elif prior_xera is None:
+                    prior_xera = vals["xera"]
+                if not name:
+                    name = _flip_name(row.get("last_name, first_name", ""))
+            wm = {k: _wavg(metrics[k]) for k in metrics}
+            if wm["xera"] is None and wm["xwoba_against"] is None:
                 continue
-            xera = _f(row, "xera")
-            xwa = _f(row, "est_woba")
-            if xera is None and xwa is None:
-                continue
-            q = pqoc.get(pid, {})
-            comps = {
-                "xera": xera, "xwoba_against": xwa,
-                "barrel_allowed": _f(q, "brl_percent"),
-                "hardhit_allowed": _f(q, "ev95percent"), "pa": int(pa),
-            }
-            # lower = better → negate
             zs = {
-                "xera": -_z(comps["xera"], *_PIT_BASE["xera"]) if comps["xera"] is not None else None,
-                "xwoba_against": -_z(comps["xwoba_against"], *_PIT_BASE["xwoba_against"]) if comps["xwoba_against"] is not None else None,
-                "barrel_allowed": -_z(comps["barrel_allowed"], *_PIT_BASE["barrel_allowed"]) if comps["barrel_allowed"] is not None else None,
-                "hardhit_allowed": -_z(comps["hardhit_allowed"], *_PIT_BASE["hardhit_allowed"]) if comps["hardhit_allowed"] is not None else None,
+                "xera": -_z(wm["xera"], *_PIT_BASE["xera"]) if wm["xera"] is not None else None,
+                "xwoba_against": -_z(wm["xwoba_against"], *_PIT_BASE["xwoba_against"]) if wm["xwoba_against"] is not None else None,
+                "barrel_allowed": -_z(wm["barrel_allowed"], *_PIT_BASE["barrel_allowed"]) if wm["barrel_allowed"] is not None else None,
+                "hardhit_allowed": -_z(wm["hardhit_allowed"], *_PIT_BASE["hardhit_allowed"]) if wm["hardhit_allowed"] is not None else None,
             }
             w = {"xera": 0.45, "xwoba_against": 0.27, "barrel_allowed": 0.16, "hardhit_allowed": 0.12}
             num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
             den = sum(w[k] for k in w if zs[k] is not None)
-            if den <= 0:
+            if den <= 0 or not name:
                 continue
-            skill_z = num / den
-            out[_norm(_flip(row.get("last_name, first_name", "")))] = {
-                "role": "pitcher", "skill_z": round(skill_z, 3), "comps": comps,
+            # pitcher trajectory: xERA going DOWN = improving → positive traj
+            traj = (prior_xera - recent_xera) if (recent_xera is not None and prior_xera is not None) else None
+            comps = {
+                "xera": round(wm["xera"], 2) if wm["xera"] is not None else None,
+                "xwoba_against": round(wm["xwoba_against"], 3) if wm["xwoba_against"] is not None else None,
+                "barrel_allowed": round(wm["barrel_allowed"], 1) if wm["barrel_allowed"] is not None else None,
+                "hardhit_allowed": round(wm["hardhit_allowed"], 1) if wm["hardhit_allowed"] is not None else None,
+                "pa": int(total_sample),
+                "multi_year": len([1 for v, _w in metrics["xera"] if v is not None]),
             }
-    except Exception:
-        pass
+            out[_norm(name)] = {"role": "pitcher", "skill_z": round(num / den, 3),
+                                "comps": comps, "traj": round(traj, 3) if traj is not None else None}
+    except Exception as e:
+        logging.warning("multi-year pitcher skill failed: %s", e)
 
     # Fold in minor-league prospects (MiLB production → MLB-equivalent z).
     # Don't overwrite a player who already has an MLB Statcast read.
@@ -639,17 +713,27 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         return None
     role = _role_for(cons["pos"])
     cons_value = _rank_value(cons["rank"])
-    # Blend the consensus prior with OUR Statcast skill-rank value. When we
-    # have skill data, base = 50/50 blend; otherwise pure consensus.
+    # Blend the consensus prior with OUR skill-rank value. v1.3: the blend is
+    # CONFIDENCE-WEIGHTED by sample size, not a flat 50/50. Single-season
+    # Statcast is a noisy/incomplete read on a multi-year dynasty asset —
+    # leaning 50% on a 40-IP injured sample buried established aces (Skubal
+    # #5 consensus → #45). Now: more sample → more skill weight, capped at
+    # _SKILL_BLEND. A thin sample leans on the consensus (the career proxy).
     skill = _skill_scores(season).get(nname)
     skill_block = None
     if skill and skill.get("skill_rank"):
+        sample = (skill.get("comps") or {}).get("pa") or (skill.get("comps") or {}).get("bf") or 0
+        full = 170 if skill.get("role") == "pitcher" else 240
+        conf = max(0.0, min(1.0, sample / full)) if sample else 0.4
+        eff_blend = _SKILL_BLEND * conf
         talent_value = _rank_value(skill["skill_rank"])
-        base = _SKILL_BLEND * talent_value + (1 - _SKILL_BLEND) * cons_value
+        base = eff_blend * talent_value + (1 - eff_blend) * cons_value
         skill_block = {
             "skill_rank": skill["skill_rank"],
             "skill_z": skill["skill_z"],
             "talent_value": round(talent_value, 1),
+            "blend_weight": round(eff_blend, 2),
+            "sample": int(sample),
             "comps": skill["comps"],
             "is_prospect": skill.get("is_prospect", False),
             "actual_level": skill.get("actual_level"),
@@ -664,6 +748,20 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     multipos_mult, multipos_note = _multipos_factor(cons["pos"])
     young_mult, young_note = _young_ascending_factor(
         cons.get("age"), skill["skill_z"] if skill else None)
+    # Year-over-year trajectory: this season's xwOBA/xERA vs the prior baseline.
+    # Ascending true talent (esp. young) is a dynasty buy; sliding skill is a
+    # warning the consensus is slow to price. Small ±4% — it's a trend nudge.
+    traj_mult, traj_note = 1.0, ""
+    if skill and skill.get("traj") is not None:
+        t = skill["traj"]
+        if skill["role"] == "hitter":  # +xwOBA delta = improving
+            traj_mult = 1.0 + max(-0.04, min(t / 0.030 * 0.04, 0.04))
+            if abs(t) >= 0.015:
+                traj_note = f"{'rising' if t>0 else 'sliding'} xwOBA {t:+.3f} YoY"
+        else:  # pitcher traj = prior_xera - recent_xera; + = improving
+            traj_mult = 1.0 + max(-0.04, min(t / 0.60 * 0.04, 0.04))
+            if abs(t) >= 0.30:
+                traj_note = f"{'improving' if t>0 else 'declining'} xERA {-t:+.2f} YoY"
     age = cons.get("age")
 
     # Multi-year projection: de-age the consensus value to a peak-talent
@@ -680,7 +778,7 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         yr_age = (age + k) if age else None
         yr_factor = _age_factor(yr_age, role) if yr_age else cur_age_factor
         yr_value = (peak_value * yr_factor * pos_mult * luck_mult * inj_mult
-                    * eta_mult * multipos_mult * young_mult)
+                    * eta_mult * multipos_mult * young_mult * traj_mult)
         discounted = yr_value * (DISCOUNT ** k)
         dynasty_score += discounted
         curve.append({
@@ -714,6 +812,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
             "multipos_note": multipos_note,
             "young_mult": round(young_mult, 3),
             "young_note": young_note,
+            "traj_mult": round(traj_mult, 3),
+            "traj_note": traj_note,
             "age_factor": round(cur_age_factor, 3),
         },
         "projection_curve": curve,

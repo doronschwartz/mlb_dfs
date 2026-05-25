@@ -657,7 +657,7 @@ function dynastyBreakdownHtml(v) {
     const f3 = x => x.toFixed(3), f1 = x => x.toFixed(1);
     const Z = (x, mean, sd) => x == null ? null : (x - mean) / sd;
     if (v.role === "pitcher") {
-      skillHtml = sectionTitle("Underlying skill (Statcast, season)") + `<table style="font-size:12px;">
+      skillHtml = sectionTitle("Underlying skill (Statcast, 3-yr weighted)") + `<table style="font-size:12px;">
         ${row("xERA", m.xera, f1, "4.20", m.xera!=null?-Z(m.xera,4.20,0.85):null)}
         ${row("xwOBA-against", m.xwoba_against, f3, ".315", m.xwoba_against!=null?-Z(m.xwoba_against,0.315,0.035):null)}
         ${row("Barrel%-allowed", m.barrel_allowed, f1, "8.0", m.barrel_allowed!=null?-Z(m.barrel_allowed,8.0,3.0):null)}
@@ -665,7 +665,7 @@ function dynastyBreakdownHtml(v) {
         <tr><td class="muted" style="padding-top:3px;">sample</td><td style="text-align:right;" class="muted">${m.pa} BF</td><td></td></tr>
       </table>`;
     } else {
-      skillHtml = sectionTitle("Underlying skill (Statcast, season)") + `<table style="font-size:12px;">
+      skillHtml = sectionTitle("Underlying skill (Statcast, 3-yr weighted)") + `<table style="font-size:12px;">
         ${row("xwOBA", m.xwoba, f3, ".315", Z(m.xwoba,0.315,0.040))}
         ${row("xSLG", m.xslg, f3, ".410", Z(m.xslg,0.410,0.075))}
         ${row("xBA", m.xba, f3, ".245", Z(m.xba,0.245,0.025))}
@@ -699,6 +699,7 @@ function dynastyBreakdownHtml(v) {
   else if (c.pos_scarcity < 1.0) why.push(`Position <b>${v.pos}</b> replaceable → ×${c.pos_scarcity.toFixed(2)}.`);
   if (c.luck_note) why.push(`Regression read: ${c.luck_note} → ×${c.luck_mult.toFixed(2)}.`);
   if (c.eta_note) why.push(`Prospect timing: ${c.eta_note}.`);
+  if (c.traj_note) why.push(`Trajectory (multi-yr): ${c.traj_note} → ×${(c.traj_mult ?? 1).toFixed(2)}.`);
   if (c.young_note) why.push(`Upside: ${c.young_note}.`);
   if (c.multipos_note) why.push(`Flexibility: ${c.multipos_note}.`);
   if (c.injury_note) why.push(`Injury: ${c.injury_note} → ×${(c.injury_mult ?? 1).toFixed(2)}.`);

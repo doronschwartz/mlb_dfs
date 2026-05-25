@@ -412,6 +412,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.3 — 2026-05-25",
+                "title": "Dynasty: multi-year Statcast skill + trajectory + gentler pitcher aging",
+                "changes": [
+                    "Skill is now MULTI-YEAR (current + 2 prior seasons), each year weighted by sample × recency. Fixes the core flaw: a 40-IP injured 2026 was burying established aces — Skubal (consensus #5) had fallen to #45 below Jeremy Peña on one down sample. His 3-yr weighted xERA is 2.76 (elite), so he's now #20 above Peña #49, with the trajectory factor noting his mild YoY dip.",
+                    "Trajectory factor (±4%): this season's xwOBA/xERA vs the prior baseline — ascending true talent (a dynasty buy) gets a nudge up, sliding skill a nudge down. Catches what the consensus is slow to price.",
+                    "Confidence-weighted blend: the skill weight scales with sample, so a thin/early sample leans on the consensus (career proxy) rather than overriding it.",
+                    "Gentler pitcher age curve (0.040 → 0.028/yr decline, peak 26→27) — the old curve buried aces in their early 30s harder than the market does.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.2 — 2026-05-25",
                 "title": "Dynasty: injury risk, prospect ETA, multi-pos & young-upside factors",
                 "changes": [
