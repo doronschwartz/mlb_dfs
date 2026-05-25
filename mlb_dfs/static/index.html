@@ -50,6 +50,19 @@
     <section id="tab-project" class="tab">
       <h2>Smart projections</h2>
       <p class="muted">Top picks ranked by projected fantasy points (rolling 14-day form + matchup adjustments).</p>
+      <details class="num-legend">
+        <summary>ℹ️ What do the numbers mean?</summary>
+        <div class="num-legend-body">
+          <p>Each number is <b>projected fantasy points for today's game</b>, on your league's scoring
+             (HR 10 · 3B 8 · 2B 5 · 1B 3 · R/RBI/BB 2 · SB 3 · K −1 · GIDP −1.5;
+             pitchers: out 0.75 · K 1.5 · QS 4 · ER −2 · baserunner −0.6).</p>
+          <table class="legend-tiers">
+            <tr><th>Hitter / game</th><td><b>🔥 11+</b> elite</td><td>8–11 strong</td><td>6–8 solid</td><td>4.5–6 average</td><td>3–4.5 streamer</td><td>&lt;3 bench</td></tr>
+            <tr><th>Pitcher / start</th><td><b>🔥 18+</b> ace</td><td>14–18 strong</td><td>10–14 solid</td><td>6–10 risky</td><td colspan="2">&lt;6 avoid</td></tr>
+          </table>
+          <p class="muted" style="font-size:11px;">League average is ~5 pts for a hitter, ~11 for a starting pitcher. Click any player's number for the full factor breakdown.</p>
+        </div>
+      </details>
       <div id="proj-out"></div>
     </section>
 
@@ -361,6 +374,17 @@
         <b>position scarcity</b> (C/SS premium), and <b>Statcast luck</b> (xwOBA/xERA flags buy-low / sell-high).
         <b>Δ</b> = how many spots we differ from the consensus (green = we're higher on them than the market).
       </p>
+      <details class="num-legend">
+        <summary>ℹ️ What does "Dyn value" mean?</summary>
+        <div class="num-legend-body">
+          <p><b>Dynasty value</b> is a 0–~5000 score = the player's projected value summed over the next 6 seasons
+             (age-curve discounted). It's a relative scale for comparing assets and grading trades — not a points total.</p>
+          <table class="legend-tiers">
+            <tr><th>Tier</th><td><b>4000+</b> cornerstone</td><td>2800–4000 star</td><td>1800–2800 building block</td><td>900–1800 solid</td><td>300–900 depth</td><td>&lt;300 flier</td></tr>
+          </table>
+          <p class="muted" style="font-size:11px;">Click any row for the full breakdown (consensus×skill blend, multi-year Statcast, age path, durability, etc.).</p>
+        </div>
+      </details>
 
       <div class="dynasty-trade" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
         <h3 style="margin:0 0 8px;">⚖️ Trade Analyzer</h3>

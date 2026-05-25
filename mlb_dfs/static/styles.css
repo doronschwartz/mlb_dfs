@@ -915,3 +915,12 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 #refresh.failed {
   background: rgba(239,68,68,0.15); color: var(--bad); border-color: var(--bad);
 }
+
+/* Number legend (projection / dynasty value context) */
+.num-legend { margin: 4px 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.num-legend summary { cursor: pointer; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--accent-2); }
+.num-legend summary:hover { background: var(--panel-2); }
+.num-legend-body { padding: 4px 12px 12px; font-size: 12px; line-height: 1.5; }
+.legend-tiers { border-collapse: collapse; margin: 6px 0; width: 100%; }
+.legend-tiers th { text-align: left; padding: 3px 8px 3px 0; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.legend-tiers td { padding: 3px 8px; border-left: 1px solid var(--border); white-space: nowrap; font-size: 11px; }
