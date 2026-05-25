@@ -530,6 +530,14 @@ def project_hitter(
             STATCAST_WEIGHT = 0.15
         else:
             STATCAST_WEIGHT = 0.40
+        # NB (v9.18, REJECTED): tried sample-aware shrinkage — leaning harder on
+        # the Statcast prior when the L14 window is thin (games_14 < 10, ~38% of
+        # hitters). 5-day A/B replay (n=1355) showed it de-tunes: overall MAE
+        # 4.040→4.045, and even on the thin subset it was meant to help, MAE
+        # 3.438→3.458 / bias -0.040→-0.080. Thin-sample hitters are mostly
+        # low-variance part-timers whose per-game rate is already well-estimated
+        # by recent games — the Statcast prior over-pulls them. Fixed tier
+        # weights win. Don't re-attempt without re-running the A/B.
         blended_base = (1 - STATCAST_WEIGHT) * base_pg + STATCAST_WEIGHT * statcast_pg
         notes.append(f"Statcast prior {statcast_pg:.2f} pts/G blended (w={STATCAST_WEIGHT}) → {blended_base:.2f}")
         base_pg = blended_base
