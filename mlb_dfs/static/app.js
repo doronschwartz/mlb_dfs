@@ -554,14 +554,14 @@ function renderDynasty() {
   if (!out || !dynastyCache) return;
   const q = ($("#dyn-search")?.value || "").toLowerCase().trim();
   const rows = dynastyCache.filter(v => !q || v.name.toLowerCase().includes(q));
-  const body = rows.slice(0, 250).map(v => {
+  const body = rows.slice(0, 250).map((v, i) => {
     const d = v.rank_delta;
     const deltaCls = d > 0 ? "edge-pos" : d < 0 ? "edge-neg" : "muted";
     const deltaStr = d === 0 ? "—" : (d > 0 ? `▲${d}` : `▼${-d}`);
     const luck = v.components.luck_note;
     const luckCls = luck.startsWith("buy") ? "edge-pos" : luck.startsWith("sell") ? "edge-neg" : "muted";
     const ageStr = v.age != null ? v.age : "?";
-    return `<tr class="score-row">
+    return `<tr class="score-row dyn-row" data-idx="${i}" style="cursor:pointer;" title="Click for the full why-they're-here breakdown">
       <td style="font-weight:700;">${v.our_rank}</td>
       <td class="player-cell">${v.name}</td>
       <td>${v.pos}</td>
@@ -570,8 +570,11 @@ function renderDynasty() {
       <td style="text-align:right;" class="muted">#${v.consensus_rank}</td>
       <td style="text-align:right;" class="${deltaCls}">${deltaStr}</td>
       <td style="font-size:11px;" class="${luckCls}">${luck || ""}</td>
-    </tr>`;
+    </tr>
+    <tr class="dyn-detail" data-detail="${i}" hidden><td colspan="8" style="background:var(--panel-2);padding:0;"></td></tr>`;
   }).join("");
+  // Stash the filtered rows so click handlers can read the breakdown.
+  out._dynRows = rows.slice(0, 250);
   out.innerHTML = `<table style="width:100%;font-size:13px;">
     <thead><tr>
       <th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
@@ -582,7 +585,56 @@ function renderDynasty() {
     </tr></thead>
     <tbody>${body}</tbody>
   </table>
-  <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,250)} of ${rows.length}. Search to narrow.</div>`;
+  <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,250)} of ${rows.length}. Click any row for the breakdown. Search to narrow.</div>`;
+  // Wire row clicks → toggle the inline breakdown panel.
+  out.querySelectorAll(".dyn-row").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = tr.dataset.idx;
+      const detail = out.querySelector(`.dyn-detail[data-detail="${idx}"]`);
+      if (!detail) return;
+      if (!detail.hidden) { detail.hidden = true; return; }
+      // Collapse any other open panel first.
+      out.querySelectorAll(".dyn-detail").forEach(d => { d.hidden = true; });
+      const v = out._dynRows[idx];
+      detail.querySelector("td").innerHTML = dynastyBreakdownHtml(v);
+      detail.hidden = false;
+    });
+  });
+}
+
+function dynastyBreakdownHtml(v) {
+  const c = v.components;
+  // The value math: peak_value × age_factor × pos_scarcity × luck, summed
+  // across the discounted projection curve. Show the levers + the curve.
+  const why = [];
+  if (v.rank_delta > 0) why.push(`We rank them <b>${v.rank_delta} spots higher</b> than the consensus (#${v.consensus_rank}).`);
+  else if (v.rank_delta < 0) why.push(`We rank them <b>${-v.rank_delta} spots lower</b> than the consensus (#${v.consensus_rank}).`);
+  else why.push(`We agree with the consensus (#${v.consensus_rank}).`);
+  if (v.age != null) {
+    const af = c.age_factor;
+    if (af >= 1.0) why.push(`Age ${v.age} is at/near peak (age factor ×${af.toFixed(2)}) — most of the projected value is in front of them.`);
+    else if (v.age <= 25) why.push(`Age ${v.age}: ${af < 1 ? "still ascending" : "young"} (×${af.toFixed(2)}) — the 6-year curve credits a long runway of prime seasons.`);
+    else why.push(`Age ${v.age} is past peak (age factor ×${af.toFixed(2)}) — future seasons are discounted on the aging curve.`);
+  }
+  if (c.pos_scarcity > 1.0) why.push(`Position <b>${v.pos}</b> is scarce (×${c.pos_scarcity.toFixed(2)} premium).`);
+  else if (c.pos_scarcity < 1.0) why.push(`Position <b>${v.pos}</b> is replaceable (×${c.pos_scarcity.toFixed(2)}).`);
+  if (c.luck_note) {
+    const dir = c.luck_note.startsWith("buy") ? "underlying metrics beat results — positive regression likely (buy-low)" :
+                c.luck_note.startsWith("sell") ? "results beat underlying metrics — some regression likely (sell-high)" : "";
+    why.push(`Statcast: ${c.luck_note} → ×${c.luck_mult.toFixed(2)}. ${dir}`);
+  }
+  const curve = (v.projection_curve || []).map(p =>
+    `<td style="text-align:center;padding:2px 8px;"><div style="font-size:10px;" class="muted">${p.year}${p.age!=null?` (${p.age})`:""}</div><div style="font-weight:600;">${p.value.toFixed(0)}</div></td>`
+  ).join("");
+  return `<div style="padding:12px 14px;">
+    <div style="font-weight:700;margin-bottom:6px;">${v.name} — dynasty value ${v.dynasty_score.toFixed(0)} <span class="muted" style="font-weight:400;">(our #${v.our_rank} · consensus #${v.consensus_rank})</span></div>
+    <div style="font-size:12px;line-height:1.6;margin-bottom:8px;">
+      <span class="muted">Value math:</span> rank-base ${c.rank_base.toFixed(0)} ÷ age-factor → peak talent,
+      then walked 6 years on the age curve × position ×${c.pos_scarcity.toFixed(2)} × Statcast ×${c.luck_mult.toFixed(2)}, summed with a 10%/yr discount.
+    </div>
+    <table style="margin:4px 0 10px;border-collapse:collapse;"><tr><td class="muted" style="font-size:11px;padding-right:8px;">Projected value path:</td>${curve}</tr></table>
+    <ul style="margin:0 0 0 16px;padding:0;font-size:12px;line-height:1.6;">${why.map(w=>`<li>${w}</li>`).join("")}</ul>
+  </div>`;
 }
 
 async function evaluateDynastyTrade() {

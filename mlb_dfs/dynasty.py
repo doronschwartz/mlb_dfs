@@ -147,32 +147,47 @@ def _pos_scarcity(pos: str) -> float:
 _LUCK_CACHE: dict[int, dict[str, dict]] = {}
 
 
+# Minimum sample before a luck tilt is trusted — early-season xwOBA/xERA on
+# 30 PA is noise (this is what made two-way Ohtani's 0.73-ERA blip drive his
+# value). PA = plate appearances (hitters) / batters faced (pitchers).
+_MIN_PA_HIT = 120
+_MIN_PA_PIT = 80   # ≈ 20 IP
+
+
 def _statcast_luck(season: int) -> dict[str, dict]:
-    """{normalized_name: {kind, luck_delta, woba/xwoba or era/xera}}.
-    luck_delta > 0 means UNDER-performing peripherals (buy-low, positive
-    regression coming); < 0 means OVER-performing (sell-high)."""
+    """{normalized_name: {"hitter": {...}, "pitcher": {...}}}. Stored per-role
+    (not merged) so two-way players don't have their bat value clobbered by a
+    tiny-sample pitching line — dynasty_value picks the record matching the
+    player's role. Records below the sample gate are dropped."""
     if season in _LUCK_CACHE:
         return _LUCK_CACHE[season]
     out: dict[str, dict] = {}
-    # Savant name field is "last, first" — flip to "first last" for the join.
+
     def _flip(lastfirst: str) -> str:
         if "," in lastfirst:
             last, first = [s.strip() for s in lastfirst.split(",", 1)]
             return f"{first} {last}"
         return lastfirst
+
+    def _f(row, key):
+        try:
+            v = row.get(key)
+            return float(v) if v not in (None, "", "null") else None
+        except (TypeError, ValueError):
+            return None
+
     try:
         for row in savant.batter_expected(season).values():
             nm = _norm(_flip(row.get("last_name, first_name", "")))
             if not nm:
                 continue
-            try:
-                woba = float(row.get("woba") or 0)
-                xwoba = float(row.get("est_woba") or 0)
-            except ValueError:
-                continue
-            if woba and xwoba:
-                out[nm] = {"kind": "hitter", "woba": woba, "xwoba": xwoba,
-                           "luck_delta": round(xwoba - woba, 3)}
+            pa = _f(row, "pa") or 0
+            woba, xwoba = _f(row, "woba"), _f(row, "est_woba")
+            if woba and xwoba and pa >= _MIN_PA_HIT:
+                out.setdefault(nm, {})["hitter"] = {
+                    "pa": int(pa), "woba": woba, "xwoba": xwoba,
+                    "delta": round(xwoba - woba, 3),
+                }
     except Exception:
         pass
     try:
@@ -180,41 +195,57 @@ def _statcast_luck(season: int) -> dict[str, dict]:
             nm = _norm(_flip(row.get("last_name, first_name", "")))
             if not nm:
                 continue
-            try:
-                era = float(row.get("era") or 0) if row.get("era") else None
-                xera = float(row.get("xera") or 0) if row.get("xera") else None
-            except ValueError:
-                era = xera = None
-            # For pitchers, luck_delta>0 = unlucky (ERA worse than xERA → improvement coming)
-            if era and xera:
-                out.setdefault(nm, {})
-                out[nm].update({"kind": "pitcher", "era": era, "xera": xera,
-                                "luck_delta_era": round(era - xera, 2)})
+            pa = _f(row, "pa") or 0
+            era, xera = _f(row, "era"), _f(row, "xera")
+            if era and xera and pa >= _MIN_PA_PIT:
+                out.setdefault(nm, {})["pitcher"] = {
+                    "pa": int(pa), "era": era, "xera": xera,
+                    "delta": round(era - xera, 2),
+                }
     except Exception:
         pass
     _LUCK_CACHE[season] = out
     return out
 
 
-def _luck_multiplier(rec: dict | None) -> tuple[float, str]:
-    """Convert a Statcast luck record into a value multiplier + a one-line note."""
+def _luck_multiplier(rec: dict | None, role: str) -> tuple[float, str]:
+    """Statcast luck → a SMALL value tilt (±5%) + a note. v2 audit fixes:
+      - role-aware: two-way/position players use the hitter record, pitchers
+        the pitcher record (no more bat value clobbered by a tiny IP sample)
+      - ±5% magnitude (was ±10%) — for dynasty, luck is a buy-low/sell-high
+        nudge, not a big revaluation
+      - elite underlying skill is NOT flagged 'sell-high': an ace outrunning
+        an already-elite xERA is still an ace, so we don't ding him
+    """
     if not rec:
         return 1.0, ""
-    if rec.get("kind") == "hitter" and rec.get("luck_delta") is not None:
-        d = rec["luck_delta"]  # xwoba - woba; + = unlucky/buy-low
-        # ±0.030 wOBA is a big gap; scale to ±10%, cap.
-        mult = 1.0 + max(-0.10, min(d / 0.030 * 0.10, 0.10))
-        if abs(d) >= 0.015:
-            tag = "buy-low (xwOBA > wOBA)" if d > 0 else "sell-high (wOBA > xwOBA)"
-            return mult, f"{tag}: {rec['woba']:.3f} wOBA vs {rec['xwoba']:.3f} xwOBA"
+    if role == "pitcher":
+        p = rec.get("pitcher")
+        if not p:
+            return 1.0, ""
+        d = p["delta"]  # era - xera; + = unlucky (ERA worse than skill → improvement)
+        mult = 1.0 + max(-0.05, min(d / 0.75 * 0.05, 0.05))
+        if d >= 0.40:
+            return mult, f"buy-low: {p['era']:.2f} ERA vs {p['xera']:.2f} xERA (better arm than results)"
+        if d <= -0.40:
+            if p["xera"] <= 3.20:
+                # Outperforming, but the underlying skill is elite — not a
+                # 'sell-high, he's bad coming' situation. Don't alarm or penalize.
+                return max(mult, 0.99), f"elite {p['xera']:.2f} xERA (ERA {p['era']:.2f} slightly over-performing)"
+            return mult, f"sell-high: {p['era']:.2f} ERA vs {p['xera']:.2f} xERA (results beat the arm)"
         return mult, ""
-    if rec.get("kind") == "pitcher" and rec.get("luck_delta_era") is not None:
-        d = rec["luck_delta_era"]  # era - xera; + = unlucky/buy-low
-        mult = 1.0 + max(-0.10, min(d / 0.75 * 0.10, 0.10))
-        if abs(d) >= 0.40:
-            tag = "buy-low (ERA > xERA)" if d > 0 else "sell-high (ERA < xERA)"
-            return mult, f"{tag}: {rec['era']:.2f} ERA vs {rec['xera']:.2f} xERA"
-        return mult, ""
+    # hitter / two-way / position player
+    h = rec.get("hitter")
+    if not h:
+        return 1.0, ""
+    d = h["delta"]  # xwoba - woba; + = unlucky/buy-low
+    mult = 1.0 + max(-0.05, min(d / 0.030 * 0.05, 0.05))
+    if d >= 0.015:
+        return mult, f"buy-low: {h['woba']:.3f} wOBA vs {h['xwoba']:.3f} xwOBA (better bat than results)"
+    if d <= -0.015:
+        if h["xwoba"] >= 0.360:
+            return max(mult, 0.99), f"elite {h['xwoba']:.3f} xwOBA (wOBA {h['woba']:.3f} slightly over-performing)"
+        return mult, f"sell-high: {h['woba']:.3f} wOBA vs {h['xwoba']:.3f} xwOBA (results beat the bat)"
     return 1.0, ""
 
 
@@ -237,7 +268,7 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     base = _rank_value(cons["rank"])
     pos_mult = _pos_scarcity(cons["pos"])
     luck = _statcast_luck(season).get(nname)
-    luck_mult, luck_note = _luck_multiplier(luck)
+    luck_mult, luck_note = _luck_multiplier(luck, role)
     age = cons.get("age")
 
     # Multi-year projection: de-age the consensus value to a peak-talent
