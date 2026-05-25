@@ -1276,7 +1276,12 @@ class FantraxCookieRequest(BaseModel):
 
 @app.post("/api/fantrax/cookie")
 def fantrax_set_cookie(req: FantraxCookieRequest):
-    fantrax.save_cookie(req.cookie)
+    try:
+        fantrax.save_cookie(req.cookie)
+    except ValueError as e:
+        # Missing session token / empty dump — surface the actionable message
+        # to the UI instead of a 500.
+        raise HTTPException(400, str(e))
     return {"ok": True, "authenticated": fantrax.is_authenticated()}
 
 

@@ -87,13 +87,32 @@ def _looks_like_devtools_dump(text: str) -> bool:
     return tabbed >= max(2, len(lines) // 2)
 
 
+# Fantrax session auth cookies. A pasted cookie/dump must contain at least
+# one of these or it can't authenticate — everything else (id5id, panoramaId,
+# pbjs-unifiedid, usprivacy, Google SSO cookies) is ad/tracking noise that
+# survives the *.fantrax.com filter but does nothing for login.
+_AUTH_COOKIE_NAMES = ("FX_RM", "JSESSIONID", "gamera_user_id")
+
+
+def _has_auth_cookie(cookie_header: str) -> bool:
+    """True if the Cookie-header string contains a real Fantrax session token."""
+    names = {p.split("=", 1)[0].strip() for p in cookie_header.split(";") if "=" in p}
+    return any(a in names for a in _AUTH_COOKIE_NAMES)
+
+
 def save_cookie(cookie: str) -> None:
     """Persist a Fantrax auth cookie to disk. Accepts either format:
       1. Raw Cookie header value:  'FX_RM=...; JSESSIONID=...; ...'
       2. Chrome DevTools dump:     tab-separated rows from Application>Cookies
 
     DevTools dumps are auto-parsed via parse_devtools_dump (filters to
-    *.fantrax.com, drops google/doubleclick noise, dedupes by name)."""
+    *.fantrax.com, drops google/doubleclick noise, dedupes by name).
+
+    Validates that the result actually contains a session token (FX_RM /
+    JSESSIONID / gamera_user_id). Without this guard, a paste of only ad/
+    tracking cookies (a common mistake when copying from DevTools >
+    Application > Cookies) saves silently and only fails later with a vague
+    'not logged in' — now we reject up-front with an actionable message."""
     text = cookie.strip()
     if _looks_like_devtools_dump(text):
         text = parse_devtools_dump(text)
@@ -102,6 +121,14 @@ def save_cookie(cookie: str) -> None:
                 "Pasted DevTools dump contained no *.fantrax.com cookies — "
                 "make sure you copied from a logged-in fantrax.com tab."
             )
+    if not _has_auth_cookie(text):
+        raise ValueError(
+            "No Fantrax session cookie found (need FX_RM, JSESSIONID, or "
+            "gamera_user_id). What you pasted only has ad/tracking cookies — "
+            "this happens when copying from DevTools > Application > Cookies. "
+            "Instead: DevTools > Network > reload > click a /fxpa/req request > "
+            "copy the full 'Cookie:' request-header value and paste that."
+        )
     os.makedirs(CACHE_DIR, exist_ok=True)
     tmp = f"{_COOKIE_HEADER_FILE}.tmp"
     with open(tmp, "w") as f:

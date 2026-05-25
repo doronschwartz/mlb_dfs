@@ -703,13 +703,13 @@ def project_hitter(
         notes.append("ELITE form post-matchup boost x1.10 (always-on hitter)")
     elif form_tag == "STEADY":
         # v9.14: STEADY form_tag (consistent L3/L7/L14 AND L14 ≥ 7.5 pts/G but
-        # below the ELITE 9.0 cutoff) was under-projected by +2.12 across 67
-        # hitters cumulative. Smaller magnitude than ELITE so a lighter boost.
-        # Same logic — chain regresses toward mean, but a steady 8 pts/G
-        # producer keeps producing close to that line.
-        hot_cold_factor = 1.05
+        # below the ELITE 9.0 cutoff) was under-projected by +2.12 cum.
+        # v9.16: ×1.05 barely moved it (+1.98 on n=65, proj 7.56 vs actual
+        # 9.55, ratio 1.26). The ELITE ×1.10 landed because it was sized
+        # right; STEADY needs more. Bump to ×1.12 to close ~half the gap.
+        hot_cold_factor = 1.12
         proj *= hot_cold_factor
-        notes.append("STEADY form post-matchup boost x1.05")
+        notes.append("STEADY form post-matchup boost x1.12")
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1075,14 +1075,14 @@ def project_pitcher(
     #     hitter HOT because pitcher form swings are noisier per start).
     hot_cold_factor = 1.0
     if form_tag == "COLD":
-        # v9.10 shipped ×0.80; v9.12 → ×0.70 closed ~0.8 pts. 11-day audit
-        # (n=65) shows residual still -4.04 — projecting 5.28, scoring 1.24.
-        # v9.14: push to ×0.65. Casts the COLD bucket at ~3.4 pts mean
-        # projection, close to the actual 1.24 ceiling. Each step closes
-        # less because the chain components below the multiplier dominate.
-        hot_cold_factor = 0.65
+        # Progressive tightening: v9.10 ×0.80 → v9.12 ×0.70 → v9.14 ×0.65.
+        # 15-day audit (n=80) still shows -3.96 cum / -4.65 recent —
+        # projecting ~5.2, scoring ~1.1. Each multiplicative step closes
+        # less because the chain below the multiplier dominates, but the
+        # direction is unambiguous and the sample is solid. v9.16 → ×0.55.
+        hot_cold_factor = 0.55
         proj *= hot_cold_factor
-        notes.append("COLD post-matchup shrink x0.65 (close residual -4.04)")
+        notes.append("COLD post-matchup shrink x0.55 (close residual -3.96)")
     elif form_tag == "HOT":
         hot_cold_factor = 1.05
         proj *= hot_cold_factor
@@ -1656,7 +1656,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-21-v9.15.1" # pitcher lineup_factor reset to 1.0 when opp Vegas set — closes double-count
+MODEL_REV = "2026-05-25-v9.16" # STEADY boost 1.05→1.12 + pitcher COLD shrink 0.65→0.55
 
 
 def _proj_disk_path(key: tuple) -> str:

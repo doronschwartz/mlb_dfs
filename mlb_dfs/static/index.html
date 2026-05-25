@@ -200,7 +200,14 @@
           <li>Scroll to <b>Request Headers</b>, find the line starting with <code>Cookie:</code>.</li>
           <li>Copy <i>everything</i> after <code>Cookie: </code> (the entire long string), and paste it below.</li>
         </ol>
-        <textarea id="ftx-cookie-input" placeholder="JSESSIONID=...; uig=...; (paste full Cookie header value here)"
+        <p class="muted" style="font-size:12px;margin:0 0 8px;background:rgba(245,158,11,0.12);border-radius:6px;padding:6px 8px;">
+          ⚠️ Use the <b>Network</b> tab method above — not <b>Application → Cookies</b>.
+          The Application list often misses the <code>JSESSIONID</code> session cookie
+          (it's HttpOnly) and you'll end up pasting only ad/tracking cookies. The string
+          you paste <b>must contain</b> <code>FX_RM</code>, <code>JSESSIONID</code>, or
+          <code>gamera_user_id</code> or it won't log you in.
+        </p>
+        <textarea id="ftx-cookie-input" placeholder="FX_RM=...; JSESSIONID=...; gamera_user_id=...; (paste full Cookie header value here)"
                   rows="4" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:11px;"></textarea>
         <div class="setup-row" style="margin-top:8px;">
           <button id="ftx-cookie-save" type="button" class="btn-pick">Save & test</button>
