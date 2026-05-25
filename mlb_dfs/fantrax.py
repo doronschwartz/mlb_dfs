@@ -122,12 +122,17 @@ def save_cookie(cookie: str) -> None:
                 "make sure you copied from a logged-in fantrax.com tab."
             )
     if not _has_auth_cookie(text):
+        found = [p.split("=", 1)[0].strip() for p in text.split(";") if "=" in p]
+        found_str = ", ".join(found[:12]) + (f" (+{len(found)-12} more)" if len(found) > 12 else "") or "none"
         raise ValueError(
-            "No Fantrax session cookie found (need FX_RM, JSESSIONID, or "
-            "gamera_user_id). What you pasted only has ad/tracking cookies — "
-            "this happens when copying from DevTools > Application > Cookies. "
-            "Instead: DevTools > Network > reload > click a /fxpa/req request > "
-            "copy the full 'Cookie:' request-header value and paste that."
+            "No Fantrax session cookie found — need FX_RM, JSESSIONID, or "
+            f"gamera_user_id, but your paste only had: {found_str}. "
+            "These are all ad/tracking cookies, which means you're NOT logged "
+            "into Fantrax in this browser (clearing site-data logs you out; the "
+            "homepage loads ad cookies without login). Fix: go to fantrax.com, "
+            "log in, open your league's live-scoring page, THEN DevTools > "
+            "Application > Cookies > click 'https://www.fantrax.com' and grab "
+            "FX_RM / JSESSIONID / gamera_user_id."
         )
     os.makedirs(CACHE_DIR, exist_ok=True)
     tmp = f"{_COOKIE_HEADER_FILE}.tmp"
