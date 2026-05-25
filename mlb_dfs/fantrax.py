@@ -383,9 +383,45 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
     roster = None
     try:
         roster = api.team_roster(team_id)
-        # Build the player list (de-dupe across periods by player_id alone —
-        # we want each player ONCE, in their CURRENT slot. Take the first
-        # period's slot for each player.)
+        # The fantraxapi Roster exposes each row's POSITION (the slot's
+        # position group: MI/SS/CI/OF…) but drops statusId — the field that
+        # says whether the player is Active, on Reserve, in Minors, or on IR.
+        # Without it, a benched MI-eligible guy reads "MI" (his position
+        # group, not his real status) and a minors stash reads "SS". We pull
+        # the raw response once to recover statusId per player and override
+        # the slot accordingly. statusId values (confirmed from live data):
+        #   "1" Active · "2" Reserve · "9" Minors · "3"/"4" Injured Reserve
+        status_by_pid: dict[str, str] = {}
+        try:
+            from fantraxapi.api import Method, _request
+            sess = _session()
+            raw_status = _request(
+                api.league_id,
+                [Method("getTeamRosterInfo", view="STATS", teamId=team_id)],
+                session=sess,
+            )
+            if isinstance(raw_status, dict):
+                for table in (raw_status.get("tables") or []):
+                    for rrow in (table.get("rows") or []):
+                        sc = rrow.get("scorer") or {}
+                        sid = sc.get("scorerId")
+                        if sid:
+                            status_by_pid[sid] = str(rrow.get("statusId") or "")
+        except Exception:
+            status_by_pid = {}
+
+        def _slot_for(default_pos: str, status_id: str) -> tuple[str, bool, bool, bool]:
+            """Map (position, statusId) → (slot, is_bench, is_ir, is_minors)."""
+            if status_id == "2":
+                return "BN", True, False, False
+            if status_id == "9":
+                return "Min", False, False, True
+            if status_id in ("3", "4"):
+                return "IR", False, True, False
+            # Active (or unknown) — use the actual position slot.
+            return default_pos, default_pos in ("BN", "Res", "Reserve"), \
+                   default_pos in ("IR", "InjRes", "Inj Res"), False
+
         seen_pids: set[str] = set()
         for row in roster.rows:
             if not row.position or row.player is None:
@@ -394,15 +430,17 @@ def get_roster(league_id: str, team_id: str | None = None) -> dict:
             if p.id in seen_pids:
                 continue
             seen_pids.add(p.id)
-            sn = row.position.short_name
+            status_id = status_by_pid.get(p.id, "")
+            slot, is_bench, is_ir, is_minors = _slot_for(row.position.short_name, status_id)
             players.append({
                 "name": p.name,
                 "fantrax_id": p.id,
                 "position": p.pos_short_name,
                 "team": p.team_short_name,
-                "slot": sn,
-                "is_bench": sn in ("BN", "Res", "Reserve"),
-                "is_ir": sn in ("IR", "InjRes", "Inj Res"),
+                "slot": slot,
+                "is_bench": is_bench,
+                "is_ir": is_ir,
+                "is_minors": is_minors,
                 "injured": bool(p.injured),
                 "day_to_day": bool(p.day_to_day),
                 "out": bool(p.out),
