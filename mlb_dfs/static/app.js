@@ -604,35 +604,89 @@ function renderDynasty() {
 
 function dynastyBreakdownHtml(v) {
   const c = v.components;
-  // The value math: peak_value × age_factor × pos_scarcity × luck, summed
-  // across the discounted projection curve. Show the levers + the curve.
-  const why = [];
-  if (v.rank_delta > 0) why.push(`We rank them <b>${v.rank_delta} spots higher</b> than the consensus (#${v.consensus_rank}).`);
-  else if (v.rank_delta < 0) why.push(`We rank them <b>${-v.rank_delta} spots lower</b> than the consensus (#${v.consensus_rank}).`);
-  else why.push(`We agree with the consensus (#${v.consensus_rank}).`);
-  if (v.age != null) {
-    const af = c.age_factor;
-    if (af >= 1.0) why.push(`Age ${v.age} is at/near peak (age factor ×${af.toFixed(2)}) — most of the projected value is in front of them.`);
-    else if (v.age <= 25) why.push(`Age ${v.age}: ${af < 1 ? "still ascending" : "young"} (×${af.toFixed(2)}) — the 6-year curve credits a long runway of prime seasons.`);
-    else why.push(`Age ${v.age} is past peak (age factor ×${af.toFixed(2)}) — future seasons are discounted on the aging curve.`);
+  const sk = c.skill;  // {skill_rank, skill_z, talent_value, comps} | null
+  const sectionTitle = (t) => `<div style="font-weight:600;font-size:12px;margin:10px 0 4px;color:var(--accent-2);">${t}</div>`;
+
+  // 1) Base value composition — consensus prior blended with OUR skill rank.
+  let baseHtml;
+  if (sk) {
+    const blend = Math.round(c.skill_blend * 100);
+    baseHtml = `<div style="font-size:12px;line-height:1.7;">
+      <div><b>Base value ${c.rank_base.toFixed(0)}</b> = ${100 - blend}% consensus + ${blend}% our skill model:</div>
+      <div style="margin-left:12px;">• Consensus rank <b>#${v.consensus_rank}</b> → value <b>${c.consensus_value.toFixed(0)}</b> <span class="muted">(market prior, exp-decay of rank)</span></div>
+      <div style="margin-left:12px;">• Our skill rank <b>#${sk.skill_rank}</b> (z ${sk.skill_z >= 0 ? "+" : ""}${sk.skill_z.toFixed(2)}) → value <b>${sk.talent_value.toFixed(0)}</b> <span class="muted">(from Statcast below)</span></div>
+    </div>`;
+  } else {
+    baseHtml = `<div style="font-size:12px;line-height:1.7;">
+      <div><b>Base value ${c.rank_base.toFixed(0)}</b> = 100% consensus (no qualifying Statcast sample — prospect / low-PA).</div>
+      <div style="margin-left:12px;">• Consensus rank <b>#${v.consensus_rank}</b> → value ${c.consensus_value.toFixed(0)} <span class="muted">(1000·e<sup>−0.0108·(rank−1)</sup>)</span></div>
+    </div>`;
   }
-  if (c.pos_scarcity > 1.0) why.push(`Position <b>${v.pos}</b> is scarce (×${c.pos_scarcity.toFixed(2)} premium).`);
-  else if (c.pos_scarcity < 1.0) why.push(`Position <b>${v.pos}</b> is replaceable (×${c.pos_scarcity.toFixed(2)}).`);
-  if (c.luck_note) {
-    const dir = c.luck_note.startsWith("buy") ? "underlying metrics beat results — positive regression likely (buy-low)" :
-                c.luck_note.startsWith("sell") ? "results beat underlying metrics — some regression likely (sell-high)" : "";
-    why.push(`Statcast: ${c.luck_note} → ×${c.luck_mult.toFixed(2)}. ${dir}`);
+
+  // 2) Statcast skill table — the full slew, with league context + z color.
+  let skillHtml = "";
+  if (sk && sk.comps) {
+    const m = sk.comps;
+    const row = (label, val, fmt, lg, z) => {
+      if (val == null) return "";
+      const cls = z == null ? "muted" : z > 0.5 ? "edge-pos" : z < -0.5 ? "edge-neg" : "muted";
+      const zStr = z == null ? "" : ` <span class="${cls}">(z ${z>=0?"+":""}${z.toFixed(1)})</span>`;
+      return `<tr><td class="muted" style="padding:1px 10px 1px 0;">${label}</td><td style="text-align:right;font-weight:600;">${fmt(val)}</td><td class="muted" style="padding-left:10px;font-size:11px;">lg ${lg}${zStr}</td></tr>`;
+    };
+    const f3 = x => x.toFixed(3), f1 = x => x.toFixed(1);
+    const Z = (x, mean, sd) => x == null ? null : (x - mean) / sd;
+    if (v.role === "pitcher") {
+      skillHtml = sectionTitle("Underlying skill (Statcast, season)") + `<table style="font-size:12px;">
+        ${row("xERA", m.xera, f1, "4.20", m.xera!=null?-Z(m.xera,4.20,0.85):null)}
+        ${row("xwOBA-against", m.xwoba_against, f3, ".315", m.xwoba_against!=null?-Z(m.xwoba_against,0.315,0.035):null)}
+        ${row("Barrel%-allowed", m.barrel_allowed, f1, "8.0", m.barrel_allowed!=null?-Z(m.barrel_allowed,8.0,3.0):null)}
+        ${row("Hard-hit%-allowed", m.hardhit_allowed, f1, "39", m.hardhit_allowed!=null?-Z(m.hardhit_allowed,39,5):null)}
+        <tr><td class="muted" style="padding-top:3px;">sample</td><td style="text-align:right;" class="muted">${m.pa} BF</td><td></td></tr>
+      </table>`;
+    } else {
+      skillHtml = sectionTitle("Underlying skill (Statcast, season)") + `<table style="font-size:12px;">
+        ${row("xwOBA", m.xwoba, f3, ".315", Z(m.xwoba,0.315,0.040))}
+        ${row("xSLG", m.xslg, f3, ".410", Z(m.xslg,0.410,0.075))}
+        ${row("xBA", m.xba, f3, ".245", Z(m.xba,0.245,0.025))}
+        ${row("Barrel%", m.barrel, f1, "8.5", Z(m.barrel,8.5,4.2))}
+        ${row("Hard-hit%", m.hardhit, f1, "40", Z(m.hardhit,40,6.5))}
+        ${row("Sweet-spot%", m.sweetspot, f1, "33", Z(m.sweetspot,33,4.5))}
+        <tr><td class="muted" style="padding-top:3px;">sample</td><td style="text-align:right;" class="muted">${m.pa} PA</td><td></td></tr>
+      </table>`;
+    }
   }
+
+  // 3) Multi-year projection path.
   const curve = (v.projection_curve || []).map(p =>
     `<td style="text-align:center;padding:2px 8px;"><div style="font-size:10px;" class="muted">${p.year}${p.age!=null?` (${p.age})`:""}</div><div style="font-weight:600;">${p.value.toFixed(0)}</div></td>`
   ).join("");
+
+  // 4) Modifiers + plain-English why.
+  const why = [];
+  if (sk && v.rank_delta > 0) why.push(`We're <b>${v.rank_delta} spots higher</b> than the market — our Statcast skill (rank #${sk.skill_rank}) sees more than the consensus #${v.consensus_rank}.`);
+  else if (sk && v.rank_delta < 0) why.push(`We're <b>${-v.rank_delta} spots lower</b> than the market — current Statcast skill (rank #${sk.skill_rank}) trails the consensus #${v.consensus_rank}.`);
+  else if (v.rank_delta > 0) why.push(`We're <b>${v.rank_delta} higher</b> than consensus (age-curve / scarcity driven; no Statcast sample).`);
+  else if (v.rank_delta < 0) why.push(`We're <b>${-v.rank_delta} lower</b> than consensus.`);
+  else why.push(`In line with the consensus (#${v.consensus_rank}).`);
+  if (v.age != null) {
+    const af = c.age_factor;
+    if (v.age <= 25) why.push(`Age ${v.age}: long runway — the 6-yr curve credits prime seasons still ahead (current age factor ×${af.toFixed(2)}).`);
+    else if (af >= 0.98) why.push(`Age ${v.age}: at peak (×${af.toFixed(2)}).`);
+    else why.push(`Age ${v.age}: past peak (×${af.toFixed(2)}), future years discounted on the aging curve.`);
+  }
+  if (c.pos_scarcity > 1.0) why.push(`Position <b>${v.pos}</b> scarce → ×${c.pos_scarcity.toFixed(2)} premium.`);
+  else if (c.pos_scarcity < 1.0) why.push(`Position <b>${v.pos}</b> replaceable → ×${c.pos_scarcity.toFixed(2)}.`);
+  if (c.luck_note) why.push(`Regression read: ${c.luck_note} → ×${c.luck_mult.toFixed(2)}.`);
+
   return `<div style="padding:12px 14px;">
-    <div style="font-weight:700;margin-bottom:6px;">${v.name} — dynasty value ${v.dynasty_score.toFixed(0)} <span class="muted" style="font-weight:400;">(our #${v.our_rank} · consensus #${v.consensus_rank})</span></div>
-    <div style="font-size:12px;line-height:1.6;margin-bottom:8px;">
-      <span class="muted">Value math:</span> rank-base ${c.rank_base.toFixed(0)} ÷ age-factor → peak talent,
-      then walked 6 years on the age curve × position ×${c.pos_scarcity.toFixed(2)} × Statcast ×${c.luck_mult.toFixed(2)}, summed with a 10%/yr discount.
-    </div>
-    <table style="margin:4px 0 10px;border-collapse:collapse;"><tr><td class="muted" style="font-size:11px;padding-right:8px;">Projected value path:</td>${curve}</tr></table>
+    <div style="font-weight:700;margin-bottom:8px;">${v.name} — dynasty value ${v.dynasty_score.toFixed(0)}
+      <span class="muted" style="font-weight:400;">(our #${v.our_rank} · consensus #${v.consensus_rank}${sk?` · skill #${sk.skill_rank}`:""})</span></div>
+    ${sectionTitle("Base value (market prior × our skill)")}
+    ${baseHtml}
+    ${skillHtml}
+    ${sectionTitle("Multi-year projection (base × age curve × scarcity × regression, 10%/yr discount)")}
+    <table style="margin:2px 0 6px;border-collapse:collapse;"><tr><td class="muted" style="font-size:11px;padding-right:8px;">value path:</td>${curve}</tr></table>
+    ${sectionTitle("Why they're here")}
     <ul style="margin:0 0 0 16px;padding:0;font-size:12px;line-height:1.6;">${why.map(w=>`<li>${w}</li>`).join("")}</ul>
   </div>`;
 }

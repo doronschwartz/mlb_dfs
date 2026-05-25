@@ -96,8 +96,10 @@ def _consensus() -> dict[str, dict]:
 
 # Rank → base value. Exponential decay so #1 is worth a lot more than #50, and
 # #50 a lot more than #300 — matches how dynasty trade markets actually price
-# the top of the board. value(rank) = 1000 * exp(-k*(rank-1)); k tuned so
-# rank 1 ≈ 1000, rank 50 ≈ 430, rank 150 ≈ 130, rank 300 ≈ 22, rank 500 ≈ 4.
+# the top of the board (steep at the top, flat in the deep minors).
+# value(rank) = 1000 * exp(-k*(rank-1)). With k=0.0108:
+#   #1 ≈ 1000 · #25 ≈ 765 · #50 ≈ 589 · #100 ≈ 343 · #200 ≈ 117 · #300 ≈ 40 · #500 ≈ 5
+# i.e. value roughly halves every ~64 ranks.
 _DECAY_K = 0.0108
 
 
@@ -249,6 +251,144 @@ def _luck_multiplier(rec: dict | None, role: str) -> tuple[float, str]:
     return 1.0, ""
 
 
+# ---- skill-level talent model (OUR data drives the board) -------------------
+# Beyond the consensus prior, we compute each player's true-talent SKILL from
+# the full Statcast slew (all bulk-cached, no per-player calls):
+#   hitters  → xwOBA, xSLG, xBA, barrel%, hard-hit%, sweet-spot%
+#   pitchers → xERA, xwOBA-against, barrel%-allowed, hard-hit%-allowed
+# Each metric is z-scored against a league baseline, combined into a weighted
+# composite, then the whole pool is ranked and mapped to the same 0-1000 scale
+# as the consensus. base_value blends the two — so a guy the market underrates
+# on current skill rises, and an overrated name falls, on OUR numbers.
+
+_SKILL_CACHE: dict[int, dict[str, dict]] = {}
+
+# (mean, sd) baselines for z-scoring. Tuned to ~2026 mid-season qualified pops.
+_HIT_BASE = {
+    "xwoba": (0.315, 0.040), "xslg": (0.410, 0.075), "xba": (0.245, 0.025),
+    "barrel": (8.5, 4.2), "hardhit": (40.0, 6.5), "sweetspot": (33.0, 4.5),
+}
+_PIT_BASE = {  # lower is better → z is negated in the composite
+    "xera": (4.20, 0.85), "xwoba_against": (0.315, 0.035),
+    "barrel_allowed": (8.0, 3.0), "hardhit_allowed": (39.0, 5.0),
+}
+
+
+def _z(val, mean, sd):
+    if val is None or sd == 0:
+        return None
+    return (val - mean) / sd
+
+
+def _skill_scores(season: int) -> dict[str, dict]:
+    """{normalized_name: {role, skill_z, skill_rank, comps}} from bulk Statcast.
+    skill_rank is the pool-wide rank by composite z (hitters+pitchers pooled,
+    z-scores are role-relative so a +2z arm ≈ a +2z bat)."""
+    if season in _SKILL_CACHE:
+        return _SKILL_CACHE[season]
+    out: dict[str, dict] = {}
+
+    def _flip(lf):
+        if "," in lf:
+            last, first = [s.strip() for s in lf.split(",", 1)]
+            return f"{first} {last}"
+        return lf
+
+    def _f(row, key):
+        try:
+            v = row.get(key)
+            return float(v) if v not in (None, "", "null") else None
+        except (TypeError, ValueError):
+            return None
+
+    # ---- hitters: join expected (xwoba/xslg/xba/pa) with statcast (qoc) ----
+    try:
+        exp = savant.batter_expected(season)
+        qoc = savant.batter_statcast(season)
+        for pid, row in exp.items():
+            pa = _f(row, "pa") or 0
+            if pa < 120:
+                continue
+            xwoba = _f(row, "est_woba")
+            if xwoba is None:
+                continue
+            q = qoc.get(pid, {})
+            comps = {
+                "xwoba": xwoba, "xslg": _f(row, "est_slg"), "xba": _f(row, "est_ba"),
+                "barrel": _f(q, "brl_percent"), "hardhit": _f(q, "ev95percent"),
+                "sweetspot": _f(q, "anglesweetspotpercent"), "pa": int(pa),
+            }
+            zs = {
+                "xwoba": _z(comps["xwoba"], *_HIT_BASE["xwoba"]),
+                "xslg": _z(comps["xslg"], *_HIT_BASE["xslg"]),
+                "xba": _z(comps["xba"], *_HIT_BASE["xba"]),
+                "barrel": _z(comps["barrel"], *_HIT_BASE["barrel"]),
+                "hardhit": _z(comps["hardhit"], *_HIT_BASE["hardhit"]),
+                "sweetspot": _z(comps["sweetspot"], *_HIT_BASE["sweetspot"]),
+            }
+            w = {"xwoba": 0.45, "xslg": 0.12, "xba": 0.08, "barrel": 0.18,
+                 "hardhit": 0.12, "sweetspot": 0.05}
+            num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
+            den = sum(w[k] for k in w if zs[k] is not None)
+            if den <= 0:
+                continue
+            skill_z = num / den
+            out[_norm(_flip(row.get("last_name, first_name", "")))] = {
+                "role": "hitter", "skill_z": round(skill_z, 3), "comps": comps,
+            }
+    except Exception:
+        pass
+
+    # ---- pitchers: expected (xera/xwoba-against) + statcast (qoc allowed) ----
+    try:
+        pexp = savant.pitcher_expected(season)
+        pqoc = savant.pitcher_statcast(season)
+        for pid, row in pexp.items():
+            pa = _f(row, "pa") or 0
+            if pa < 80:
+                continue
+            xera = _f(row, "xera")
+            xwa = _f(row, "est_woba")
+            if xera is None and xwa is None:
+                continue
+            q = pqoc.get(pid, {})
+            comps = {
+                "xera": xera, "xwoba_against": xwa,
+                "barrel_allowed": _f(q, "brl_percent"),
+                "hardhit_allowed": _f(q, "ev95percent"), "pa": int(pa),
+            }
+            # lower = better → negate
+            zs = {
+                "xera": -_z(comps["xera"], *_PIT_BASE["xera"]) if comps["xera"] is not None else None,
+                "xwoba_against": -_z(comps["xwoba_against"], *_PIT_BASE["xwoba_against"]) if comps["xwoba_against"] is not None else None,
+                "barrel_allowed": -_z(comps["barrel_allowed"], *_PIT_BASE["barrel_allowed"]) if comps["barrel_allowed"] is not None else None,
+                "hardhit_allowed": -_z(comps["hardhit_allowed"], *_PIT_BASE["hardhit_allowed"]) if comps["hardhit_allowed"] is not None else None,
+            }
+            w = {"xera": 0.45, "xwoba_against": 0.27, "barrel_allowed": 0.16, "hardhit_allowed": 0.12}
+            num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
+            den = sum(w[k] for k in w if zs[k] is not None)
+            if den <= 0:
+                continue
+            skill_z = num / den
+            out[_norm(_flip(row.get("last_name, first_name", "")))] = {
+                "role": "pitcher", "skill_z": round(skill_z, 3), "comps": comps,
+            }
+    except Exception:
+        pass
+
+    # Pool-wide rank by skill_z (desc), assign skill_rank.
+    ordered = sorted(out.items(), key=lambda kv: -kv[1]["skill_z"])
+    for i, (_nm, rec) in enumerate(ordered, start=1):
+        rec["skill_rank"] = i
+    _SKILL_CACHE[season] = out
+    return out
+
+
+# How much OUR skill model drives base value when we have Statcast on a player.
+# Prospects/minors/low-PA (no Statcast) fall back to 100% consensus.
+_SKILL_BLEND = 0.50
+
+
 # ---- dynasty value -----------------------------------------------------------
 
 def _role_for(pos: str) -> str:
@@ -265,7 +405,22 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     if not cons:
         return None
     role = _role_for(cons["pos"])
-    base = _rank_value(cons["rank"])
+    cons_value = _rank_value(cons["rank"])
+    # Blend the consensus prior with OUR Statcast skill-rank value. When we
+    # have skill data, base = 50/50 blend; otherwise pure consensus.
+    skill = _skill_scores(season).get(nname)
+    skill_block = None
+    if skill and skill.get("skill_rank"):
+        talent_value = _rank_value(skill["skill_rank"])
+        base = _SKILL_BLEND * talent_value + (1 - _SKILL_BLEND) * cons_value
+        skill_block = {
+            "skill_rank": skill["skill_rank"],
+            "skill_z": skill["skill_z"],
+            "talent_value": round(talent_value, 1),
+            "comps": skill["comps"],
+        }
+    else:
+        base = cons_value
     pos_mult = _pos_scarcity(cons["pos"])
     luck = _statcast_luck(season).get(nname)
     luck_mult, luck_note = _luck_multiplier(luck, role)
@@ -304,6 +459,9 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         "this_year_value": round(curve[0]["value"], 1) if curve else 0,
         "components": {
             "rank_base": round(base, 1),
+            "consensus_value": round(cons_value, 1),
+            "skill": skill_block,  # None when no Statcast sample
+            "skill_blend": _SKILL_BLEND if skill_block else 0.0,
             "pos_scarcity": pos_mult,
             "luck_mult": round(luck_mult, 3),
             "luck_note": luck_note,
