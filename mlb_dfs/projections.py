@@ -566,15 +566,37 @@ def project_hitter(
             "hand_bias": round(hand_bias, 3),
         }
 
-    # Batting-order PA factor: leadoff hitters get ~4.6 PA/game, #9 gets ~3.7.
-    # That's a ~22% PA spread top to bottom. Only applies when lineup is posted.
+    # Batting-order PA factor (v9.17 corrected): leadoff hitters get ~4.65
+    # PA/game, #9 gets ~3.85. BUT base_pg is points-per-GAME, which already
+    # embeds the PAs this hitter typically gets (a career leadoff guy's pts/G
+    # already reflects ~4.6 PA). So an ABSOLUTE per-spot multiplier double-
+    # counts — it was over-boosting leadoff hitters batting in their normal
+    # spot. Corrected: normalize today's expected PA against the player's own
+    # season PA/game, so the factor only captures a CHANGE in role (a usual-#7
+    # hitter slotted leadoff today gets a real boost; a leadoff regular batting
+    # leadoff gets ~1.0). Clamped ±12% for small-sample sanity.
     order_factor = 1.0
     if batting_order and 1 <= batting_order <= 9:
-        # Per-spot multiplier centered at 1.0 (~ #5 hitter is league avg PA).
-        ORDER_FACTORS = {1: 1.10, 2: 1.07, 3: 1.05, 4: 1.02, 5: 1.00,
-                         6: 0.97, 7: 0.94, 8: 0.91, 9: 0.88}
-        order_factor = ORDER_FACTORS[batting_order]
-        notes.append(f"batting #{batting_order} x{order_factor:.2f} (PA adj)")
+        EXPECTED_PA_BY_SPOT = {1: 4.65, 2: 4.55, 3: 4.45, 4: 4.35, 5: 4.25,
+                               6: 4.15, 7: 4.05, 8: 3.95, 9: 3.85}
+        today_pa = EXPECTED_PA_BY_SPOT[batting_order]
+        szn_pa = _safe_float(seasn.get("plateAppearances"))
+        szn_g = _safe_float(seasn.get("gamesPlayed"))
+        if szn_pa > 0 and szn_g >= 10:
+            season_pa_per_g = szn_pa / szn_g
+            order_factor = today_pa / max(season_pa_per_g, 2.5)
+            order_factor = max(0.88, min(order_factor, 1.12))
+            notes.append(
+                f"batting #{batting_order} x{order_factor:.2f} "
+                f"(today {today_pa:.2f} PA vs szn {season_pa_per_g:.2f}/G)"
+            )
+        else:
+            # No reliable season PA baseline — fall back to a damped absolute
+            # spread (half the old magnitude, since we can't normalize).
+            ABS_FALLBACK = {1: 1.05, 2: 1.04, 3: 1.02, 4: 1.01, 5: 1.00,
+                            6: 0.99, 7: 0.97, 8: 0.96, 9: 0.94}
+            order_factor = ABS_FALLBACK[batting_order]
+            notes.append(f"batting #{batting_order} x{order_factor:.2f} (PA adj, no szn baseline)")
 
     # Matchup adjustment: prefer Vegas implied team total when available — it's
     # the market's full pricing of opposing pitcher quality, lineup, park,
@@ -1656,7 +1678,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-25-v9.16" # STEADY boost 1.05→1.12 + pitcher COLD shrink 0.65→0.55
+MODEL_REV = "2026-05-25-v9.17" # order_factor normalized vs season PA/G (was double-counting leadoff)
 
 
 def _proj_disk_path(key: tuple) -> str:
