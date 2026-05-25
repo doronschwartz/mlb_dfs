@@ -573,7 +573,8 @@ def _skill_scores(season: int) -> dict[str, dict]:
             pids |= set(exp_by_year[y].keys())
         for pid in pids:
             metrics = {k: [] for k in ("xwoba", "xslg", "xba", "barrel", "hardhit", "sweetspot")}
-            total_sample = 0.0
+            cur_sample = 0.0      # current-year PA (for display)
+            total_sample = 0.0    # all-year PA (for n/(n+k) shrinkage)
             name = ""
             recent_xwoba = prior_xwoba = None
             for off, y in enumerate(years):
@@ -581,7 +582,7 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 if not row:
                     continue
                 pa = _sf(row, "pa") or 0
-                if pa < 40:
+                if pa < 30:  # floor; below this a year is noise (continuous shrink handles the rest)
                     continue
                 rw = _YEAR_RECENCY[off]
                 wt = pa * rw
@@ -593,7 +594,9 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 }
                 for k, v in vals.items():
                     metrics[k].append((v, wt))
-                total_sample += pa if off == 0 else 0  # report current-year sample
+                total_sample += pa
+                if off == 0:
+                    cur_sample = pa
                 if not name:
                     name = _flip_name(row.get("last_name, first_name", ""))
                 if off == 0:
@@ -620,7 +623,8 @@ def _skill_scores(season: int) -> dict[str, dict]:
             traj = (recent_xwoba - prior_xwoba) if (recent_xwoba is not None and prior_xwoba is not None) else None
             comps = {k: (round(wm[k], 3) if k in ("xwoba","xslg","xba") and wm[k] is not None
                          else round(wm[k],1) if wm[k] is not None else None) for k in wm}
-            comps["pa"] = int(total_sample)
+            comps["pa"] = int(cur_sample)
+            comps["total_pa"] = int(total_sample)
             comps["multi_year"] = len([1 for v, _w in metrics["xwoba"] if v is not None])
             out[_norm(name)] = {"role": "hitter", "skill_z": round(num / den, 3),
                                 "comps": comps, "traj": round(traj, 3) if traj is not None else None}
@@ -636,6 +640,7 @@ def _skill_scores(season: int) -> dict[str, dict]:
             pids |= set(pexp_by_year[y].keys())
         for pid in pids:
             metrics = {k: [] for k in ("xera", "xwoba_against", "barrel_allowed", "hardhit_allowed")}
+            cur_sample = 0.0
             total_sample = 0.0
             name = ""
             recent_xera = prior_xera = None
@@ -644,7 +649,7 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 if not row:
                     continue
                 pa = _sf(row, "pa") or 0
-                if pa < 40:
+                if pa < 30:
                     continue
                 rw = _YEAR_RECENCY[off]
                 wt = pa * rw
@@ -655,8 +660,9 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 }
                 for k, v in vals.items():
                     metrics[k].append((v, wt))
+                total_sample += pa
                 if off == 0:
-                    total_sample = pa
+                    cur_sample = pa
                     recent_xera = vals["xera"]
                 elif prior_xera is None:
                     prior_xera = vals["xera"]
@@ -683,7 +689,8 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 "xwoba_against": round(wm["xwoba_against"], 3) if wm["xwoba_against"] is not None else None,
                 "barrel_allowed": round(wm["barrel_allowed"], 1) if wm["barrel_allowed"] is not None else None,
                 "hardhit_allowed": round(wm["hardhit_allowed"], 1) if wm["hardhit_allowed"] is not None else None,
-                "pa": int(total_sample),
+                "pa": int(cur_sample),
+                "total_pa": int(total_sample),
                 "multi_year": len([1 for v, _w in metrics["xera"] if v is not None]),
             }
             out[_norm(name)] = {"role": "pitcher", "skill_z": round(num / den, 3),
@@ -808,9 +815,18 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     skill = _skill_scores(season).get(nname)
     skill_block = None
     if skill and skill.get("skill_rank"):
-        sample = (skill.get("comps") or {}).get("pa") or (skill.get("comps") or {}).get("bf") or 0
-        full = 170 if skill.get("role") == "pitcher" else 240
-        conf = max(0.0, min(1.0, sample / full)) if sample else 0.4
+        # Proper Bayesian shrinkage: confidence = n/(n+k) on the player's TOTAL
+        # multi-year sample, where k is the prior strength in PA-equivalents.
+        # Continuous (no hard gate) — a thin sample shrinks smoothly toward the
+        # consensus prior; a multi-season sample asymptotes to full skill weight.
+        comps = skill.get("comps") or {}
+        sample = comps.get("total_pa") or comps.get("pa") or comps.get("bf") or 0
+        is_prospect = skill.get("is_prospect", False)
+        # k tuned to where each metric roughly stabilizes (PA-equivalents).
+        k_prior = 90 if skill.get("role") == "pitcher" else 220
+        if is_prospect:
+            k_prior = 160  # MiLB lines are noisier per-PA → shrink harder
+        conf = sample / (sample + k_prior) if sample else 0.0
         eff_blend = _SKILL_BLEND * conf
         talent_value = _rank_value(skill["skill_rank"])
         base = eff_blend * talent_value + (1 - eff_blend) * cons_value

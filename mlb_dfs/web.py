@@ -412,6 +412,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.5 — 2026-05-25",
+                "title": "Dynasty: proper Bayesian sample-size shrinkage",
+                "changes": [
+                    "The consensus×skill blend is now true n/(n+k) shrinkage on each player's TOTAL multi-year sample, not a linear sample/full cap. A thin/early sample shrinks smoothly toward the consensus prior; a multi-season sample asymptotes to the full skill weight — no hard cliff at a gate. k is the prior strength in PA-equivalents (220 hitter, 90 pitcher, 160 prospect — MiLB lines are noisier per-PA so they shrink harder).",
+                    "Removed the hard 120-PA / 80-BF skill gates in favor of a soft 30-PA floor + continuous shrinkage — low-sample players are kept but appropriately regressed instead of dropped.",
+                    "Net effect: Skubal (multi-yr n=1667 → near-full skill weight) sits #16; Roman Anthony (n=433 rookie) shrinks toward consensus (blend 0.33); weak-but-established bats are trusted to fall.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.4 — 2026-05-25",
                 "title": "Dynasty: multi-year durability tendency",
                 "changes": [
