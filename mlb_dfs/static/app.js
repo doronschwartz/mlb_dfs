@@ -1040,6 +1040,7 @@ function renderAskAlgo(r) {
       projected_points: proj,
       role,
       components: c,
+      cat_proj: p.cat_proj,
     });
     const projCell = proj != null ?
       `<td class="proj player-cell"><span class="name-trigger" style="cursor:help;">${proj.toFixed(2)}</span>${tooltipHTML}</td>` :
@@ -2100,11 +2101,29 @@ function projTooltip(p) {
   const pitfalls = injHtml + (c.pitfalls || []).map(s => `<div class="bk-row bk-pitfall">⚠ ${s}</div>`).join("");
   const tierBadge = tier ? `<span class="bench-tag" style="background:${tier==="ELITE"?"rgba(52,211,153,0.25)":tier==="POOR"?"rgba(239,68,68,0.25)":"var(--border)"};color:${tier==="ELITE"?"var(--accent-2)":tier==="POOR"?"var(--bad)":"var(--text)"};">${tier}</span>` : "";
   const formB = formBadge(c.form_tag);
+  // Per-game category projection (H2H cats) — "what cats it does". Shows the
+  // expected per-game contribution to each scoring category so the points
+  // total is grounded in actual stat lines (R/HR/RBI/SB/OPS or QS/K/ERA/WHIP/SVH).
+  let catsHtml = "";
+  const cp = p.cat_proj;
+  if (cp && Object.keys(cp).length) {
+    const order = p.role === "pitcher"
+      ? [["QS","QS",2], ["K","K",1], ["ERA","ERA",2], ["WHIP","WHIP",2], ["SVH","SV+H",1]]
+      : [["R","R",2], ["HR","HR",2], ["RBI","RBI",2], ["SB","SB",2], ["OPS","OPS",3]];
+    const cells = order.filter(([k]) => cp[k] != null).map(([k, lbl, dp]) =>
+      `<td style="text-align:center;padding:1px 7px;"><div class="muted" style="font-size:10px;">${lbl}</div><div style="font-weight:600;">${Number(cp[k]).toFixed(dp)}</div></td>`
+    ).join("");
+    catsHtml = `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">
+      <div class="bk-label muted" style="font-size:11px;margin-bottom:2px;">Per-game category projection</div>
+      <table style="border-collapse:collapse;"><tr>${cells}</tr></table>
+    </div>`;
+  }
   return `<div class="breakdown-tooltip">
     <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
     <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
     ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (±1σ)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
+    ${catsHtml}
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
   </div>`;
 }
