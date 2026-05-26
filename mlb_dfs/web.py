@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.14 — 2026-05-26",
+                "title": "Recon reaches A+/A — live breakouts off every consensus list",
+                "changes": [
+                    "The minor-league recon now scans A+ and A in addition to AAA/AA, so young breakouts that aren't on ANY consensus list yet (a 19yo OF raking in A-ball) surface from live stats — the edge over slow-to-update lists like HKB/FantraxHQ. Examples now showing: Eric Hartman, Nathan Flewelling, Josiah Hartshorn. Heavily level-haircut but credited for being young-for-level.",
+                ],
+            },
+            {
                 "version": "v9.23 — 2026-05-26",
                 "title": "Faster slate projection (parallelized) + dynasty list to 500",
                 "changes": [

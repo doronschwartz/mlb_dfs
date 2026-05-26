@@ -1171,11 +1171,15 @@ def _milb_leader_ids(season: int, sportid: int, group: str, category: str, limit
     return out
 
 
-@disk_cache.cached_disk(6 * 3600, namespace="milb_recon_v2")
+@disk_cache.cached_disk(6 * 3600, namespace="milb_recon_v3")
 def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.45) -> list[dict]:
     """Scan AAA + AA leaderboards for rising, young-for-level prospects.
     Returns dicts sorted by recon_score (best first), deduped by player id."""
-    levels = ((11, "AAA"), (12, "AA"))
+    # Full-season affiliated levels. A+/A added so live breakouts that aren't
+    # on any consensus list yet (e.g. a 19yo OF raking in A-ball) surface —
+    # they're heavily haircut by level but the young-for-level bonus credits
+    # the upside, which is the whole point of recon vs a static top-500.
+    levels = ((11, "AAA"), (12, "AA"), (13, "A+"), (14, "A"))
     cats = (("hitting", "onBasePlusSlugging", "hitter"),
             ("pitching", "strikeoutsPer9Inn", "pitcher"))
     targets = []  # (pid, name, sportid, level, group, role)
@@ -1207,7 +1211,7 @@ def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.45) -> l
             return None
         # recon_score: MLB-equiv skill, lifted for level-proximity to the
         # majors and for being young-for-level. Own scale (not dynasty value).
-        lvl_prox = {"AAA": 1.0, "AA": 0.85}.get(level, 0.7)
+        lvl_prox = {"AAA": 1.0, "AA": 0.85, "A+": 0.72, "A": 0.60}.get(level, 0.55)
         recon = round((z + 1.5) * 100 * lvl_prox + (avl or 0) * 8, 1)
         return {
             "name": name, "player_id": pid, "level": level,
