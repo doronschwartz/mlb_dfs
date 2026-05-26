@@ -1177,17 +1177,45 @@ def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.55) -> l
     return sorted(best.values(), key=lambda x: -x["recon_score"])
 
 
+class _NameSet:
+    """Name membership with a fuzzy fallback for nickname/legal-name splits.
+    The MLB Stats API returns full legal names (e.g. 'Leodalis De Vries') while
+    Fantrax rosters use the common name ('Leo De Vries'); an exact normalized
+    match misses these and shows owned players as available. We also match when
+    the last token is equal AND one first name is a prefix of the other."""
+    def __init__(self, norms):
+        self.full = set(norms)
+        self.by_last: dict[str, list[str]] = {}
+        for n in norms:
+            toks = n.split()
+            if toks:
+                self.by_last.setdefault(toks[-1], []).append(toks[0])
+
+    def has(self, name: str) -> bool:
+        nn = _norm(name)
+        if nn in self.full:
+            return True
+        toks = nn.split()
+        if not toks:
+            return False
+        f, last = toks[0], toks[-1]
+        for rf in self.by_last.get(last, []):
+            if f and rf and min(len(f), len(rf)) >= 3 and (f.startswith(rf) or rf.startswith(f)):
+                return True
+        return False
+
+
 def free_agent_pickups(season: int, rostered_norm: set[str],
                        limit: int = 40, milb_limit: int = 30) -> dict:
     """Best-available pickups: the consensus board AND AAA/AA risers, minus
     everyone rostered in the league. Pure best-available (no roster-need tilt)."""
     ranks = rankings(season)
-    cons_norm = {_norm(v["name"]) for v in ranks}
-    available = [v for v in ranks if _norm(v["name"]) not in rostered_norm][:limit]
+    rostered = _NameSet(rostered_norm)
+    cons = _NameSet({_norm(v["name"]) for v in ranks})
+    available = [v for v in ranks if not rostered.has(v["name"])][:limit]
     risers = []
     for r in milb_recon(season):
-        nn = _norm(r["name"])
-        if nn in rostered_norm or nn in cons_norm:
-            continue   # rostered, or already shown on the consensus board
+        if rostered.has(r["name"]) or cons.has(r["name"]):
+            continue   # rostered (fuzzy), or already shown on the consensus board
         risers.append(r)
     return {"available": available, "milb_risers": risers[:milb_limit]}

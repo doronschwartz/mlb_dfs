@@ -462,6 +462,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.8 — 2026-05-26",
+                "title": "Pickups: fuzzy roster matching (legal vs common names)",
+                "changes": [
+                    "Fixed owned prospects showing as available: the MLB Stats API returns full legal names (e.g. 'Leodalis De Vries') but Fantrax rosters use the common name ('Leo De Vries'), so an exact match missed them. Availability now also matches on same-last-name + first-name-prefix, so Leo↔Leodalis, Bobby↔Bobby (Jr.) etc. connect — without false-matching different players who share a first name.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.7 — 2026-05-26",
                 "title": "Trade analyzer: fuzzy autocomplete, balancer recs, non-additive packages",
                 "changes": [
