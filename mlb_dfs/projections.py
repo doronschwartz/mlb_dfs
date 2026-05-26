@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
@@ -2148,35 +2149,41 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
     # Hitters — everyone non-pitcher in the slate roster pool. Project hitters
     # FIRST so we can compute opposing lineup quality from posted lineups
     # before we project pitchers (the opp lineup factor needs hitter projs).
-    for pid, meta in pool.items():
-        if meta.get("positionType") == "Pitcher":
-            continue
-        if team_filter is not None and meta.get("teamId") not in team_filter:
-            continue
+    # Each project_hitter makes ~4 MLB-API stat calls (L3/L7/L14/season) plus
+    # the opposing SP's line — all network I/O. Run them concurrently so a cold
+    # slate doesn't serialize hundreds of round-trips (the draft pool felt slow
+    # because this loop was sequential). The mlb_api/savant layers are disk-
+    # cached and tolerate concurrent access (dynasty already maps the same way).
+    def _project_one_hitter(pid, meta):
         team_id = meta.get("teamId")
         m = matchups.get(team_id or 0, {})
-        bo = (lineups.get(pid) or {}).get("batting_order")
-        bats = (handedness.get(pid) or {}).get("bats")
         opp_sp = m.get("opp_sp")
-        opp_throws = (handedness.get(opp_sp) or {}).get("throws") if opp_sp else None
-        projections.append(project_hitter(
+        return project_hitter(
             pid, meta["name"],
             team_id=team_id,
             position=meta.get("position"),
             season=season,
             opposing_sp_id=opp_sp,
             park=m.get("park"),
-            batting_order=bo,
+            batting_order=(lineups.get(pid) or {}).get("batting_order"),
             implied_team_total=team_totals.get(team_id) if team_id else None,
             opp_bullpen_era=bullpen_era.get(m.get("opp")) if m.get("opp") else None,
-            bats=bats,
-            opp_throws=opp_throws,
+            bats=(handedness.get(pid) or {}).get("bats"),
+            opp_throws=(handedness.get(opp_sp) or {}).get("throws") if opp_sp else None,
             opp_abbr=m.get("opp_abbr"),
             opp_sp_name=m.get("opp_sp_name"),
             is_home=m.get("is_home"),
             lineup_status=(lineups.get(pid) or {}).get("status"),
             as_of=d,
-        ))
+        )
+
+    hitter_pids = [
+        pid for pid, meta in pool.items()
+        if meta.get("positionType") != "Pitcher"
+        and (team_filter is None or meta.get("teamId") in team_filter)
+    ]
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        projections.extend(ex.map(lambda pid: _project_one_hitter(pid, pool[pid]), hitter_pids))
 
     # Compute opposing-lineup-quality per team from POSTED lineups.
     # CRITICAL — use each hitter's base_pg (rolling form + Statcast prior,
@@ -2204,18 +2211,16 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             lineup_avg_pg_by_team[tid] = sum(pts_list) / len(pts_list)
 
     # Pitchers — project AFTER hitters so we can attach opp lineup quality.
-    for sp_id, info in probable_sps.items():
-        if team_filter is not None and info["team_id"] not in team_filter:
-            continue
-        sp_throws = (handedness.get(sp_id) or {}).get("throws")
+    # Parallelized for the same reason (each makes several network stat calls).
+    def _project_one_pitcher(sp_id, info):
         sp_name = info["name"] or pool.get(sp_id, {}).get("name", "?")
-        projections.append(project_pitcher(
+        return project_pitcher(
             sp_id, sp_name,
             team_id=info["team_id"], season=season,
             opponent_team_id=info["opp_team_id"],
             park=info.get("park"),
             opp_implied_total=team_totals.get(info["opp_team_id"]),
-            throws=sp_throws,
+            throws=(handedness.get(sp_id) or {}).get("throws"),
             opp_abbr=info.get("opp_abbr"),
             is_home=info.get("is_home"),
             ump_k_factor=info.get("ump_k_factor"),
@@ -2223,7 +2228,14 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             catcher_framing_runs=catcher_framing_by_team.get(info["team_id"]),
             vegas_k_line=k_prop_by_name.get(_norm_pitcher_name(sp_name)),
             as_of=d,
-        ))
+        )
+
+    sp_ids = [
+        sp_id for sp_id, info in probable_sps.items()
+        if team_filter is None or info["team_id"] in team_filter
+    ]
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        projections.extend(ex.map(lambda sp_id: _project_one_pitcher(sp_id, probable_sps[sp_id]), sp_ids))
 
     # Two-way players (Ohtani) appear once as a hitter and once as a pitcher
     # if they're also that day's probable SP. Label the pitcher row "(P)" so

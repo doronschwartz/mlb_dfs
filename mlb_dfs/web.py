@@ -475,6 +475,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.23 — 2026-05-26",
+                "title": "Faster slate projection (parallelized) + dynasty list to 500",
+                "changes": [
+                    "Slate projection was sequential — each player's ~4 stat calls ran one after another, so a cold date (incl. switching the draft date) serialized hundreds of network round-trips. Now the hitter and pitcher projections fan out across 12 workers, and the HTTP connection pool was bumped from 10→24 so they actually run concurrently instead of churning sockets. Big speedup on uncached dates (e.g. moving the draft picker day to day).",
+                    "Dynasty rankings list now shows all 500 (was capped at 250) — the scroll container handles it.",
+                ],
+            },
+            {
                 "version": "v9.22 — 2026-05-26",
                 "title": "Trim a page-load request (efficiency audit)",
                 "changes": [

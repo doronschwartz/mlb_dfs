@@ -21,6 +21,13 @@ BASE_V11 = "https://statsapi.mlb.com/api/v1.1"
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": "mlb_dfs/0.1"})
+# Slate projection fans out ~12 concurrent workers; the default urllib3 pool is
+# only 10 connections, so it was discarding/recreating connections under load
+# ("Connection pool is full"). Size the pool above the worker count so the
+# parallel projection actually runs concurrently instead of churning sockets.
+_adapter = requests.adapters.HTTPAdapter(pool_connections=24, pool_maxsize=24)
+_session.mount("https://", _adapter)
+_session.mount("http://", _adapter)
 
 
 class MlbApiError(RuntimeError):

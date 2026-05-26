@@ -560,7 +560,7 @@ function renderDynasty() {
   if (!out || !dynastyCache) return;
   const q = ($("#dyn-search")?.value || "").toLowerCase().trim();
   const rows = dynastyCache.filter(v => !q || v.name.toLowerCase().includes(q));
-  const body = rows.slice(0, 250).map((v, i) => {
+  const body = rows.slice(0, 500).map((v, i) => {
     const d = v.rank_delta;
     const deltaCls = d > 0 ? "edge-pos" : d < 0 ? "edge-neg" : "muted";
     const deltaStr = d === 0 ? "—" : (d > 0 ? `▲${d}` : `▼${-d}`);
@@ -580,7 +580,7 @@ function renderDynasty() {
     <tr class="dyn-detail" data-detail="${i}" hidden><td colspan="8" style="background:var(--panel-2);padding:0;"></td></tr>`;
   }).join("");
   // Stash the filtered rows so click handlers can read the breakdown.
-  out._dynRows = rows.slice(0, 250);
+  out._dynRows = rows.slice(0, 500);
   out.innerHTML = `<div class="dyn-scroll"><table style="width:100%;font-size:13px;">
     <thead><tr>
       <th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
@@ -591,7 +591,7 @@ function renderDynasty() {
     </tr></thead>
     <tbody>${body}</tbody>
   </table></div>
-  <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,250)} of ${rows.length}. Click any row for the breakdown. Search to narrow.</div>`;
+  <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,500)} of ${rows.length}. Click any row for the breakdown. Search to narrow.</div>`;
   // Wire row clicks → toggle the inline breakdown panel.
   out.querySelectorAll(".dyn-row").forEach(tr => {
     tr.addEventListener("click", () => {
