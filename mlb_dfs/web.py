@@ -462,6 +462,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.12 — 2026-05-26",
+                "title": "Freshness: board rebuilds on a TTL (picks up daily stat refresh)",
+                "changes": [
+                    "The in-process dynasty board / luck / durability caches had no expiry — they built once per server and froze until the next deploy, so the daily Statcast + MiLB refresh never reached the live board between deploys. Now they carry a 6h TTL and rebuild automatically, so the board reflects the latest actuals within hours. (Statcast/MiLB/injury inputs are 24h disk-cached; the FantraxHQ consensus prior is a static snapshot and still refreshes only when the CSV is re-imported.)",
+                ],
+            },
+            {
                 "version": "v9.21 — 2026-05-26",
                 "title": "Lineup tab: hover breakdown on players",
                 "changes": [

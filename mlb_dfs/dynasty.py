@@ -28,6 +28,7 @@ import csv
 import logging
 import math
 import os
+import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date as Date
@@ -36,6 +37,17 @@ from . import disk_cache, injuries, mlb_api, savant
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _CSV = os.path.join(_DATA_DIR, "dynasty_top500.csv")
+
+
+# In-process caches (luck / durability / full board) are timestamped and
+# rebuilt after this TTL so the live board picks up the daily Statcast + MiLB
+# refresh (24h disk caches) without needing a redeploy.
+_INPROC_TTL = 6 * 3600
+
+
+def _fresh(cache: dict, key) -> bool:
+    hit = cache.get(key)
+    return bool(hit) and (time.time() - hit[0]) < _INPROC_TTL
 
 
 def _norm(name: str) -> str:
@@ -165,8 +177,8 @@ def _statcast_luck(season: int) -> dict[str, dict]:
     (not merged) so two-way players don't have their bat value clobbered by a
     tiny-sample pitching line — dynasty_value picks the record matching the
     player's role. Records below the sample gate are dropped."""
-    if season in _LUCK_CACHE:
-        return _LUCK_CACHE[season]
+    if _fresh(_LUCK_CACHE, season):
+        return _LUCK_CACHE[season][1]
     out: dict[str, dict] = {}
 
     def _flip(lastfirst: str) -> str:
@@ -210,7 +222,7 @@ def _statcast_luck(season: int) -> dict[str, dict]:
                 }
     except Exception:
         pass
-    _LUCK_CACHE[season] = out
+    _LUCK_CACHE[season] = (time.time(), out)
     return out
 
 
@@ -334,8 +346,8 @@ def _durability(season: int) -> dict[str, dict]:
     a chronically banged-up player (few games/season) gets a standing dynasty
     discount even when healthy today. Neutral (1.0) for players without 2 yrs
     of MLB history (prospects, recent call-ups) — we can't assess them."""
-    if season in _DURABILITY_CACHE:
-        return _DURABILITY_CACHE[season]
+    if _fresh(_DURABILITY_CACHE, season):
+        return _DURABILITY_CACHE[season][1]
     prior_years = [str(season - 1), str(season - 2)]
     targets = []
     for nname, cons in _consensus().items():
@@ -381,7 +393,7 @@ def _durability(season: int) -> dict[str, dict]:
                     out[r[0]] = r[1]
     except Exception as e:
         logging.warning("durability build failed: %s", e)
-    _DURABILITY_CACHE[season] = out
+    _DURABILITY_CACHE[season] = (time.time(), out)
     return out
 
 
@@ -975,9 +987,9 @@ _RANKINGS_CACHE: dict[int, list[dict]] = {}
 def rankings(season: int, limit: int = 500) -> list[dict]:
     """Our dynasty rankings — re-rank the consensus pool by OUR dynasty_score.
     Includes a `consensus_rank` so the UI can show our-vs-market disagreement.
-    Cached per-season in-process (rebuilds are deterministic + the sub-models
-    are already disk-cached); cleared on restart."""
-    if season not in _RANKINGS_CACHE:
+    Cached per-season in-process with a TTL so it rebuilds and picks up the
+    daily Statcast/MiLB refresh; the sub-models are also disk-cached."""
+    if not _fresh(_RANKINGS_CACHE, season):
         out = []
         for nname in _consensus():
             v = dynasty_value(nname, season)
@@ -987,8 +999,8 @@ def rankings(season: int, limit: int = 500) -> list[dict]:
         for i, v in enumerate(out, start=1):
             v["our_rank"] = i
             v["rank_delta"] = v["consensus_rank"] - i  # + = we're higher than market
-        _RANKINGS_CACHE[season] = out
-    return _RANKINGS_CACHE[season][:limit]
+        _RANKINGS_CACHE[season] = (time.time(), out)
+    return _RANKINGS_CACHE[season][1][:limit]
 
 
 # ---- trade analyzer ----------------------------------------------------------
