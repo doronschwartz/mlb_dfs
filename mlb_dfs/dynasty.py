@@ -88,11 +88,16 @@ def _consensus() -> dict[str, dict]:
                 if not rank:
                     continue
                 try:
+                    points_rank = int((row.get("Points") or "").strip() or 0) or None
+                except ValueError:
+                    points_rank = None
+                try:
                     age = float((row.get("Age") or "").strip() or 0) or None
                 except ValueError:
                     age = None
                 out[_norm(name)] = {
-                    "rank": rank,
+                    "rank": rank,                  # Roto consensus rank (primary)
+                    "points_rank": points_rank,    # Points-league rank (2nd market view)
                     "name": name,
                     "pos": (row.get("Pos.") or "").strip().upper(),
                     "team": (row.get("Team") or "").strip(),
@@ -865,7 +870,14 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     if not cons:
         return None
     role = _role_for(cons["pos"])
-    cons_value = _rank_value(cons["rank"])
+    # Prior = blend of the two market views we have (Roto + Points ranks), so
+    # no single column's quirks dominate. Points-league favors power/pitching,
+    # Roto favors speed/categories; averaging their rank-values is a more
+    # robust consensus than either alone.
+    if cons.get("points_rank"):
+        cons_value = 0.5 * _rank_value(cons["rank"]) + 0.5 * _rank_value(cons["points_rank"])
+    else:
+        cons_value = _rank_value(cons["rank"])
     # Blend the consensus prior with OUR skill-rank value. v1.3: the blend is
     # CONFIDENCE-WEIGHTED by sample size, not a flat 50/50. Single-season
     # Statcast is a noisy/incomplete read on a multi-year dynasty asset —

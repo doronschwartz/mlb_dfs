@@ -475,6 +475,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.18 — 2026-05-26",
+                "title": "Dual-market prior (Roto + Points), and a 'most ours' test that we rejected",
+                "changes": [
+                    "Prior is now a blend of BOTH market views in the FantraxHQ export — the Roto rank AND the Points rank — so no single column's bias dominates (Roto favors speed/categories, Points favors power/pitching). A more robust anchor.",
+                    "Tested cranking our model's weight up ('most ours', skill blend 0.35→0.55): it DE-tuned the board by the league's own standard — Elly #8→#19, Carroll →#14, José Ramírez →#26, while prospects (De Vries →#9) and pure-power bats floated up. Cause: our skill read is rate-Statcast (xwOBA/barrel), which under-rates elite PRODUCERS whose value is power+speed+counting stats. Not shipped — kept the balanced blend. To safely go more-ours we'd first need to add actual-production/role inputs to the skill model (dynasty has no ground truth to validate against, so this stays evidence-gated).",
+                ],
+            },
+            {
                 "version": "Dynasty v1.17 — 2026-05-26",
                 "title": "Damp the age curve (the prior is already a dynasty ranking)",
                 "changes": [
