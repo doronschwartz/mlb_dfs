@@ -475,6 +475,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.15 — 2026-05-26",
+                "title": "Rebalance: less skill-fade on proven stars, bust-risk on prospects",
+                "changes": [
+                    "League feedback flagged a cluster of bad ranks. Root causes + fixes: (1) our single-season contact-quality skill read was over-moving proven players both ways — fading speed/power studs (Corbin Carroll cons#8→#21, Elly De La Cruz #10→#14) and over-boosting old elite-contact bats (Corey Seager 31yo #64→#24). Cut the skill weight 0.50→0.35 so the market prior (which prices everything) leads and skill is a tilt. (2) Unproven prospects got pure-consensus value × a big youth curve with no attrition risk, vaulting them over proven stars (Leodalis De Vries 19yo→#13). Added a level-based prospect bust-risk discount. (3) Steepened the over-peak age decline so aging/oft-injured vets fall.",
+                    "Net: Elly #14→#8 (now above De Vries #31), Carroll →#16, Seager →#32, Walcott →#45 — and the top of the board reads sanely (Witt, Ohtani, Wood, Skenes, Judge…).",
+                ],
+            },
+            {
                 "version": "Dynasty v1.14 — 2026-05-26",
                 "title": "Recon reaches A+/A — live breakouts off every consensus list",
                 "changes": [

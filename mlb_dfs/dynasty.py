@@ -133,12 +133,12 @@ def _age_factor(age: float, role: str) -> float:
         # 30s; 0.028/yr is closer to how the market prices them.
         if age <= peak:
             return max(0.85, 1.0 - 0.015 * (peak - age))
-        return max(0.40, 1.0 - 0.028 * (age - peak))
+        return max(0.40, 1.0 - 0.036 * (age - peak))
     # hitter
     peak = 27.0
     if age <= peak:
         return max(0.86, 1.0 - 0.018 * (peak - age))
-    return max(0.45, 1.0 - 0.028 * (age - peak))
+    return max(0.45, 1.0 - 0.036 * (age - peak))
 
 
 # Position scarcity multiplier on dynasty value. Catcher + premium infield are
@@ -752,7 +752,23 @@ def _skill_scores(season: int) -> dict[str, dict]:
 
 # How much OUR skill model drives base value when we have Statcast on a player.
 # Prospects/minors/low-PA (no Statcast) fall back to 100% consensus.
-_SKILL_BLEND = 0.50
+# Max weight our (single-season, contact-quality) skill read can take vs the
+# consensus. Lowered 0.50→0.35: the market prior already prices speed/power/
+# role/pedigree, while our xwOBA-type skill misses a lot — at 0.50 it was
+# over-fading proven stars whose value isn't pure contact (Corbin Carroll
+# cons#8→#21, Elly #10→#14) AND over-boosting old elite-contact bats (Seager
+# 31yo #64→#24). 0.35 keeps it a meaningful tilt, not a coin-flip; the riser
+# boost can still lift it for genuine young breakouts.
+_SKILL_BLEND = 0.35
+
+# Prospect bust-risk discount on dynasty value, by the consensus level (further
+# from MLB = more attrition risk). An unproven minor-leaguer shouldn't outrank
+# a proven MLB star at the same paper value — most prospects regress or bust.
+# MLB players (no level) are unaffected.
+_PROSPECT_RISK = {
+    "AAA": 0.90, "AA": 0.80, "A+": 0.72, "A": 0.65,
+    "RK": 0.58, "ROOKIE": 0.58, "CPX": 0.55, "DSL": 0.50,
+}
 
 
 def _injury_factor(name: str, role: str) -> tuple[float, str]:
@@ -902,6 +918,9 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     dur_mult = dur["mult"] if dur else 1.0
     dur_note = dur["note"] if dur else ""
     eta_mult, eta_note = _eta_factor(cons.get("eta"), season)
+    prospect_mult = _PROSPECT_RISK.get((cons.get("level") or "").strip().upper(), 1.0)
+    prospect_note = (f"prospect bust-risk ×{prospect_mult:.2f} ({cons.get('level')})"
+                     if prospect_mult < 1.0 else "")
     multipos_mult, multipos_note = _multipos_factor(cons["pos"])
     young_mult, young_note = _young_ascending_factor(
         cons.get("age"), skill["skill_z"] if skill else None)
@@ -935,7 +954,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         yr_age = (age + k) if age else None
         yr_factor = _age_factor(yr_age, role) if yr_age else cur_age_factor
         yr_value = (peak_value * yr_factor * pos_mult * luck_mult * inj_mult
-                    * eta_mult * multipos_mult * young_mult * traj_mult * dur_mult)
+                    * eta_mult * multipos_mult * young_mult * traj_mult * dur_mult
+                    * prospect_mult)
         discounted = yr_value * (DISCOUNT ** k)
         dynasty_score += discounted
         curve.append({
@@ -969,6 +989,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
             "durability_note": dur_note,
             "eta_mult": round(eta_mult, 3),
             "eta_note": eta_note,
+            "prospect_mult": round(prospect_mult, 3),
+            "prospect_note": prospect_note,
             "multipos_mult": round(multipos_mult, 3),
             "multipos_note": multipos_note,
             "young_mult": round(young_mult, 3),
