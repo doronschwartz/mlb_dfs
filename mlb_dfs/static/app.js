@@ -733,10 +733,20 @@ async function evaluateDynastyTrade() {
         <ul style="margin:4px 0 0 16px;padding:0;font-size:12px;">${players}</ul>${miss}</div>`;
     };
     const ctx = r.context.map(c => `<li>${c}</li>`).join("");
+    const bal = r.balancer;
+    const balHtml = bal && bal.suggestions && bal.suggestions.length ? `
+      <div class="trade-balancer">
+        <b>⚖️ To even it:</b> side ${bal.side_to_add} adds ~<b>${bal.gap.toFixed(0)}</b> of value
+        (≈ a ${bal.target_value.toFixed(0)}-value player). Closest fits on the board:
+        <ul style="margin:5px 0 0 16px;padding:0;font-size:12px;">
+          ${bal.suggestions.map(s => `<li><b>${s.name}</b> <span class="muted">(${s.pos}, ${s.age ?? "?"}) — ${s.dynasty_score.toFixed(0)}, our #${s.our_rank}</span></li>`).join("")}
+        </ul>
+      </div>` : "";
     out.innerHTML = `
       <div style="font-size:15px;font-weight:700;margin-bottom:6px;">${r.verdict} <span class="muted" style="font-weight:400;font-size:12px;">(value gap ${Math.abs(r.diff).toFixed(0)})</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">${sideHtml("A", r.side_a)}${sideHtml("B", r.side_b)}</div>
-      ${ctx ? `<ul style="margin:8px 0 0 16px;padding:0;font-size:12px;color:var(--muted);">${ctx}</ul>` : ""}`;
+      ${ctx ? `<ul style="margin:8px 0 0 16px;padding:0;font-size:12px;color:var(--muted);">${ctx}</ul>` : ""}
+      ${balHtml}`;
   } catch (e) {
     out.innerHTML = `<div class="muted">${e.message}</div>`;
   }
@@ -818,11 +828,79 @@ function renderPickups(r) {
   return availSection + riserSection;
 }
 
+// Fuzzy name match against the dynasty board: prefix > substring > subsequence.
+function fuzzyNameMatch(q, name) {
+  q = q.toLowerCase(); const n = name.toLowerCase();
+  if (n.startsWith(q)) return 1000 - n.length;
+  const idx = n.indexOf(q);
+  if (idx >= 0) return 600 - idx;
+  let qi = 0;                              // subsequence (handles typos/initials)
+  for (let i = 0; i < n.length && qi < q.length; i++) if (n[i] === q[qi]) qi++;
+  return qi === q.length ? 200 - n.length : -1;
+}
+
+// Attach a lightweight fuzzy autocomplete to a one-name-per-line textarea so
+// you don't have to type full names (and so they match the board exactly).
+function attachNameAutocomplete(ta) {
+  if (!ta || ta._acAttached) return;
+  ta._acAttached = true;
+  let box = null, items = [], active = -1, lineStart = 0, lineEnd = 0;
+  const close = () => { if (box) { box.remove(); box = null; } items = []; active = -1; };
+  const currentLine = () => {
+    const pos = ta.selectionStart, val = ta.value;
+    lineStart = val.lastIndexOf("\n", pos - 1) + 1;
+    const le = val.indexOf("\n", pos);
+    lineEnd = le === -1 ? val.length : le;
+    return val.slice(lineStart, lineEnd).trim();
+  };
+  const choose = (name) => {
+    const val = ta.value, before = val.slice(0, lineStart), after = val.slice(lineEnd);
+    ta.value = before + name + after;
+    const caret = (before + name).length;
+    ta.focus(); ta.setSelectionRange(caret, caret);
+    close();
+  };
+  const paint = () => box && box.querySelectorAll(".name-ac-item")
+    .forEach((el, i) => el.classList.toggle("active", i === active));
+  const render = (q) => {
+    const names = dynastyCache || [];
+    if (q.length < 2 || !names.length) { close(); return; }
+    const scored = [];
+    for (const v of names) { const s = fuzzyNameMatch(q, v.name); if (s > 0) scored.push([s, v]); }
+    scored.sort((a, b) => b[0] - a[0]);
+    items = scored.slice(0, 8).map(x => x[1]);
+    if (!items.length) { close(); return; }
+    if (!box) { box = document.createElement("div"); box.className = "name-ac"; document.body.appendChild(box); }
+    const rect = ta.getBoundingClientRect();
+    box.style.left = rect.left + "px";
+    box.style.top = (rect.bottom + 2) + "px";
+    box.style.minWidth = rect.width + "px";
+    active = 0;
+    box.innerHTML = items.map((v, i) =>
+      `<div class="name-ac-item ${i === 0 ? "active" : ""}" data-i="${i}"><span>${escapeAttr(v.name)}</span><span class="meta">${escapeAttr(v.pos || "")} · #${v.our_rank}</span></div>`).join("");
+    box.querySelectorAll(".name-ac-item").forEach(el =>
+      el.addEventListener("mousedown", (e) => { e.preventDefault(); choose(items[+el.dataset.i].name); }));
+  };
+  ta.addEventListener("input", () => render(currentLine()));
+  ta.addEventListener("focus", () => { if (!dynastyCache) loadDynasty().catch(() => {}); });
+  ta.addEventListener("keydown", (e) => {
+    if (!box || !items.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); active = (active + 1) % items.length; paint(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); active = (active - 1 + items.length) % items.length; paint(); }
+    else if (e.key === "Enter") { e.preventDefault(); choose(items[active].name); }
+    else if (e.key === "Escape") { close(); }
+  });
+  ta.addEventListener("blur", () => setTimeout(close, 150));
+  window.addEventListener("scroll", close, true);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   $("#dyn-refresh")?.addEventListener("click", () => loadDynasty(true));
   $("#dyn-search")?.addEventListener("input", () => dynastyCache && renderDynasty());
   $("#dyn-trade-btn")?.addEventListener("click", evaluateDynastyTrade);
   $("#dyn-pickups-btn")?.addEventListener("click", loadDynastyPickups);
+  attachNameAutocomplete($("#dyn-side-a"));
+  attachNameAutocomplete($("#dyn-side-b"));
   const savedLg = localStorage.getItem("mlb_dfs_ftx_league");
   if (savedLg && $("#dyn-league")) $("#dyn-league").value = savedLg;
 });

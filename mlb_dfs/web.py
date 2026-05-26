@@ -462,6 +462,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.7 — 2026-05-26",
+                "title": "Trade analyzer: fuzzy autocomplete, balancer recs, non-additive packages",
+                "changes": [
+                    "Trade boxes now have fuzzy name autocomplete off the dynasty board — type 2+ chars, arrow/enter to pick. No more typing full names or mismatching a player.",
+                    "Package value is no longer a pure sum: each additional (lesser) player in a side is discounted (best ×1.0, 2nd ×0.90, 3rd ×0.81, … floored ×0.55). This bakes in both the consolidation premium (one star > several role players) and a real package detriment (roster spots are scarce, so a 3-for-1 hands value to the side getting the best asset).",
+                    "Balancer: when a deal is uneven, it now tells you which side should add value, how much, and lists the closest-fit board players to even it.",
+                    "Dynasty rankings are cached in-process so the board, pickups, and trade balancer are fast.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.6 — 2026-05-26",
                 "title": "Free-agent pickups + live AAA/AA minor-league recon",
                 "changes": [

@@ -929,31 +929,62 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     }
 
 
+_RANKINGS_CACHE: dict[int, list[dict]] = {}
+
+
 def rankings(season: int, limit: int = 500) -> list[dict]:
     """Our dynasty rankings — re-rank the consensus pool by OUR dynasty_score.
-    Includes a `consensus_rank` so the UI can show our-vs-market disagreement."""
-    out = []
-    for nname in _consensus():
-        v = dynasty_value(nname, season)
-        if v:
-            out.append(v)
-    out.sort(key=lambda x: -x["dynasty_score"])
-    for i, v in enumerate(out, start=1):
-        v["our_rank"] = i
-        v["rank_delta"] = v["consensus_rank"] - i  # + = we're higher on them than market
-    return out[:limit]
+    Includes a `consensus_rank` so the UI can show our-vs-market disagreement.
+    Cached per-season in-process (rebuilds are deterministic + the sub-models
+    are already disk-cached); cleared on restart."""
+    if season not in _RANKINGS_CACHE:
+        out = []
+        for nname in _consensus():
+            v = dynasty_value(nname, season)
+            if v:
+                out.append(v)
+        out.sort(key=lambda x: -x["dynasty_score"])
+        for i, v in enumerate(out, start=1):
+            v["our_rank"] = i
+            v["rank_delta"] = v["consensus_rank"] - i  # + = we're higher than market
+        _RANKINGS_CACHE[season] = out
+    return _RANKINGS_CACHE[season][:limit]
 
 
 # ---- trade analyzer ----------------------------------------------------------
 
-def _consolidation_premium(values: list[float]) -> float:
-    """In roster-capped leagues the single best player in a package is worth
-    more than the raw sum (you can only roster so many; quality > quantity).
-    Add a premium to whichever side has the highest-value single player,
-    scaled by how lopsided the package counts are."""
-    if not values:
-        return 0.0
-    return max(values) * 0.08  # 8% of the best player's value
+def _slot_weight(i: int) -> float:
+    """Diminishing weight for the i-th-best player in a package (0-based).
+    Roster spots are scarce, so each additional, lesser player is worth less:
+    best ×1.0, 2nd ×0.90, 3rd ×0.81, 4th ×0.73, … floored at 0.55."""
+    return max(0.55, 1.0 - 0.10 * i)
+
+
+def _package_value(values: list[float]) -> float:
+    """Concave package value — deliberately NOT a pure sum. Bakes in both the
+    consolidation premium (one star outweighs several role players) AND a
+    package detriment (quantity is discounted): you can only roster so many,
+    and a 3-for-1 hands real value to the side getting the single best asset."""
+    return sum(v * _slot_weight(i) for i, v in enumerate(sorted(values, reverse=True)))
+
+
+def _suggest_balancers(light_side_len: int, gap: float, exclude_norms: set[str],
+                       season: int, k: int = 3) -> tuple[list[dict], float]:
+    """When a deal is uneven, suggest players the LIGHTER side could add to
+    even it. The added player lands in the next package slot (discounted), so
+    we target a raw value of gap / next_slot_weight and return the board
+    players closest to it, excluding everyone already in the trade."""
+    w = _slot_weight(light_side_len)
+    target_raw = gap / w if w else gap
+    cands = []
+    for v in rankings(season):
+        if _norm(v["name"]) in exclude_norms:
+            continue
+        cands.append((abs(v["dynasty_score"] - target_raw), v))
+    cands.sort(key=lambda x: x[0])
+    picks = [{kk: v[kk] for kk in ("name", "pos", "age", "dynasty_score", "our_rank")}
+             for _, v in cands[:k]]
+    return picks, round(target_raw, 0)
 
 
 def evaluate_trade(side_a_names: list[str], side_b_names: list[str], season: int) -> dict:
@@ -973,13 +1004,11 @@ def evaluate_trade(side_a_names: list[str], side_b_names: list[str], season: int
     b_vals, b_missing = _val_side(side_b_names)
     a_raw = sum(v["dynasty_score"] for v in a_vals)
     b_raw = sum(v["dynasty_score"] for v in b_vals)
-    # Consolidation premium goes to the side RECEIVING the best player — i.e.
-    # the side giving up quantity for quality. We add it to each side's value
-    # of what they GIVE so the comparison reflects "what you send out".
-    a_best = _consolidation_premium([v["dynasty_score"] for v in a_vals])
-    b_best = _consolidation_premium([v["dynasty_score"] for v in b_vals])
-    a_total = a_raw + a_best
-    b_total = b_raw + b_best
+    # Package value is concave, not additive (see _package_value): the side
+    # sending a multi-player package has its total discounted, and the side
+    # sending the single best asset is rewarded.
+    a_total = _package_value([v["dynasty_score"] for v in a_vals])
+    b_total = _package_value([v["dynasty_score"] for v in b_vals])
 
     diff = a_total - b_total
     bigger = max(a_total, b_total)
@@ -1009,8 +1038,25 @@ def evaluate_trade(side_a_names: list[str], side_b_names: list[str], season: int
                        f"{min(a_age,b_age)} vs {max(a_age,b_age)}); side {older} is win-now.")
     if len(a_vals) != len(b_vals):
         more, fewer = ("A", "B") if len(a_vals) > len(b_vals) else ("B", "A")
+        disc = a_total / a_raw if more == "A" and a_raw else (b_total / b_raw if b_raw else 1.0)
         context.append(f"Side {fewer} consolidates ({len(a_vals)}-for-{len(b_vals)}) — "
-                       f"quality over quantity, worth a premium in capped leagues.")
+                       f"quality over quantity. Side {more}'s package is discounted "
+                       f"~{round((1-disc)*100)}% (roster spots are scarce; value isn't additive).")
+
+    # Balancer: when the deal isn't even, suggest who the lighter side could
+    # add to close the gap.
+    balancer = None
+    if pct >= 0.05 and (a_vals or b_vals):
+        light = "A" if a_total < b_total else "B"
+        light_len = len(a_vals) if light == "A" else len(b_vals)
+        exclude = {_norm(n) for n in (side_a_names + side_b_names)}
+        picks, target = _suggest_balancers(light_len, abs(diff), exclude, season)
+        balancer = {
+            "side_to_add": light,
+            "gap": round(abs(diff), 1),
+            "target_value": target,
+            "suggestions": picks,
+        }
 
     return {
         "side_a": {"players": a_vals, "raw": round(a_raw, 1), "total": round(a_total, 1), "avg_age": a_age, "missing": a_missing},
@@ -1018,6 +1064,7 @@ def evaluate_trade(side_a_names: list[str], side_b_names: list[str], season: int
         "diff": round(diff, 1),
         "verdict": verdict,
         "context": context,
+        "balancer": balancer,
     }
 
 
