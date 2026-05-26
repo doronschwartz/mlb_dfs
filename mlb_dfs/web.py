@@ -475,6 +475,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.16 — 2026-05-26",
+                "title": "Skill model now values speed (the missing tool) + softer elite-prospect discount",
+                "changes": [
+                    "Our skill read was pure contact quality (xwOBA/barrel/hard-hit) — it had NO speed, so it under-rated 5-tool/burner profiles (Corbin Carroll, Elly, Julio, Witt) whose dynasty value is partly SB + baserunning. Added Statcast sprint-speed (percentile) as a skill component (~14% weight). Effect: Carroll #16→#9, Elly →#7, Julio into the top-10 — while slow sluggers (Seager spd 8, Schwarber spd 18) are correctly NOT boosted.",
+                    "Softened the prospect bust-risk discount for ELITE prospects: a top-70 pedigree guy (Sebastian Walcott) busts far less than a #300 flier, so the discount now scales toward zero as consensus rank rises. Walcott #45→#33; De Vries #31→#20 (still clearly behind Elly #7).",
+                ],
+            },
+            {
                 "version": "Dynasty v1.15 — 2026-05-26",
                 "title": "Rebalance: less skill-fade on proven stars, bust-risk on prospects",
                 "changes": [

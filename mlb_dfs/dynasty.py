@@ -602,6 +602,10 @@ def _skill_scores(season: int) -> dict[str, dict]:
     try:
         exp_by_year = {y: savant.batter_expected(y) for y in years}
         qoc_by_year = {y: savant.batter_statcast(y) for y in years}
+        # Current-season speed percentile (the 'run' tool our contact metrics
+        # miss) — lifts toolsy speed/power guys (Carroll, Witt, Elly) the pure
+        # xwOBA read under-rated. Best-effort; missing → component just drops.
+        speed_by_pid = savant.batter_percentiles(years[0])
         # pid universe across years
         pids = set()
         for y in years:
@@ -641,6 +645,8 @@ def _skill_scores(season: int) -> dict[str, dict]:
             wm = {k: _wavg(metrics[k]) for k in metrics}
             if wm["xwoba"] is None:
                 continue
+            sp_pct = (speed_by_pid.get(pid) or {}).get("sprint_speed")
+            speed_z = max(-2.0, min((sp_pct - 50.0) / 25.0, 2.0)) if sp_pct is not None else None
             zs = {
                 "xwoba": _z(wm["xwoba"], *_HIT_BASE["xwoba"]),
                 "xslg": _z(wm["xslg"], *_HIT_BASE["xslg"]),
@@ -648,9 +654,10 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 "barrel": _z(wm["barrel"], *_HIT_BASE["barrel"]),
                 "hardhit": _z(wm["hardhit"], *_HIT_BASE["hardhit"]),
                 "sweetspot": _z(wm["sweetspot"], *_HIT_BASE["sweetspot"]),
+                "speed": speed_z,
             }
-            w = {"xwoba": 0.45, "xslg": 0.12, "xba": 0.08, "barrel": 0.18,
-                 "hardhit": 0.12, "sweetspot": 0.05}
+            w = {"xwoba": 0.38, "xslg": 0.12, "xba": 0.06, "barrel": 0.16,
+                 "hardhit": 0.10, "sweetspot": 0.04, "speed": 0.14}
             num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
             den = sum(w[k] for k in w if zs[k] is not None)
             if den <= 0 or not name:
@@ -660,6 +667,7 @@ def _skill_scores(season: int) -> dict[str, dict]:
                          else round(wm[k],1) if wm[k] is not None else None) for k in wm}
             comps["pa"] = int(cur_sample)
             comps["total_pa"] = int(total_sample)
+            comps["sprint_speed"] = sp_pct
             comps["multi_year"] = len([1 for v, _w in metrics["xwoba"] if v is not None])
             out[_norm(name)] = {"role": "hitter", "skill_z": round(num / den, 3),
                                 "comps": comps, "traj": round(traj, 3) if traj is not None else None}
@@ -918,9 +926,18 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     dur_mult = dur["mult"] if dur else 1.0
     dur_note = dur["note"] if dur else ""
     eta_mult, eta_note = _eta_factor(cons.get("eta"), season)
-    prospect_mult = _PROSPECT_RISK.get((cons.get("level") or "").strip().upper(), 1.0)
-    prospect_note = (f"prospect bust-risk ×{prospect_mult:.2f} ({cons.get('level')})"
-                     if prospect_mult < 1.0 else "")
+    # Prospect bust-risk discount, softened for ELITE prospects: a top-70
+    # pedigree guy (Sebastian Walcott) busts far less than a #300 lottery
+    # ticket, so blend the level discount toward 1.0 by how high the consensus
+    # ranks him (no discount at ~#1, full level discount by ~#175).
+    _lvl_disc = _PROSPECT_RISK.get((cons.get("level") or "").strip().upper(), 1.0)
+    if _lvl_disc < 1.0:
+        elite = max(0.0, min((cons["rank"] - 1) / 175.0, 1.0))  # 0 at #1 → 1 at #175+
+        prospect_mult = _lvl_disc + (1.0 - _lvl_disc) * (1.0 - elite)
+    else:
+        prospect_mult = 1.0
+    prospect_note = (f"prospect bust-risk ×{prospect_mult:.2f} ({cons.get('level')}, cons#{cons['rank']})"
+                     if prospect_mult < 0.995 else "")
     multipos_mult, multipos_note = _multipos_factor(cons["pos"])
     young_mult, young_note = _young_ascending_factor(
         cons.get("age"), skill["skill_z"] if skill else None)

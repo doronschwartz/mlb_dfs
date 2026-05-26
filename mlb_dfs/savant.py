@@ -98,6 +98,36 @@ def lookup_batter_qoc(pid: int, season: int) -> dict | None:
     return batter_statcast(season).get(int(pid))
 
 
+def batter_percentiles(season: int) -> dict[int, dict]:
+    """{batter_id: {sprint_speed, baserunning}} from the batter percentile
+    leaderboard. Captures the 'run' tool our contact-quality metrics miss —
+    speed/baserunning is real dynasty value (SB + extra bases) that xwOBA
+    ignores. Values are 0-100 percentiles (higher = faster/better)."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/percentile-rankings"
+        f"?year={season}&csv=true&min=q&type=batter"
+    )
+    out: dict[int, dict] = {}
+    for r in rows:
+        try:
+            pid = int(r.get("player_id", "") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not pid:
+            continue
+        def _pct(field: str) -> float | None:
+            try:
+                v = r.get(field, "")
+                return float(v) if v not in (None, "", "null") else None
+            except (TypeError, ValueError):
+                return None
+        out[pid] = {
+            "sprint_speed": _pct("sprint_speed"),
+            "baserunning": _pct("r_run_value") if _pct("r_run_value") is not None else _pct("baserunning_run_value"),
+        }
+    return out
+
+
 def pitcher_percentiles(season: int) -> dict[int, dict]:
     """{pitcher_id: {whiff, chase, k, bb, ...}} — Savant percentile rankings.
 
