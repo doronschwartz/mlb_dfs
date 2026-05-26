@@ -462,6 +462,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.10 — 2026-05-26",
+                "title": "MiLB recon: proper Bayesian sample shrinkage",
+                "changes": [
+                    "The minor-league recon scored each prospect off a single MiLB line with a hard 40-PA gate and a cap — but no sample-size regression, so a 41-PA hot streak read like a 250-PA breakout. Now the production z is shrunk toward the level mean by n/(n+k) (k≈130 PA hitters / 70 BF pitchers) — proper Bayesian shrinkage, matching how the MLB board already works. The age-vs-level bonus (a structural prior, not a noisy sample) is left unshrunk.",
+                    "Effect: thin-sample flukes regress down the list; established, larger-sample risers rise. The recon now shows each player's shrink factor.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.9 — 2026-05-26",
                 "title": "Pickups: hot/cold form so streamers surface",
                 "changes": [

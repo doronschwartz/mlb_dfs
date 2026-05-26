@@ -424,15 +424,30 @@ def _milb_best_level(pid: int, season: int, group: str) -> tuple[str, dict] | No
     return best[1], best[2]
 
 
-def _prospect_skill_z(level: str, role: str, age: float | None, stat: dict) -> tuple[float, dict] | None:
+# PA/BF-equivalent prior strengths for regressing a single MiLB production
+# read toward the level mean (n/(n+k)). Used by the recon path; the board's
+# prospect value already shrinks at the consensus-blend level, so it opts out.
+_K_MILB_HIT = 130.0
+_K_MILB_PIT = 70.0
+
+
+def _prospect_skill_z(level: str, role: str, age: float | None, stat: dict,
+                      *, shrink_sample: bool = False) -> tuple[float, dict] | None:
     """MLB-equivalent skill z for a prospect from one MiLB line. None if the
-    sample is too small to trust."""
+    sample is too small to trust.
+
+    With shrink_sample=True the production z is regressed toward the level mean
+    (z=0) by n/(n+k) — proper Bayesian shrinkage so a 41-PA fluke doesn't read
+    like a 250-PA breakout. The age-vs-level bonus is a structural prior (not a
+    noisy sample estimate) so it is NOT shrunk. The board path leaves this off
+    because its consensus blend already applies sample-size shrinkage."""
     lf = _LEVEL_FACTOR.get(level, 0.4)
     exp_age = _LEVEL_EXP_AGE.get(level, 22)
     age_bonus = ((exp_age - age) * 0.10) if age else 0.0  # +0.10z per year young-for-level
+    floor = 20 if shrink_sample else 40   # soft floor when shrinking; gate else
     if role == "hitter":
         pa = float(stat.get("plateAppearances") or 0)
-        if pa < 40:
+        if pa < floor:
             return None
         try:
             ops = float(stat.get("ops") or 0)
@@ -441,13 +456,17 @@ def _prospect_skill_z(level: str, role: str, age: float | None, stat: dict) -> t
         if ops <= 0:
             return None
         prod_z = (ops - 0.700) / 0.130  # MiLB OPS baseline ~.700, sd ~.130
+        conf = pa / (pa + _K_MILB_HIT) if shrink_sample else 1.0
+        prod_z *= conf
         comps = {"level": level, "pa": int(pa), "ops": round(ops, 3),
                  "avg": stat.get("avg"), "hr": stat.get("homeRuns"),
                  "age_vs_level": round(exp_age - age, 1) if age else None}
+        if shrink_sample:
+            comps["shrink"] = round(conf, 2)
     else:
         bf = float(stat.get("battersFaced") or 0)
         ip = float(stat.get("inningsPitched") or 0) if stat.get("inningsPitched") else 0
-        if bf < 40:
+        if bf < floor:
             return None
         try:
             k = float(stat.get("strikeOuts") or 0); bb = float(stat.get("baseOnBalls") or 0)
@@ -458,9 +477,13 @@ def _prospect_skill_z(level: str, role: str, age: float | None, stat: dict) -> t
         prod_z = (kbb - 0.13) / 0.07  # MiLB K-BB% baseline ~13%, sd ~7%
         if era is not None:
             prod_z += max(-1.0, min((3.80 - era) / 1.20, 1.0)) * 0.4  # ERA tilt
+        conf = bf / (bf + _K_MILB_PIT) if shrink_sample else 1.0
+        prod_z *= conf
         comps = {"level": level, "bf": int(bf), "era": era,
                  "kbb_pct": round(kbb * 100, 1),
                  "age_vs_level": round(exp_age - age, 1) if age else None}
+        if shrink_sample:
+            comps["shrink"] = round(conf, 2)
     skill_z = lf * prod_z + age_bonus
     # Cap so a dominant low-level line can't outrank MLB MVPs outright.
     skill_z = max(-1.5, min(skill_z, 1.6))
@@ -1119,8 +1142,8 @@ def _milb_leader_ids(season: int, sportid: int, group: str, category: str, limit
     return out
 
 
-@disk_cache.cached_disk(6 * 3600, namespace="milb_recon")
-def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.55) -> list[dict]:
+@disk_cache.cached_disk(6 * 3600, namespace="milb_recon_v2")
+def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.45) -> list[dict]:
     """Scan AAA + AA leaderboards for rising, young-for-level prospects.
     Returns dicts sorted by recon_score (best first), deduped by player id."""
     levels = ((11, "AAA"), (12, "AA"))
@@ -1144,7 +1167,7 @@ def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.55) -> l
         if not stat:
             return None
         info = people.get(pid, {})
-        res = _prospect_skill_z(level, role, info.get("age"), stat)
+        res = _prospect_skill_z(level, role, info.get("age"), stat, shrink_sample=True)
         if not res:
             return None
         z, comps = res
