@@ -58,6 +58,13 @@ LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (
                                             # the ghost prior in the bucket-weighted base.
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
+# v9.20 tier-targeted lift for AVERAGE/POOR-QoC startable pitchers (see
+# project_pitcher). A/B-confirmed on the 6-day window (n=157): all-pitcher
+# bias +1.00→+0.72 AND MAE 5.87→5.78; targeted AVERAGE/POOR subset (n=100)
+# +1.65→+1.20 / MAE 5.71→5.57 — improves both. Flag kept so future audits
+# can re-score it on/off.
+_PIT_QOC_LIFT = True
+
 # League-median Statcast benchmarks for the multiplier (rough 2024-25 medians).
 # League baselines are now COMPUTED dynamically from current Statcast
 # leaderboards via savant.league_averages(season), 24h disk-cached. Avoids
@@ -1132,6 +1139,19 @@ def project_pitcher(
         proj *= hot_cold_factor
         notes.append("ELITE form post-matchup boost x1.07 (always-on pitcher)")
 
+    # v9.20: AVERAGE/POOR-QoC startable pitchers were under-projected. 6-day
+    # audit (n=157): AVERAGE-QoC +1.99 (2.7σ, proj 10.6 → act 12.6), POOR
+    # +1.15; ELITE/SOLID dead-on (≈0). Their mediocre xERA/barrel anchors trim
+    # the matchup chain a touch too hard for mid/back-end starters who beat
+    # their underlying. Tier-targeted lift; skip COLD (already shrunk above —
+    # it's over-projected, not under) and leave the calibrated ELITE/SOLID
+    # tiers alone. Gated for A/B replay before shipping.
+    qoc_tier = _qoc_tier_pitcher(brl_a or 0, xera or 0)
+    if _PIT_QOC_LIFT and form_tag != "COLD" and qoc_tier in ("AVERAGE", "POOR"):
+        qoc_tier_lift = 1.06 if qoc_tier == "AVERAGE" else 1.04
+        proj *= qoc_tier_lift
+        notes.append(f"{qoc_tier}-QoC pitcher lift x{qoc_tier_lift} (v9.20 audit)")
+
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
     # outing). Project no higher than 9 pts even if rolling form says more.
@@ -1157,7 +1177,6 @@ def project_pitcher(
         pitfalls.append(f"Vulnerable to hard contact (brl-allowed {brl_a:.1f}% vs lg {lg_brl_allowed:.1f}%)")
     if xera and xera > 4.75:
         pitfalls.append(f"Underlying xERA {xera:.2f} — luck-adjusted line is rough")
-    qoc_tier = _qoc_tier_pitcher(brl_a or 0, xera or 0)
     return Projection(
         player_id=pid,
         name=name,
@@ -1806,7 +1825,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-25-v9.19" # add point_decomp component (expected stat line behind the FP number)
+MODEL_REV = "2026-05-26-v9.20" # AVERAGE/POOR-QoC pitcher lift (A/B-confirmed: bias +1.00->+0.72, MAE 5.87->5.78)
 
 
 def _proj_disk_path(key: tuple) -> str:

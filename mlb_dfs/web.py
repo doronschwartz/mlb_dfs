@@ -412,6 +412,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.20 — 2026-05-26",
+                "title": "Pitcher calibration: AVERAGE/POOR-QoC lift",
+                "changes": [
+                    "6-day pitcher audit (n=157) found mid/back-end startable pitchers under-projected — AVERAGE-QoC +1.99 (2.7σ, proj 10.6→act 12.6), POOR +1.15 — while ELITE/SOLID QoC and STEADY/ELITE form were dead-on. Their mediocre xERA/barrel anchors were trimming the matchup chain a touch too hard for arms that beat their underlying.",
+                    "Added a tier-targeted lift: AVERAGE-QoC ×1.06, POOR ×1.04, applied after the form post-matchup step. Skips COLD pitchers (already shrunk — they're over-projected) and leaves the calibrated ELITE/SOLID tiers untouched, so it's surgical not a blanket boost.",
+                    "A/B replay over the audit window confirmed before shipping: all-pitcher bias +1.00→+0.72 and MAE 5.87→5.78; targeted subset +1.65→+1.20 / MAE 5.71→5.57 — improves bias AND accuracy. Conservative (closes ~27% of the gap, no overshoot).",
+                ],
+            },
+            {
                 "version": "v9.19 — 2026-05-25",
                 "title": "Lineup eligibility fallback + \"what makes up this number\"",
                 "changes": [
