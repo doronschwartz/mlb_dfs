@@ -898,6 +898,8 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         "team": cons["team"],
         "age": age,
         "role": role,
+        "level": (cons.get("level") or "").strip(),
+        "eta": (cons.get("eta") or "").strip(),
         "consensus_rank": cons["rank"],
         "dynasty_score": round(dynasty_score, 1),
         "this_year_value": round(curve[0]["value"], 1) if curve else 0,
@@ -1017,3 +1019,128 @@ def evaluate_trade(side_a_names: list[str], side_b_names: list[str], season: int
         "verdict": verdict,
         "context": context,
     }
+
+
+# ---- minor-league reconnaissance + free-agent pickups -----------------------
+# The dynasty board's candidate pool is the top-500 consensus CSV, so deep
+# risers climbing the minors won't appear on it. milb_recon() actively scans
+# the AAA + AA stat leaderboards (MLB Stats API), scores each leader with the
+# same MLB-equivalent prospect model the board uses (_prospect_skill_z), and
+# surfaces young-for-level breakouts. free_agent_pickups() then subtracts the
+# players rostered anywhere in the user's league to leave true pickups.
+
+
+def _people_bulk(ids: list[int]) -> dict[int, dict]:
+    """{pid: {age, pos, team}} for a batch of player ids (one call per 100)."""
+    out: dict[int, dict] = {}
+    uniq = list(dict.fromkeys(i for i in ids if i))
+    for i in range(0, len(uniq), 100):
+        chunk = uniq[i:i + 100]
+        try:
+            data = mlb_api._get("/people", params={
+                "personIds": ",".join(map(str, chunk)),
+                "hydrate": "currentTeam",
+            })
+        except Exception:
+            continue
+        for p in data.get("people", []) or []:
+            out[p["id"]] = {
+                "age": p.get("currentAge"),
+                "pos": ((p.get("primaryPosition") or {}).get("abbreviation") or ""),
+                "team": ((p.get("currentTeam") or {}).get("abbreviation")
+                         or (p.get("currentTeam") or {}).get("name") or ""),
+            }
+    return out
+
+
+@disk_cache.cached_disk(6 * 3600, namespace="milb_leader_ids")
+def _milb_leader_ids(season: int, sportid: int, group: str, category: str, limit: int) -> list[tuple]:
+    """Sorted top-N (pid, name) for a MiLB level/stat from /stats/leaders."""
+    try:
+        data = mlb_api._get("/stats/leaders", params={
+            "leaderCategories": category, "season": season,
+            "sportId": sportid, "statGroup": group, "limit": limit,
+        })
+    except Exception:
+        return []
+    out = []
+    for cat in data.get("leagueLeaders", []) or []:
+        for ld in cat.get("leaders", []) or []:
+            per = ld.get("person") or {}
+            if per.get("id"):
+                out.append((per["id"], per.get("fullName")))
+    return out
+
+
+@disk_cache.cached_disk(6 * 3600, namespace="milb_recon")
+def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.55) -> list[dict]:
+    """Scan AAA + AA leaderboards for rising, young-for-level prospects.
+    Returns dicts sorted by recon_score (best first), deduped by player id."""
+    levels = ((11, "AAA"), (12, "AA"))
+    cats = (("hitting", "onBasePlusSlugging", "hitter"),
+            ("pitching", "strikeoutsPer9Inn", "pitcher"))
+    targets = []  # (pid, name, sportid, level, group, role)
+    seen = set()
+    for sid, level in levels:
+        for group, cat, role in cats:
+            for pid, name in _milb_leader_ids(season, sid, group, cat, limit_per):
+                key = (pid, level)
+                if key in seen:
+                    continue
+                seen.add(key)
+                targets.append((pid, name, sid, level, group, role))
+    people = _people_bulk([t[0] for t in targets])
+
+    def _one(t):
+        pid, name, sid, level, group, role = t
+        stat = _milb_line(pid, season, sid, group)
+        if not stat:
+            return None
+        info = people.get(pid, {})
+        res = _prospect_skill_z(level, role, info.get("age"), stat)
+        if not res:
+            return None
+        z, comps = res
+        if z < min_skill_z:
+            return None
+        avl = comps.get("age_vs_level")
+        if avl is not None and avl < -0.5:   # clearly old-for-level → not a riser
+            return None
+        # recon_score: MLB-equiv skill, lifted for level-proximity to the
+        # majors and for being young-for-level. Own scale (not dynasty value).
+        lvl_prox = {"AAA": 1.0, "AA": 0.85}.get(level, 0.7)
+        recon = round((z + 1.5) * 100 * lvl_prox + (avl or 0) * 8, 1)
+        return {
+            "name": name, "player_id": pid, "level": level,
+            "age": info.get("age"), "role": role,
+            "pos": info.get("pos") or ("P" if role == "pitcher" else ""),
+            "team": info.get("team") or "", "skill_z": z,
+            "recon_score": recon, "milb": comps,
+        }
+
+    best: dict[int, dict] = {}
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for r in ex.map(_one, targets):
+                if r and (r["player_id"] not in best
+                          or r["recon_score"] > best[r["player_id"]]["recon_score"]):
+                    best[r["player_id"]] = r
+    except Exception as e:
+        logging.warning("milb recon failed: %s", e)
+    return sorted(best.values(), key=lambda x: -x["recon_score"])
+
+
+def free_agent_pickups(season: int, rostered_norm: set[str],
+                       limit: int = 40, milb_limit: int = 30) -> dict:
+    """Best-available pickups: the consensus board AND AAA/AA risers, minus
+    everyone rostered in the league. Pure best-available (no roster-need tilt)."""
+    ranks = rankings(season)
+    cons_norm = {_norm(v["name"]) for v in ranks}
+    available = [v for v in ranks if _norm(v["name"]) not in rostered_norm][:limit]
+    risers = []
+    for r in milb_recon(season):
+        nn = _norm(r["name"])
+        if nn in rostered_norm or nn in cons_norm:
+            continue   # rostered, or already shown on the consensus board
+        risers.append(r)
+    return {"available": available, "milb_risers": risers[:milb_limit]}

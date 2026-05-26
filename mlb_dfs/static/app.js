@@ -575,7 +575,7 @@ function renderDynasty() {
   }).join("");
   // Stash the filtered rows so click handlers can read the breakdown.
   out._dynRows = rows.slice(0, 250);
-  out.innerHTML = `<table style="width:100%;font-size:13px;">
+  out.innerHTML = `<div class="dyn-scroll"><table style="width:100%;font-size:13px;">
     <thead><tr>
       <th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
       <th style="text-align:right;" title="Our dynasty value: multi-year, age-adjusted, scarcity- and luck-weighted">Dyn value</th>
@@ -584,7 +584,7 @@ function renderDynasty() {
       <th>Statcast read</th>
     </tr></thead>
     <tbody>${body}</tbody>
-  </table>
+  </table></div>
   <div class="muted" style="font-size:11px;margin-top:6px;">Showing ${Math.min(rows.length,250)} of ${rows.length}. Click any row for the breakdown. Search to narrow.</div>`;
   // Wire row clicks → toggle the inline breakdown panel.
   out.querySelectorAll(".dyn-row").forEach(tr => {
@@ -742,10 +742,89 @@ async function evaluateDynastyTrade() {
   }
 }
 
+// Free-agent pickups + MiLB recon for the user's league.
+async function loadDynastyPickups() {
+  const out = $("#dyn-pickups-out");
+  const status = $("#dyn-pickups-status");
+  const lg = ($("#dyn-league")?.value || "").trim();
+  if (!lg) { out.innerHTML = `<div class="muted">Enter your Fantrax league_id first.</div>`; return; }
+  localStorage.setItem("mlb_dfs_ftx_league", lg);
+  status.textContent = "Scanning league rosters + AAA/AA leaderboards…";
+  out.innerHTML = "";
+  try {
+    const r = await api(`/api/dynasty/pickups?league_id=${encodeURIComponent(lg)}`);
+    status.textContent = `${r.rostered_count} rostered across ${r.teams_scanned > 0 ? r.teams_scanned + " teams" : "the league"}`;
+    out.innerHTML = renderPickups(r);
+  } catch (e) {
+    status.textContent = "";
+    out.innerHTML = `<div class="muted">${e.message}${/401/.test(e.message) ? " — set your Fantrax cookie on the Lineup tab first (private leagues)." : ""}</div>`;
+  }
+}
+
+function renderPickups(r) {
+  const esc = (s) => escapeAttr(String(s ?? ""));
+  const avail = r.available || [];
+  const risers = r.milb_risers || [];
+  // Best-available from the consensus board (incl. MLB free agents).
+  const availRows = avail.map(v => {
+    const d = v.rank_delta;
+    const deltaCls = d > 0 ? "edge-pos" : d < 0 ? "edge-neg" : "muted";
+    const deltaStr = d === 0 ? "—" : (d > 0 ? `▲${d}` : `▼${-d}`);
+    const lvl = v.level && v.level.toUpperCase() !== "MLB"
+      ? `<span class="lvl-badge">${esc(v.level)}${v.eta ? " · ETA " + esc(v.eta) : ""}</span>` : "";
+    return `<tr>
+      <td style="font-weight:700;">${v.our_rank}</td>
+      <td>${esc(v.name)}${lvl}</td>
+      <td>${esc(v.pos)}</td>
+      <td style="text-align:right;">${v.age ?? "?"}</td>
+      <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${v.dynasty_score.toFixed(0)}</td>
+      <td style="text-align:right;" class="muted">#${v.consensus_rank}</td>
+      <td style="text-align:right;" class="${deltaCls}">${deltaStr}</td>
+    </tr>`;
+  }).join("");
+  // Rising prospects from the live AAA/AA scan.
+  const riserRows = risers.map(p => {
+    const m = p.milb || {};
+    const line = p.role === "pitcher"
+      ? `${m.kbb_pct != null ? m.kbb_pct + "% K-BB" : ""}${m.era != null ? " · " + m.era + " ERA" : ""} <span class="muted">(${m.bf ?? "?"} BF)</span>`
+      : `${m.ops != null ? m.ops.toFixed(3) + " OPS" : ""}${m.hr != null ? " · " + m.hr + " HR" : ""} <span class="muted">(${m.pa ?? "?"} PA)</span>`;
+    const young = m.age_vs_level != null && m.age_vs_level > 0
+      ? `<span class="edge-pos">+${m.age_vs_level}y young</span>` : (m.age_vs_level === 0 ? "on-age" : "");
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td><span class="lvl-badge">${esc(p.level)}</span></td>
+      <td>${esc(p.pos)}</td>
+      <td style="text-align:right;">${p.age ?? "?"}</td>
+      <td class="muted">${esc(p.team)}</td>
+      <td style="font-size:12px;">${line}</td>
+      <td style="font-size:11px;">${young}</td>
+      <td style="text-align:right;font-weight:600;">${p.recon_score.toFixed(0)}</td>
+    </tr>`;
+  }).join("");
+  const availSection = avail.length ? `
+    <div class="pickup-section">
+      <h4 style="margin:0 0 4px;">💎 Best available (free agents on our board)</h4>
+      <table><thead><tr><th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
+        <th style="text-align:right;">Dyn value</th><th style="text-align:right;">Cons</th><th style="text-align:right;">Δ</th></tr></thead>
+        <tbody>${availRows}</tbody></table>
+    </div>` : `<div class="muted" style="margin-bottom:10px;">No top-500 board players are unrostered — deep league.</div>`;
+  const riserSection = risers.length ? `
+    <div class="pickup-section">
+      <h4 style="margin:0 0 4px;">🌱 Rising minor leaguers (live AAA/AA recon, not on the consensus board)</h4>
+      <p class="muted" style="font-size:11px;margin:0 0 4px;">Young-for-level breakouts off the current leaderboards, scored by our MLB-equivalent prospect model. Higher score = closer + younger + better line.</p>
+      <table><thead><tr><th>Player</th><th>Lvl</th><th>Pos</th><th style="text-align:right;">Age</th><th>Org</th><th>Line</th><th>Age/lvl</th><th style="text-align:right;">Recon</th></tr></thead>
+        <tbody>${riserRows}</tbody></table>
+    </div>` : "";
+  return availSection + riserSection;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   $("#dyn-refresh")?.addEventListener("click", () => loadDynasty(true));
   $("#dyn-search")?.addEventListener("input", () => dynastyCache && renderDynasty());
   $("#dyn-trade-btn")?.addEventListener("click", evaluateDynastyTrade);
+  $("#dyn-pickups-btn")?.addEventListener("click", loadDynastyPickups);
+  const savedLg = localStorage.getItem("mlb_dfs_ftx_league");
+  if (savedLg && $("#dyn-league")) $("#dyn-league").value = savedLg;
 });
 
 // ---------- Hall of Fame ----------

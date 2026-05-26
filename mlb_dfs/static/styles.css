@@ -538,6 +538,16 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .edge-neg { color: var(--bad); }
 #dynasty-out table th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); }
 #dynasty-out table td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+/* Scrollable rankings list with a pinned header. */
+.dyn-scroll { max-height: 62vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.dyn-scroll table { width: 100%; }
+.dyn-scroll thead th { position: sticky; top: 0; background: var(--panel); z-index: 2; }
+/* Pickups / MiLB recon tables. */
+#dyn-pickups-out table { width: 100%; font-size: 13px; border-collapse: collapse; }
+#dyn-pickups-out th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; }
+#dyn-pickups-out td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+#dyn-pickups-out .pickup-section { margin-bottom: 14px; }
+.lvl-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: var(--border); color: var(--text); margin-left: 4px; }
 #kprops-table tr.kprops-good { background: rgba(52,211,153,0.08); }
 #kprops-table input { padding: 2px 6px; font-size: 12px; }
 

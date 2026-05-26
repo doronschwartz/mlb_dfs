@@ -416,6 +416,20 @@
         <div id="dyn-trade-out" style="margin-top:10px;"></div>
       </div>
 
+      <div class="dynasty-pickups" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <h3 style="margin:0 0 4px;">🔍 Free Agents & Minor-League Recon</h3>
+        <p class="muted" style="font-size:12px;margin:0 0 8px;">
+          Best available in <b>your</b> league — our dynasty board minus every team's roster — plus a fresh
+          <b>AAA/AA</b> leaderboard scan for rising, young-for-level prospects who aren't on the consensus board yet.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="dyn-league" type="text" placeholder="Fantrax league_id" style="font-size:13px;padding:5px 8px;width:240px;">
+          <button id="dyn-pickups-btn" class="btn-pick" type="button">Find available pickups</button>
+          <span id="dyn-pickups-status" class="muted" style="font-size:12px;"></span>
+        </div>
+        <div id="dyn-pickups-out" style="margin-top:10px;"></div>
+      </div>
+
       <div class="dynasty-controls" style="margin-bottom:8px;">
         <input id="dyn-search" type="text" placeholder="Search player…" style="font-size:13px;padding:5px 8px;width:220px;">
         <button id="dyn-refresh" type="button">↻ Refresh</button>

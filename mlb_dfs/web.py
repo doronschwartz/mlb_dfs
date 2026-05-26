@@ -170,6 +170,56 @@ def dynasty_player(name: str, season: int | None = None):
     return v
 
 
+# Cache the league-wide rostered-name set briefly so re-opening the pickups
+# panel doesn't re-pull every team's roster from Fantrax each time.
+_ROSTERED_CACHE: dict[str, tuple[float, set[str]]] = {}
+_ROSTERED_TTL = 300  # 5 min
+
+
+def _league_rostered_norm(league_id: str) -> tuple[set[str], int]:
+    """Normalized names of every player rostered (active/bench/minors/IR) on
+    ANY team in the league, plus the team count. There's no native Fantrax
+    free-agent API, so availability is derived as board − rostered."""
+    import time
+    from . import dynasty
+    hit = _ROSTERED_CACHE.get(league_id)
+    if hit and (time.time() - hit[0]) < _ROSTERED_TTL:
+        return hit[1], -1
+    teams = fantrax.list_teams(league_id)
+    rostered: set[str] = set()
+    for t in teams:
+        try:
+            r = fantrax.get_roster(league_id, t["team_id"])
+        except Exception:
+            continue
+        for p in r.get("players", []):
+            nm = dynasty._norm(p.get("name") or "")
+            if nm:
+                rostered.add(nm)
+    _ROSTERED_CACHE[league_id] = (time.time(), rostered)
+    return rostered, len(teams)
+
+
+@app.get("/api/dynasty/pickups")
+def dynasty_pickups(league_id: str, season: int | None = None):
+    """Best-available pickups for the league: our dynasty board AND a fresh
+    AAA/AA minor-league recon scan, minus everyone rostered anywhere in the
+    league. Pure best-available (no roster-need tilt)."""
+    from . import dynasty
+    yr = season or Date.today().year
+    try:
+        rostered, n_teams = _league_rostered_norm(league_id)
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Fantrax: {e}")
+    res = dynasty.free_agent_pickups(yr, rostered)
+    res["season"] = yr
+    res["rostered_count"] = len(rostered)
+    res["teams_scanned"] = n_teams
+    return res
+
+
 class DynastyTradeRequest(BaseModel):
     side_a: list[str]
     side_b: list[str]
@@ -411,6 +461,16 @@ def get_changelog():
     return {
         "current": projections.MODEL_REV,
         "entries": [
+            {
+                "version": "Dynasty v1.6 — 2026-05-26",
+                "title": "Free-agent pickups + live AAA/AA minor-league recon",
+                "changes": [
+                    "New 'Free Agents & Minor-League Recon' panel on the Dynasty tab: enter your Fantrax league_id and it pulls every team's roster, then shows the best dynasty assets NOT rostered anywhere — pure best-available. (Fantrax has no free-agent API, so availability is derived as our board minus all rosters; cached 5 min.)",
+                    "Intelligent MiLB reconnaissance: a live scan of the AAA + AA stat leaderboards (MLB Stats API), scored with the same MLB-equivalent prospect model the board uses (level haircut + young-for-level bonus). Surfaces rising prospects who AREN'T on the consensus top-500 yet and aren't rostered — the deep sleepers a static list misses.",
+                    "Dynasty rankings list is now a scrollable container with a pinned header (was a long unbounded table).",
+                    "Endpoint: GET /api/dynasty/pickups?league_id=…",
+                ],
+            },
             {
                 "version": "v9.20 — 2026-05-26",
                 "title": "Pitcher calibration: AVERAGE/POOR-QoC lift",
