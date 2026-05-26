@@ -1177,6 +1177,61 @@ def milb_recon(season: int, limit_per: int = 35, min_skill_z: float = 0.55) -> l
     return sorted(best.values(), key=lambda x: -x["recon_score"])
 
 
+@disk_cache.cached_disk(4 * 3600, namespace="recent_form")
+def _recent_form(pid: int, role: str, season: int) -> dict | None:
+    """Short-term hot/cold read: recent pts/G vs season + a form tag
+    (HOT/COLD/STEADY/ELITE), reusing the daily projection's form logic. Lets a
+    low-dynasty-value bat on a heater still surface as a streaming add."""
+    from . import projections as P
+    g = "pitching" if role == "pitcher" else "hitting"
+    try:
+        last3 = mlb_api.player_stats(pid, group=g, season=season, last_n_days=3)
+        last7 = mlb_api.player_stats(pid, group=g, season=season, last_n_days=7)
+        last14 = mlb_api.player_stats(pid, group=g, season=season, last_n_days=14)
+        seasn = mlb_api.player_stats(pid, group=g, season=season)
+    except Exception:
+        return None
+
+    def _f(d, k):
+        try:
+            return float(d.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    if role == "pitcher":
+        s7, s14, ss = _f(last7, "gamesStarted"), _f(last14, "gamesStarted"), _f(seasn, "gamesStarted")
+        ps7 = P._per_start_pitcher_points(last7) if s7 >= 1 else None
+        ps14 = P._per_start_pitcher_points(last14) if s14 >= 1 else None
+        pss = P._per_start_pitcher_points(seasn) if ss >= 3 else None
+        tag, _n = P._form_tag_pitcher(ps7, ps14, pss, int(s7), int(s14))
+        recent = ps14 if ps14 is not None else ps7
+        return {"tag": tag, "recent_pg": round(recent, 1) if recent is not None else None,
+                "season_pg": round(pss, 1) if pss is not None else None}
+    g3, g7, g14, gs = (_f(last3, "gamesPlayed"), _f(last7, "gamesPlayed"),
+                       _f(last14, "gamesPlayed"), _f(seasn, "gamesPlayed"))
+    pg3 = P._per_game_hitter_points(last3) if g3 >= 1 else None
+    pg7 = P._per_game_hitter_points(last7) if g7 >= 2 else None
+    pg14 = P._per_game_hitter_points(last14) if g14 >= 5 else None
+    pgs = P._per_game_hitter_points(seasn) if gs >= 10 else None
+    tag, _n = P._form_tag_hitter(pg3, pg7, pg14, int(g3), int(g14))
+    recent = pg7 if pg7 is not None else pg3
+    return {"tag": tag, "recent_pg": round(recent, 1) if recent is not None else None,
+            "season_pg": round(pgs, 1) if pgs is not None else None}
+
+
+def _attach_form(players: list[dict], season: int) -> None:
+    """Mutates each player: adds ['form'] = {tag, recent_pg, season_pg}."""
+    def _one(v):
+        pid = _resolve_id(v["name"])
+        return v, (_recent_form(pid, v.get("role") or "hitter", season) if pid else None)
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for v, form in ex.map(_one, players):
+                v["form"] = form
+    except Exception as e:
+        logging.warning("form attach failed: %s", e)
+
+
 class _NameSet:
     """Name membership with a fuzzy fallback for nickname/legal-name splits.
     The MLB Stats API returns full legal names (e.g. 'Leodalis De Vries') while
@@ -1206,16 +1261,23 @@ class _NameSet:
 
 
 def free_agent_pickups(season: int, rostered_norm: set[str],
-                       limit: int = 40, milb_limit: int = 30) -> dict:
+                       limit: int = 60, milb_limit: int = 30) -> dict:
     """Best-available pickups: the consensus board AND AAA/AA risers, minus
-    everyone rostered in the league. Pure best-available (no roster-need tilt)."""
+    everyone rostered in the league. Pure best-available (no roster-need tilt).
+    Each available player carries a recent hot/cold form read, and we surface a
+    `hot` shortlist so a streaming-worthy bat surfaces even at low dynasty value."""
     ranks = rankings(season)
     rostered = _NameSet(rostered_norm)
     cons = _NameSet({_norm(v["name"]) for v in ranks})
     available = [v for v in ranks if not rostered.has(v["name"])][:limit]
+    _attach_form(available, season)
+    hot = sorted(
+        [v for v in available if (v.get("form") or {}).get("tag") in ("HOT", "ELITE")],
+        key=lambda v: -((v.get("form") or {}).get("recent_pg") or 0),
+    )[:12]
     risers = []
     for r in milb_recon(season):
         if rostered.has(r["name"]) or cons.has(r["name"]):
             continue   # rostered (fuzzy), or already shown on the consensus board
         risers.append(r)
-    return {"available": available, "milb_risers": risers[:milb_limit]}
+    return {"available": available, "hot": hot, "milb_risers": risers[:milb_limit]}

@@ -462,6 +462,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.9 — 2026-05-26",
+                "title": "Pickups: hot/cold form so streamers surface",
+                "changes": [
+                    "Every available free agent now carries a recent hot/cold read (HOT/ELITE/COLD/STEADY + recent pts/G vs season), reusing the daily projection's form logic.",
+                    "New '🔥 Hot & available' shortlist at the top of pickups: unrostered players running hot right now, so a low-dynasty-value bat on a heater (e.g. Luke Raley) surfaces as a streaming add even though the board ranks him low.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.8 — 2026-05-26",
                 "title": "Pickups: fuzzy roster matching (legal vs common names)",
                 "changes": [

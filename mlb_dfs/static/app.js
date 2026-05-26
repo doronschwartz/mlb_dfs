@@ -771,10 +771,24 @@ async function loadDynastyPickups() {
   }
 }
 
+function pickupFormBadge(form) {
+  if (!form || !form.tag) return "";
+  const map = {
+    HOT: ["🔥 HOT", "edge-pos"], ELITE: ["⭐ ELITE", "edge-pos"],
+    COLD: ["🧊 COLD", "edge-neg"], STEADY: ["STEADY", "muted"],
+  };
+  const [label, cls] = map[form.tag] || [form.tag, "muted"];
+  const pg = form.recent_pg != null ? ` ${form.recent_pg}` : "";
+  const vs = (form.recent_pg != null && form.season_pg != null)
+    ? ` <span class="muted" style="font-size:10px;">(szn ${form.season_pg})</span>` : "";
+  return `<span class="${cls}" style="font-size:11px;font-weight:600;">${label}${pg}</span>${vs}`;
+}
+
 function renderPickups(r) {
   const esc = (s) => escapeAttr(String(s ?? ""));
   const avail = r.available || [];
   const risers = r.milb_risers || [];
+  const hot = r.hot || [];
   // Best-available from the consensus board (incl. MLB free agents).
   const availRows = avail.map(v => {
     const d = v.rank_delta;
@@ -787,11 +801,25 @@ function renderPickups(r) {
       <td>${esc(v.name)}${lvl}</td>
       <td>${esc(v.pos)}</td>
       <td style="text-align:right;">${v.age ?? "?"}</td>
+      <td>${pickupFormBadge(v.form)}</td>
       <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${v.dynasty_score.toFixed(0)}</td>
       <td style="text-align:right;" class="muted">#${v.consensus_rank}</td>
       <td style="text-align:right;" class="${deltaCls}">${deltaStr}</td>
     </tr>`;
   }).join("");
+  // Hot streamers — available players running hot right now, regardless of
+  // their long-term dynasty value (e.g. a low-value bat on a heater).
+  const hotHtml = hot.length ? `
+    <div class="pickup-section">
+      <h4 style="margin:0 0 4px;">🔥 Hot &amp; available (stream now)</h4>
+      <p class="muted" style="font-size:11px;margin:0 0 4px;">Unrostered players running hot on recent form — worth a grab even if dynasty value is modest.</p>
+      <table><thead><tr><th>Player</th><th>Pos</th><th>Form (recent pts/G)</th><th style="text-align:right;">Dyn value</th></tr></thead>
+        <tbody>${hot.map(v => `<tr>
+          <td>${esc(v.name)}</td><td>${esc(v.pos)}</td>
+          <td>${pickupFormBadge(v.form)}</td>
+          <td style="text-align:right;" class="muted">${v.dynasty_score.toFixed(0)}</td>
+        </tr>`).join("")}</tbody></table>
+    </div>` : "";
   // Rising prospects from the live AAA/AA scan.
   const riserRows = risers.map(p => {
     const m = p.milb || {};
@@ -815,7 +843,7 @@ function renderPickups(r) {
     <div class="pickup-section">
       <h4 style="margin:0 0 4px;">💎 Best available (free agents on our board)</h4>
       <table><thead><tr><th>#</th><th>Player</th><th>Pos</th><th style="text-align:right;">Age</th>
-        <th style="text-align:right;">Dyn value</th><th style="text-align:right;">Cons</th><th style="text-align:right;">Δ</th></tr></thead>
+        <th>Form</th><th style="text-align:right;">Dyn value</th><th style="text-align:right;">Cons</th><th style="text-align:right;">Δ</th></tr></thead>
         <tbody>${availRows}</tbody></table>
     </div>` : `<div class="muted" style="margin-bottom:10px;">No top-500 board players are unrostered — deep league.</div>`;
   const riserSection = risers.length ? `
@@ -825,7 +853,7 @@ function renderPickups(r) {
       <table><thead><tr><th>Player</th><th>Lvl</th><th>Pos</th><th style="text-align:right;">Age</th><th>Org</th><th>Line</th><th>Age/lvl</th><th style="text-align:right;">Recon</th></tr></thead>
         <tbody>${riserRows}</tbody></table>
     </div>` : "";
-  return availSection + riserSection;
+  return hotHtml + availSection + riserSection;
 }
 
 // Fuzzy name match against the dynasty board: prefix > substring > subsequence.
