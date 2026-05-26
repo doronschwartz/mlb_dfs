@@ -252,19 +252,18 @@ def _q_barrel_king(hitters: list[dict], season: int, rng: random.Random) -> dict
 
 
 def _score_numeric(guess: float, target: float, *, abs_tol: float | None = None) -> float:
-    """Continuous partial-credit scorer for numeric_guess questions. v4 bands
-    are deliberately tight — 'much much harder' per user direction. Casual
-    guess gets you nothing; you need to actually know the stat.
-      exact / within 0.5%:  1.0
-      within 2%:            0.50
-      within 5%:            0.25
-      within 10%:           0.10
-      else:                 0.00
+    """Continuous partial-credit scorer for numeric_guess questions. v5 bands —
+    still hard to ace, but 'close counts' actually rewards a close guess instead
+    of a hard 0 cliff (a ~10%-off guess used to get 0; that felt punitive).
+      exact / within 1%:  1.0
+      within 3%:          0.80
+      within 6%:          0.60
+      within 10%:         0.40
+      within 15%:         0.25
+      within 22%:         0.10
+      else:               0.00
     When `abs_tol` is provided (small-integer targets), use absolute distance:
-      0 off:  1.0
-      1 off:  0.5
-      2 off:  0.25
-      else:   0.0
+      0 off: 1.0 · 1 off: 0.6 · 2 off: 0.35 · 3 off: 0.15 · else 0
     """
     try:
         g = float(guess); t = float(target)
@@ -273,16 +272,19 @@ def _score_numeric(guess: float, target: float, *, abs_tol: float | None = None)
     if abs_tol is not None:
         diff = abs(g - t)
         if diff < 0.5:   return 1.0
-        if diff <= 1:    return 0.50
-        if diff <= 2:    return 0.25
+        if diff <= 1:    return 0.60
+        if diff <= 2:    return 0.35
+        if diff <= 3:    return 0.15
         return 0.0
     if t == 0:
         return 1.0 if g == 0 else 0.0
     pct = abs(g - t) / abs(t)
-    if pct <= 0.005: return 1.0
-    if pct <= 0.02:  return 0.50
-    if pct <= 0.05:  return 0.25
-    if pct <= 0.10:  return 0.10
+    if pct <= 0.01: return 1.0
+    if pct <= 0.03: return 0.80
+    if pct <= 0.06: return 0.60
+    if pct <= 0.10: return 0.40
+    if pct <= 0.15: return 0.25
+    if pct <= 0.22: return 0.10
     return 0.0
 
 

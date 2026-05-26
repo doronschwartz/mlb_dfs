@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.24 — 2026-05-26",
+                "title": "Daily quiz: softer 'close counts' partial credit",
+                "changes": [
+                    "Numeric-guess scoring had a hard 0 cliff just past 10% off — a guess ~10% from the answer got nothing, which felt punitive for 'close counts'. New softer taper: within 3% = 0.80, 6% = 0.60, 10% = 0.40, 15% = 0.25, 22% = 0.10. Still hard to ace; a genuinely close guess now earns real credit.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.20 — 2026-05-26",
                 "title": "Breakout override — live data beats a stale static prior (one-directional)",
                 "changes": [
