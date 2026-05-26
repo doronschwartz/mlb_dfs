@@ -157,6 +157,12 @@ $$("nav button").forEach((b) => {
       }
       // Lazy-load today's trivia panel. Failure is silent (panel stays hidden).
       loadTrivia().catch(() => {});
+      // Lazy-load the dynasty-rank map (only the draft pool uses it). Was
+      // fetched eagerly on every page load; now only when you actually draft.
+      // Re-draw the pool once it lands so ranks fill in.
+      if (!state._dynastyMap) {
+        _loadDynasty().then(() => { if (poolCache.pool.length) drawPool(); }).catch(() => {});
+      }
       // Auto-load today's draft if one exists — else the next upcoming, else
       // the most recent past one. This logic used to fire here, then accidentally
       // got moved into the HOF branch in an earlier refactor (where `today` was
@@ -3432,7 +3438,8 @@ async function _loadDynasty() {
     state._dynastyMap = { map, norm, lookup, n: (data.rankings || []).length };
   } catch {}
 }
-_loadDynasty();
+// Deferred to first Draft-tab entry (see the tab handler) — only the draft
+// pool consumes the dynasty-rank map, so no need to fetch it on every load.
 
 // ---------- live scoring ----------
 $("#score-load").addEventListener("click", async () => {

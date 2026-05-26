@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.22 — 2026-05-26",
+                "title": "Trim a page-load request (efficiency audit)",
+                "changes": [
+                    "The legacy dynasty-rank map (used only to annotate the draft pool) was fetched on every page load. Deferred to first Draft-tab entry, so projection/lineup/dynasty page views skip that request. (Audit also confirmed the app is otherwise lean: Brotli compression on at the edge, ~2 requests on load, lazy per-tab loading, no oversized images / test files / empty files shipped.)",
+                ],
+            },
+            {
                 "version": "Dynasty v1.13 — 2026-05-26",
                 "title": "Pickups: cache the assembled response per league",
                 "changes": [
