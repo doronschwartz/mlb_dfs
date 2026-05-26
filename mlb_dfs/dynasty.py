@@ -121,24 +121,25 @@ def _rank_value(rank: int) -> float:
     return 1000.0 * math.exp(-_DECAY_K * max(rank - 1, 0))
 
 
-# Age curves — production multiplier vs peak (=1.0). Hitters peak ~27, pitchers
-# ~26 with steeper decline (injury attrition). Used to project future years.
+# Age curves — production multiplier vs peak (=1.0). Hitters/pitchers peak ~27.
+# DAMPED (v1.17): the consensus prior is itself a DYNASTY ranking (it already
+# ranks 18-19yo prospects among MLB stars), so a steep age curve on top
+# DOUBLE-COUNTS the youth premium — it was pumping ≤21 +15 spots over the
+# dynasty market and fading 25-31yo −16 to −21. The prior already prices age;
+# we keep only a light age tilt (slopes ~halved, higher floors) and let our
+# skill/tools/luck/injury reads be the real adjustment.
 def _age_factor(age: float, role: str) -> float:
     if not age or age <= 0:
         return 1.0
-    if role == "pitcher":
-        peak = 27.0
-        # Softened (v1.3): 0.040/yr decline was brutal — it buried established
-        # aces (Skubal at 29 → ×0.88). Aces hold dynasty value into the early
-        # 30s; 0.028/yr is closer to how the market prices them.
-        if age <= peak:
-            return max(0.85, 1.0 - 0.015 * (peak - age))
-        return max(0.40, 1.0 - 0.036 * (age - peak))
-    # hitter
     peak = 27.0
+    if role == "pitcher":
+        if age <= peak:
+            return max(0.92, 1.0 - 0.009 * (peak - age))
+        return max(0.55, 1.0 - 0.024 * (age - peak))
+    # hitter
     if age <= peak:
-        return max(0.86, 1.0 - 0.018 * (peak - age))
-    return max(0.45, 1.0 - 0.036 * (age - peak))
+        return max(0.93, 1.0 - 0.011 * (peak - age))
+    return max(0.60, 1.0 - 0.022 * (age - peak))
 
 
 # Position scarcity multiplier on dynasty value. Catcher + premium infield are

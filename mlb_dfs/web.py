@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.17 — 2026-05-26",
+                "title": "Damp the age curve (the prior is already a dynasty ranking)",
+                "changes": [
+                    "Big-picture audit finding: the FantraxHQ consensus we anchor to is ITSELF a dynasty ranking (it ranks 18-19yo prospects among MLB stars), so our steep 6-year age curve was double-counting the youth premium — systematically pumping ≤21 players ~15 spots above the dynasty market and fading 25-31yo by ~18-21. Halved the age-curve slopes / raised the floors so age is a light tilt on top of the prior, and our skill/tools/luck/injury reads do the real adjusting. De Vries →#24, Seager →#49, pitchers lifted (Skenes #3).",
+                ],
+            },
+            {
                 "version": "Dynasty v1.16 — 2026-05-26",
                 "title": "Skill model now values speed (the missing tool) + softer elite-prospect discount",
                 "changes": [
