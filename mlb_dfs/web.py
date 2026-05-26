@@ -175,6 +175,13 @@ def dynasty_player(name: str, season: int | None = None):
 _ROSTERED_CACHE: dict[str, tuple[float, set[str]]] = {}
 _ROSTERED_TTL = 300  # 5 min
 
+# Cache the assembled pickups response per league so re-opening the panel is
+# instant — the board scan (milb_recon) is disk-cached 6h and form 4h, but the
+# per-league assembly (filtering + attaching form to ~60 players) still ran on
+# every request. The roster pull underneath is 5-min cached.
+_PICKUPS_CACHE: dict[tuple, tuple[float, dict]] = {}
+_PICKUPS_TTL = 600  # 10 min
+
 
 def _league_rostered_norm(league_id: str) -> tuple[set[str], int]:
     """Normalized names of every player rostered (active/bench/minors/IR) on
@@ -205,8 +212,13 @@ def dynasty_pickups(league_id: str, season: int | None = None):
     """Best-available pickups for the league: our dynasty board AND a fresh
     AAA/AA minor-league recon scan, minus everyone rostered anywhere in the
     league. Pure best-available (no roster-need tilt)."""
+    import time
     from . import dynasty
     yr = season or Date.today().year
+    ck = (league_id, yr)
+    hit = _PICKUPS_CACHE.get(ck)
+    if hit and (time.time() - hit[0]) < _PICKUPS_TTL:
+        return hit[1]
     try:
         rostered, n_teams = _league_rostered_norm(league_id)
     except fantrax.FantraxAuthError as e:
@@ -217,6 +229,7 @@ def dynasty_pickups(league_id: str, season: int | None = None):
     res["season"] = yr
     res["rostered_count"] = len(rostered)
     res["teams_scanned"] = n_teams
+    _PICKUPS_CACHE[ck] = (time.time(), res)
     return res
 
 
@@ -461,6 +474,13 @@ def get_changelog():
     return {
         "current": projections.MODEL_REV,
         "entries": [
+            {
+                "version": "Dynasty v1.13 — 2026-05-26",
+                "title": "Pickups: cache the assembled response per league",
+                "changes": [
+                    "Re-opening the pickups panel is now instant: the full per-league response (board filtering + form attach for ~60 players) is cached 10 min. The board scan (milb_recon) was already disk-cached 6h, MiLB lines 24h, form 4h, and the roster pull 5 min — this adds the missing top-level layer so repeat opens don't re-assemble.",
+                ],
+            },
             {
                 "version": "Dynasty v1.12 — 2026-05-26",
                 "title": "Freshness: board rebuilds on a TTL (picks up daily stat refresh)",
