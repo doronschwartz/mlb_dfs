@@ -462,6 +462,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.21 — 2026-05-26",
+                "title": "Lineup tab: hover breakdown on players",
+                "changes": [
+                    "The Lineup tab player rows had no hover breakdown (only the Ask Algo tab did), so hovering a player showed nothing. Added the same factor/category projection tooltip — hover a player's name in the Lineup recommendations to see the full breakdown, positioned by the shared viewport-aware positioner so it doesn't clip on bottom rows.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.11 — 2026-05-26",
                 "title": "Better value: riser-aware blend (stale-consensus correction)",
                 "changes": [

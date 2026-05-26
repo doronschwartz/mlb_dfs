@@ -807,8 +807,10 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .ask-table .player-cell .name-trigger {
   display: inline-block; padding: 6px 4px; min-width: 60px; text-align: right;
 }
+#lineup-out .player-cell { position: relative; cursor: pointer; }
 .ask-table .player-cell .breakdown-tooltip,
-.score-row .player-cell .breakdown-tooltip {
+.score-row .player-cell .breakdown-tooltip,
+#lineup-out .player-cell .breakdown-tooltip {
   /* Viewport-aware fixed positioning for the Ask Algo + Live Score tabs.
      JS sets --tt-top / --tt-left on mouseenter so the tooltip flips above
      the row when there's no room below, and clamps inside the viewport

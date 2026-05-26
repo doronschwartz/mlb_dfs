@@ -1268,7 +1268,7 @@ $("#ask-names")?.addEventListener("keydown", (e) => {
 // CSS vars; the matching CSS rule swaps position:fixed in for those cells.
 document.addEventListener("mouseenter", (e) => {
   const tt = e.target && e.target.closest && e.target.closest(
-    ".ask-table .player-cell .name-trigger, .score-row .player-cell .name-trigger"
+    ".ask-table .player-cell .name-trigger, .score-row .player-cell .name-trigger, #lineup-out .player-cell .name-trigger"
   );
   if (!tt) return;
   const cell = tt.closest(".player-cell");
@@ -1390,6 +1390,23 @@ function _oppCell(r) {
   return `<br><span class="muted" style="font-size:11px;">${prefix}${r.opp_abbr}${oppRuns}</span>`;
 }
 
+// Lineup-tab player cell with the same hover breakdown the Ask Algo tab uses —
+// name-trigger wraps just the name so hovering it pops the factor breakdown
+// (positioned by the shared viewport-aware positioner; #lineup-out is in its
+// selector list + CSS). Used by both lineup render paths.
+function _lineupPlayerCell(r) {
+  const matched = r.matched_name && r.matched_name !== r.input
+    ? ` <span class="muted">(${r.matched_name})</span>` : "";
+  const tt = projTooltip({
+    name: r.matched_name || r.input,
+    projected_points: r.projection,
+    role: r.role,
+    components: r.components,
+    cat_proj: r.cat_proj,
+  });
+  return `<td class="player-cell"><span class="name-trigger" style="cursor:help;">${r.input}${matched}</span>${_oppCell(r)}${tt}</td>`;
+}
+
 // Same idea but takes a Projection-style object (components.opp_abbr / opp_sp_name / is_home).
 function _oppFromComponents(p) {
   const c = p.components || {};
@@ -1470,7 +1487,7 @@ $("#lineup-go")?.addEventListener("click", async () => {
       const cvTitle = _catValBreakdown(r, data?.leverage || {});
       return `<tr>
         <td class="${recCls}"><b>${recLabel}</b></td>
-        <td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}${_oppCell(r)}</td>
+        ${_lineupPlayerCell(r)}
         <td>${r.position ?? "—"}</td>
         <td class="${cvCls}" title="${cvTitle}" style="cursor:help;"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>
         ${catCols}
@@ -1569,7 +1586,7 @@ function _renderLineupOutput(data) {
       const cvCls = r.cat_value > 1.0 ? "edge-pos" : r.cat_value < -1.0 ? "edge-neg" : "";
       const cvSign = r.cat_value >= 0 ? "+" : "";
       const cvTitle = _catValBreakdown(r, data?.leverage || {});
-      return `<tr><td class="${recCls}"><b>${recLabel}</b></td><td>${r.input}${r.matched_name && r.matched_name !== r.input ? ` <span class="muted">(${r.matched_name})</span>` : ""}</td><td>${r.position ?? "—"}</td><td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>${catCols}<td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td></tr>`;
+      return `<tr><td class="${recCls}"><b>${recLabel}</b></td>${_lineupPlayerCell(r)}<td>${r.position ?? "—"}</td><td class="${cvCls}"><b>${cvSign}${r.cat_value.toFixed(2)}</b></td>${catCols}<td class="muted" style="font-size:11px;">${r.projection.toFixed(2)}</td></tr>`;
     }).join("");
     const headerCats = isHitter ? `<th>R</th><th>HR</th><th>RBI</th><th>SB</th><th>OPS</th>` : `<th>QS</th><th>K</th><th>ERA</th><th>WHIP</th><th>SVH</th>`;
     const tableId = isHitter ? "lineup-hitters" : "lineup-pitchers";
