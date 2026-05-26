@@ -564,6 +564,23 @@ def _z(val, mean, sd):
     return (val - mean) / sd
 
 
+# Weight on ACTUAL production vs the deserved/expected stat when scoring skill.
+# Pure expected stats (xwOBA/xERA) measure how WELL a guy hit/pitched but
+# discount how MUCH he actually produced — so a dominant breakout (Schlittler
+# 1.50 ERA on a 3.32 xERA) and elite producers (José Ramírez, Elly) get buried.
+# Crediting actual output ~40% lets success move the board while expected stays
+# the anchor against pure luck mirages.
+_ACTUAL_WEIGHT = 0.40
+
+
+def _credit(expected, actual):
+    if expected is None:
+        return actual
+    if actual is None:
+        return expected
+    return (1 - _ACTUAL_WEIGHT) * expected + _ACTUAL_WEIGHT * actual
+
+
 # Multi-year window: current + 2 prior seasons. Each year weighted by
 # recency × sample, so a 40-IP injured 2026 doesn't override two elite
 # full seasons (the Skubal fix), but a true breakout still moves because
@@ -633,8 +650,10 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 wt = pa * rw
                 q = qoc_by_year[y].get(pid, {})
                 vals = {
-                    "xwoba": _sf(row, "est_woba"), "xslg": _sf(row, "est_slg"),
-                    "xba": _sf(row, "est_ba"), "barrel": _sf(q, "brl_percent"),
+                    "xwoba": _credit(_sf(row, "est_woba"), _sf(row, "woba")),
+                    "xslg": _credit(_sf(row, "est_slg"), _sf(row, "slg")),
+                    "xba": _credit(_sf(row, "est_ba"), _sf(row, "ba")),
+                    "barrel": _sf(q, "brl_percent"),
                     "hardhit": _sf(q, "ev95percent"), "sweetspot": _sf(q, "anglesweetspotpercent"),
                 }
                 for k, v in vals.items():
@@ -684,6 +703,11 @@ def _skill_scores(season: int) -> dict[str, dict]:
     try:
         pexp_by_year = {y: savant.pitcher_expected(y) for y in years}
         pqoc_by_year = {y: savant.pitcher_statcast(y) for y in years}
+        # Strikeout rate — the single most important + most stable pitcher
+        # skill, and it was entirely absent from the dynasty skill model. A
+        # dominant K arm (Schlittler 75 K/66 IP) got no credit. Current-season
+        # K% percentile (stabilizes fast). The 'run' tool analog for pitchers.
+        ppct = savant.pitcher_percentiles(years[0])
         pids = set()
         for y in years:
             pids |= set(pexp_by_year[y].keys())
@@ -704,7 +728,8 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 wt = pa * rw
                 q = pqoc_by_year[y].get(pid, {})
                 vals = {
-                    "xera": _sf(row, "xera"), "xwoba_against": _sf(row, "est_woba"),
+                    "xera": _credit(_sf(row, "xera"), _sf(row, "era")),
+                    "xwoba_against": _credit(_sf(row, "est_woba"), _sf(row, "woba")),
                     "barrel_allowed": _sf(q, "brl_percent"), "hardhit_allowed": _sf(q, "ev95percent"),
                 }
                 for k, v in vals.items():
@@ -720,13 +745,16 @@ def _skill_scores(season: int) -> dict[str, dict]:
             wm = {k: _wavg(metrics[k]) for k in metrics}
             if wm["xera"] is None and wm["xwoba_against"] is None:
                 continue
+            kp = (ppct.get(pid) or {}).get("k")
+            k_z = max(-2.0, min((kp - 50.0) / 25.0, 2.0)) if kp is not None else None
             zs = {
                 "xera": -_z(wm["xera"], *_PIT_BASE["xera"]) if wm["xera"] is not None else None,
                 "xwoba_against": -_z(wm["xwoba_against"], *_PIT_BASE["xwoba_against"]) if wm["xwoba_against"] is not None else None,
                 "barrel_allowed": -_z(wm["barrel_allowed"], *_PIT_BASE["barrel_allowed"]) if wm["barrel_allowed"] is not None else None,
                 "hardhit_allowed": -_z(wm["hardhit_allowed"], *_PIT_BASE["hardhit_allowed"]) if wm["hardhit_allowed"] is not None else None,
+                "k_rate": k_z,
             }
-            w = {"xera": 0.45, "xwoba_against": 0.27, "barrel_allowed": 0.16, "hardhit_allowed": 0.12}
+            w = {"xera": 0.32, "xwoba_against": 0.20, "barrel_allowed": 0.14, "hardhit_allowed": 0.10, "k_rate": 0.24}
             num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
             den = sum(w[k] for k in w if zs[k] is not None)
             if den <= 0 or not name:

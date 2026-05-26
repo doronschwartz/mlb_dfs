@@ -475,6 +475,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.19 — 2026-05-26",
+                "title": "Skill credits actual production + adds strikeout rate (successful players rise)",
+                "changes": [
+                    "Skill was scored on EXPECTED stats only (xwOBA/xERA), discounting what a player actually DID — burying breakouts (Cam Schlittler: 1.50 ERA / 75 K, but ranked ~#175 on a 3.32 xERA). Skill now blends 40% actual production (real wOBA/ERA) with 60% expected.",
+                    "Added STRIKEOUT RATE to the pitcher skill model — the single most important, most stable pitcher skill, and it was entirely missing (we scored xERA/contact-against but not K%). Big lift for dominant K arms. Combined effect: Schlittler skill #243→#101 (overall #175→#138), Skenes top-5, Skubal top-12; hitters unchanged (Elly #8, Carroll #9).",
+                    "Honest limit: the static FantraxHQ prior still anchors breakouts (Schlittler frozen at consensus #161 vs HKB's live #24). Our own read is now ~#100; closing to #24 needs a fresher prior, and HKB is simply more bullish on young-ace upside than our data supports. Leaning globally harder on skill was re-tested and still de-tuned proven producers (José Ramírez skill #359), so the balanced blend stays.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.18 — 2026-05-26",
                 "title": "Dual-market prior (Roto + Points), and a 'most ours' test that we rejected",
                 "changes": [
