@@ -929,22 +929,22 @@ def dynasty_value(nname: str, season: int) -> dict | None:
         conf = sample / (sample + k_prior) if sample else 0.0
         eff_blend = _SKILL_BLEND * conf
         talent_value = _rank_value(skill["skill_rank"])
-        # Riser correction: the consensus prior LAGS young breakouts (it updates
-        # slowly), so shrinking a riser toward a stale rank undervalues him —
-        # e.g. our skill model rates Gage Jump elite (skill #11) but consensus
-        # has him #355, and the blend buried him there. When a YOUNG player's
-        # skill rank materially beats his consensus rank, lean more on our read.
-        # Scaled by youth, by the size of the favorable disagreement, AND by
-        # sample confidence (a thin-sample fluke can't trigger it). Capped at
-        # +0.30 so we never fully abandon the market.
+        # Breakout / stale-prior override. The consensus is a STATIC list that
+        # lags — it hadn't repriced Schlittler's 1.50-ERA season (still #161
+        # while HKB's live crowd had him #24). So when our CURRENT-production
+        # skill ranks a player materially HIGHER than his static consensus, the
+        # market is behind — lean toward our read. ONE-DIRECTIONAL: only lifts
+        # (positive gap), never fades, so established producers we happen to
+        # rate lower (José Ramírez) are untouched. Youth amplifies (more future)
+        # but isn't a gate; sample-gated by conf so a fluke can't trigger it.
         age = cons.get("age")
         rank_gap = cons["rank"] - skill["skill_rank"]   # + = we're higher than market
         riser_boost = 0.0
-        if age and age <= 25 and rank_gap > 30:
-            youth = max(0.0, min((25 - age) / 5.0, 1.0))   # 0 at 25 → 1 at ≤20
-            disagree = min(rank_gap / 1000.0, 0.30)
-            riser_boost = round(disagree * youth * conf, 3)
-        eff_blend = min(0.85, eff_blend + riser_boost)
+        if rank_gap > 25 and conf >= 0.40:
+            gap_term = min(rank_gap / 170.0, 1.0)        # bigger disagreement → more
+            youth_amp = 1.0 + max(0.0, min((27 - (age or 27)) / 14.0, 0.5))  # ≤1.5× for the young
+            riser_boost = round(min(0.45, 0.42 * gap_term * conf * youth_amp), 3)
+        eff_blend = min(0.90, eff_blend + riser_boost)
         base = eff_blend * talent_value + (1 - eff_blend) * cons_value
         skill_block = {
             "skill_rank": skill["skill_rank"],

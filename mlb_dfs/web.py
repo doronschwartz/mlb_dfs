@@ -475,6 +475,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.20 — 2026-05-26",
+                "title": "Breakout override — live data beats a stale static prior (one-directional)",
+                "changes": [
+                    "The static consensus is the bottleneck for breakouts (it's a 2-week-old list that hasn't repriced anyone). New rule: when our CURRENT-production skill ranks a player materially HIGHER than his static consensus, lean toward our read — the market is behind. One-directional: it only LIFTS (positive disagreement), never fades, so established producers we happen to rate lower (José Ramírez) are completely untouched. Youth amplifies but isn't required; sample-gated so a fluke can't trigger it. Schlittler #138→#128, and other live breakouts rise toward where our data has them.",
+                    "Honest ceiling: this lifts breakouts to OUR data's view (~#100 for Schlittler), not HKB's #24 — HKB's live crowd is simply more aggressive on young-ace upside than our stats support. The deeper fix for staleness is a fresher prior (the CSV is a manual export).",
+                ],
+            },
+            {
                 "version": "Dynasty v1.19 — 2026-05-26",
                 "title": "Skill credits actual production + adds strikeout rate (successful players rise)",
                 "changes": [
