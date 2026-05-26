@@ -39,7 +39,7 @@ _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Bump when generator logic changes so previously-cached easy questions get
 # regenerated under the new (harder) rules. Drafter answers are preserved.
-_GEN_VERSION = 4
+_GEN_VERSION = 5
 
 
 def _path(date: str) -> Path:
@@ -592,15 +592,192 @@ _GENERATORS = [
 ]
 
 
+# ---- "actual trivia": evergreen MLB knowledge (records/history/awards) ------
+# Per league feedback (JL: "I like more actual trivia"). Each entry:
+# (prompt, correct, [3 distractors], explainer). Verifiable, classic facts.
+_TRIVIA_BANK: list[tuple] = [
+    ("Who holds the single-season home run record?", "Barry Bonds (73)",
+     ["Mark McGwire (70)", "Sammy Sosa (66)", "Aaron Judge (62)"],
+     "Barry Bonds hit 73 HR in 2001 — the single-season record."),
+    ("Who has the most career hits in MLB history?", "Pete Rose (4,256)",
+     ["Ty Cobb (4,189)", "Hank Aaron (3,771)", "Stan Musial (3,630)"],
+     "Pete Rose holds the career hits record with 4,256."),
+    ("Who is MLB's career home run leader?", "Barry Bonds (762)",
+     ["Hank Aaron (755)", "Babe Ruth (714)", "Albert Pujols (703)"],
+     "Barry Bonds leads with 762 career home runs."),
+    ("Who has the most career strikeouts as a pitcher?", "Nolan Ryan (5,714)",
+     ["Randy Johnson (4,875)", "Roger Clemens (4,672)", "Steve Carlton (4,136)"],
+     "Nolan Ryan struck out 5,714 batters — and threw 7 no-hitters."),
+    ("Who has the most career wins by a pitcher?", "Cy Young (511)",
+     ["Walter Johnson (417)", "Christy Mathewson (373)", "Warren Spahn (363)"],
+     "Cy Young won 511 games — the award is named after him."),
+    ("Highest career batting average in MLB history?", "Ty Cobb (.366)",
+     ["Rogers Hornsby (.358)", "Shoeless Joe Jackson (.356)", "Ted Williams (.344)"],
+     "Ty Cobb's .366 career average is the all-time best."),
+    ("Who won the most career MVP awards?", "Barry Bonds (7)",
+     ["Mike Trout (3)", "Albert Pujols (3)", "Mickey Mantle (3)"],
+     "Barry Bonds won 7 MVPs, far more than anyone else."),
+    ("Who won the most Cy Young awards?", "Roger Clemens (7)",
+     ["Randy Johnson (5)", "Greg Maddux (4)", "Sandy Koufax (3)"],
+     "Roger Clemens won 7 Cy Young awards."),
+    ("How long was Joe DiMaggio's record hitting streak?", "56 games",
+     ["44 games", "48 games", "61 games"],
+     "DiMaggio hit safely in 56 straight games in 1941 — still the record."),
+    ("Who is the career stolen base leader?", "Rickey Henderson (1,406)",
+     ["Lou Brock (938)", "Ty Cobb (897)", "Billy Hamilton (914)"],
+     "Rickey Henderson stole 1,406 bases — also the career runs leader."),
+    ("Who has the most career saves?", "Mariano Rivera (652)",
+     ["Trevor Hoffman (601)", "Lee Smith (478)", "Kenley Jansen (450)"],
+     "Mariano Rivera saved 652 games and was a unanimous Hall of Famer."),
+    ("Which player broke MLB's color barrier in 1947?", "Jackie Robinson",
+     ["Larry Doby", "Satchel Paige", "Roy Campanella"],
+     "Jackie Robinson debuted for the Dodgers in 1947; his #42 is retired league-wide."),
+    ("Which franchise has the most World Series titles?", "New York Yankees (27)",
+     ["St. Louis Cardinals (11)", "Oakland/Phila. A's (9)", "Boston Red Sox (9)"],
+     "The Yankees have won 27 World Series — more than double any other club."),
+    ("Who holds the single-season hits record (modern era)?", "Ichiro Suzuki (262)",
+     ["George Sisler (257)", "Pete Rose (230)", "Rogers Hornsby (250)"],
+     "Ichiro had 262 hits in 2004."),
+    ("Who has the most career RBIs?", "Hank Aaron (2,297)",
+     ["Albert Pujols (2,218)", "Babe Ruth (2,214)", "Alex Rodriguez (2,086)"],
+     "Hank Aaron drove in 2,297 runs."),
+    ("Who is the all-time leader in career runs scored?", "Rickey Henderson (2,295)",
+     ["Ty Cobb (2,245)", "Barry Bonds (2,227)", "Hank Aaron (2,174)"],
+     "Rickey Henderson scored 2,295 runs."),
+    ("Most career no-hitters thrown by one pitcher?", "Nolan Ryan (7)",
+     ["Sandy Koufax (4)", "Bob Feller (3)", "Justin Verlander (3)"],
+     "Nolan Ryan threw 7 no-hitters."),
+    ("Who was the last player to hit .400 in a season?", "Ted Williams (1941)",
+     ["Tony Gwynn (1994)", "George Brett (1980)", "Rod Carew (1977)"],
+     "Ted Williams hit .406 in 1941 — no one has hit .400 since."),
+    ("Most consecutive games played (the 'Iron Man' streak)?", "Cal Ripken Jr. (2,632)",
+     ["Lou Gehrig (2,130)", "Everett Scott (1,307)", "Steve Garvey (1,207)"],
+     "Cal Ripken Jr. played 2,632 straight games, breaking Gehrig's record."),
+    ("Who holds the record for career grand slams?", "Alex Rodriguez (25)",
+     ["Lou Gehrig (23)", "Manny Ramirez (21)", "Babe Ruth (16)"],
+     "A-Rod hit 25 career grand slams."),
+    ("Which pitcher has the most career complete games?", "Cy Young (749)",
+     ["Pud Galvin (646)", "Walter Johnson (531)", "Warren Spahn (382)"],
+     "Cy Young completed 749 games — an unbreakable mark in today's game."),
+    ("Who is the only player to win MVP in both leagues?", "Frank Robinson",
+     ["Hank Aaron", "Willie Mays", "Alex Rodriguez"],
+     "Frank Robinson won MVP in the NL (1961, Reds) and AL (1966, Orioles)."),
+    ("Which pitcher holds the modern single-season strikeout record?", "Nolan Ryan (383)",
+     ["Sandy Koufax (382)", "Randy Johnson (372)", "Pedro Martinez (313)"],
+     "Nolan Ryan struck out 383 in 1973, edging Koufax's 382."),
+]
+# Defensive: keep only well-formed rows (4 fields, real explainer, 3 distractors).
+_TRIVIA_BANK = [t for t in _TRIVIA_BANK if len(t) == 4 and t[3] and len(t[2]) == 3]
+
+
+def _q_actual_trivia(rng: random.Random, exclude: set | None = None) -> dict | None:
+    """Pick an evergreen MLB-knowledge MC question from the bank."""
+    pool = [t for t in _TRIVIA_BANK if not exclude or t[0] not in exclude]
+    if not pool:
+        return None
+    prompt, correct, distractors, explainer = rng.choice(pool)
+    opts = [correct] + list(distractors)
+    rng.shuffle(opts)
+    return {
+        "id": "q",
+        "kind": "actual_trivia",
+        "prompt": prompt,
+        "options": [{"label": o} for o in opts],
+        "correct_index": opts.index(correct),
+        "explainer": explainer,
+    }
+
+
+# ---- LIVE actual trivia: current-season MLB stat leaders (pulled fresh) ------
+# (leaderCategory, statGroup, phrase, value-suffix). The leaders endpoint ranks
+# them already (rank 1 = leader, incl. ERA which ranks ascending), so #1 is the
+# answer and the next few are the distractors — all genuinely close, pulled live.
+_LIVE_LEADER_CATS = [
+    ("homeRuns", "hitting", "home runs", "HR"),
+    ("runsBattedIn", "hitting", "RBIs", "RBI"),
+    ("stolenBases", "hitting", "stolen bases", "SB"),
+    ("battingAverage", "hitting", "batting average", "AVG"),
+    ("onBasePlusSlugging", "hitting", "OPS", "OPS"),
+    ("hits", "hitting", "hits", "H"),
+    ("earnedRunAverage", "pitching", "the lowest ERA", "ERA"),
+    ("strikeouts", "pitching", "strikeouts", "K"),
+    ("wins", "pitching", "wins", "W"),
+    ("saves", "pitching", "saves", "SV"),
+]
+
+
+def _mlb_stat_leaders(season: int, category: str, group: str, limit: int = 6) -> list[tuple]:
+    """[(name, value_str)] for a current-season MLB leaderboard, ranked."""
+    try:
+        d = mlb_api._get("/stats/leaders", params={
+            "leaderCategories": category, "season": season,
+            "sportId": 1, "statGroup": group, "limit": limit,
+        })
+    except Exception:
+        return []
+    out = []
+    for cat in d.get("leagueLeaders", []) or []:
+        for x in cat.get("leaders", []) or []:
+            nm = (x.get("person") or {}).get("fullName")
+            if nm:
+                out.append((nm, x.get("value")))
+    return out
+
+
+def _q_live_leader(season: int, rng: random.Random, exclude: set | None = None) -> dict | None:
+    """LIVE actual-trivia: who currently leads MLB in a real stat this season?
+    Pulled fresh from the leaders endpoint so the answer is always current."""
+    cats = [c for c in _LIVE_LEADER_CATS if not exclude or c[0] not in (exclude or set())]
+    rng.shuffle(cats)
+    for category, group, phrase, suffix in cats:
+        leaders = _mlb_stat_leaders(season, category, group)
+        # de-dup names (a guy can appear once) and need 4 distinct for MC
+        seen, uniq = set(), []
+        for nm, val in leaders:
+            if nm not in seen:
+                seen.add(nm); uniq.append((nm, val))
+        if len(uniq) < 4:
+            continue
+        leader = uniq[0]
+        opts = [leader] + uniq[1:4]
+        rng.shuffle(opts)
+        return {
+            "id": "q",
+            "kind": f"live_leader_{category}",
+            "_cat": category,
+            "prompt": f"Who currently leads MLB in {phrase} this season?",
+            "options": [{"label": nm, "hint": f"{val} {suffix}"} for nm, val in opts],
+            "correct_index": opts.index(leader),
+            "explainer": f"{leader[0]} leads MLB with {leader[1]} {suffix}.",
+        }
+    return None
+
+
 def _generate(date_str: str) -> dict:
     d = Date.fromisoformat(date_str)
     season = d.year
     rng = random.Random(date_str)  # deterministic per date
     hitters, pitchers = _slate_players(d)
     questions: list[dict] = []
-    # v4 shape: 5 questions/day with TWO numeric-guess (tight bands now —
-    # 0.5%/2%/5%/10%). Numeric kinds rotate so users see fresh angles —
-    # exact OPS, exact ERA, combined career HRs, slate-total HRs, etc.
+    # v5 shape: weighted toward "actual trivia" pulled LIVE (per league feedback
+    # — JL: "I like more actual trivia" / "need to be pulling live"). Lead with
+    # 2 live current-season stat-leader questions (distinct categories), fresh
+    # from the MLB API every day; fall back to the evergreen records bank only
+    # if the live fetch is short-handed.
+    used_cats: set = set()
+    used_prompts: set = set()
+    for _ in range(2):
+        q = _q_live_leader(season, rng, exclude=used_cats)
+        if q:
+            used_cats.add(q.get("_cat"))
+            q.pop("_cat", None)
+        else:
+            q = _q_actual_trivia(rng, exclude=used_prompts)
+            if q:
+                used_prompts.add(q["prompt"])
+        if q:
+            questions.append(q)
+    # One numeric-guess (softer 'close counts' credit) for variety.
     numeric_pool = [
         lambda: _q_career_hrs(hitters, season, rng),
         lambda: _q_career_strikeouts(pitchers, season, rng),
@@ -610,15 +787,12 @@ def _generate(date_str: str) -> dict:
         lambda: _q_combined_career_hrs(hitters, season, rng),
     ]
     rng.shuffle(numeric_pool)
-    seen_numeric_kinds: set[str] = set()
     for gen in numeric_pool:
-        if len(questions) >= 2:
-            break
         try:
             q = gen()
-            if q and q.get("kind") not in seen_numeric_kinds:
-                seen_numeric_kinds.add(q["kind"])
+            if q:
                 questions.append(q)
+                break
         except Exception as e:
             logging.warning("trivia numeric generator failed: %s", e)
     # Always try to include the Vegas team-total MC (cheap, reliable).

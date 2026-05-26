@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.25 — 2026-05-26",
+                "title": "Quiz: live 'actual trivia' (real current-season leaders)",
+                "changes": [
+                    "Per league feedback (more actual trivia, pulled live): the quiz now leads with 2 current-season MLB stat-leader questions pulled FRESH from the MLB API each day — who leads in HR / OPS / SB / AVG / ERA / K / wins / saves, with the real next-closest leaders as distractors. Verifiable, current, no static guessing. Numeric-guess questions cut from 2 to 1; an evergreen records bank (Bonds 762, Ryan 5,714 K, etc.) is the fallback if a live fetch comes up short.",
+                ],
+            },
+            {
                 "version": "v9.24 — 2026-05-26",
                 "title": "Daily quiz: softer 'close counts' partial credit",
                 "changes": [
