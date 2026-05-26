@@ -462,6 +462,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.11 — 2026-05-26",
+                "title": "Better value: riser-aware blend (stale-consensus correction)",
+                "changes": [
+                    "The consensus prior updates slowly, so shrinking a young breakout toward his stale rank undervalued him — e.g. Trey Yesavage reads as a top-15 talent by our skill model (#11) but sat at consensus #134, dragging his value down. Now: when a YOUNG player's (≤25) skill rank materially beats his consensus rank, we lean more on our read — scaled by youth, by how big the favorable disagreement is, and by sample confidence (a thin fluke can't trigger it), capped at +0.30 blend so we never fully abandon the market.",
+                    "Effect: fast risers get a fair bump (Yesavage, Gage Jump up); established stars, older players, and anyone our model rates BELOW consensus are unchanged. Each player's riser_boost shows in the breakdown.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.10 — 2026-05-26",
                 "title": "MiLB recon: proper Bayesian sample shrinkage",
                 "changes": [
