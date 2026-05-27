@@ -453,18 +453,30 @@ def lineups_by_date(d: Date, *, game_pks: set[int] | None = None) -> dict[int, d
         if not team_id:
             continue
         is_pp = pid in probable_pitchers
+        bo = team_to_order.get(team_id, {}).get(pid)  # 1-9 or None
         if is_pp:
             status = "in"
         elif team_to_posted.get(team_id):
             status = "in" if pid in team_to_lineup.get(team_id, set()) else "out"
         else:
             status = "pending"
+        # Batting-lineup status, INDEPENDENT of probable-pitcher. A two-way
+        # player (Ohtani) is "in" as a pitcher the moment he's announced, but
+        # whether he's BATTING isn't known until the card posts — don't claim
+        # he's in the lineup as a hitter just because he's the starter.
+        if not team_to_posted.get(team_id):
+            batting_status = "pending"
+        elif bo is not None:
+            batting_status = "in"
+        else:
+            batting_status = "out"
         out[pid] = {
             "status": status,
+            "batting_status": batting_status,
             "game_pk": team_to_game_pk.get(team_id),
             "team_id": team_id,
             "is_probable_pitcher": is_pp,
-            "batting_order": team_to_order.get(team_id, {}).get(pid),  # 1-9 or None
+            "batting_order": bo,
         }
     return out
 

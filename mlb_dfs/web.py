@@ -2891,6 +2891,12 @@ def _draft_state(dr) -> dict:
         want_pitcher = (p.slot in ("SP", "RP", "P")) or (p.role == "pitcher")
         proj = next((x for x in cands if (x.role == "pitcher") == want_pitcher),
                     (cands[0] if cands else None))
+        # A hitter pick reflects the BATTING lineup, not "is he the announced
+        # starter" — so a two-way player's bat shows pending until the card
+        # posts, even while his arm is locked in as the probable pitcher.
+        lineup_status_val = ((ls.get("status") if want_pitcher
+                              else ls.get("batting_status", ls.get("status")))
+                             if ls else "pending")
         # Prefer the LIVE projection over the snapshot at draft-time so values
         # reflect the current model + latest stats. Falls back to snapshot if
         # the player isn't in today's slate (e.g., off day).
@@ -2902,7 +2908,7 @@ def _draft_state(dr) -> dict:
             "projected_at_pick": p.projected_points,
             "pick_number": p.pick_number,
             "drafter": p.drafter,
-            "lineup_status": (ls.get("status") if ls else "pending"),
+            "lineup_status": lineup_status_val,
             "game_pk": p.game_pk,
             "game_label": labels.get(p.game_pk, "") if p.game_pk else "",
             "components": proj.components if proj else {},
