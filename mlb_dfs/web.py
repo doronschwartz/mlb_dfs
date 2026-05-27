@@ -2743,15 +2743,24 @@ def score(draft_id: str):
     # not the snapshot at draft time.
     try:
         live_projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
-        # Key by (id, role) so a two-way player's pitcher pick maps to the
-        # pitcher projection and his hitter pick to the bat — not whichever
-        # row happened to land last under the shared id.
-        live_proj_by_key = {(lp.player_id, lp.role): lp for lp in live_projs}
+        _live_by_id: dict[int, list] = {}
+        for lp in live_projs:
+            _live_by_id.setdefault(lp.player_id, []).append(lp)
     except Exception:
-        live_proj_by_key = {}
+        _live_by_id = {}
+
+    def _lp_for(p):
+        """Live projection for a pick, SLOT-aware for two-way players: an
+        SP/RP/P-slotted pick takes the pitcher line, everything else the bat —
+        robust even if the pick's stored role is stale/missing."""
+        cands = _live_by_id.get(p.player_id) or []
+        if not cands:
+            return None
+        want_pitcher = (p.slot in ("SP", "RP", "P")) or (p.role == "pitcher")
+        return next((x for x in cands if (x.role == "pitcher") == want_pitcher), cands[0])
 
     def _pick_row(p, ps):
-        lp = live_proj_by_key.get((p.player_id, p.role))
+        lp = _lp_for(p)
         pre_proj = lp.projected_points if lp else (p.projected_points or 0.0)
         actual = (ps.points if ps and ps.played else None)
         components = lp.components if lp else None
@@ -2794,13 +2803,12 @@ def score(draft_id: str):
                 "live_projected_total": round(sum(
                     _live_projection(
                         role=(ps.role if ps else p.role),
-                        pre_game_proj=(live_proj_by_key[(p.player_id, p.role)].projected_points
-                                       if (p.player_id, p.role) in live_proj_by_key
-                                       else (p.projected_points or 0.0)),
+                        pre_game_proj=((_lp_for(p).projected_points if _lp_for(p)
+                                        else (p.projected_points or 0.0))),
                         actual=(ps.points if ps and ps.played else None),
                         raw=(ps.raw if ps else None),
                         game_state=(ps.game_state if ps else None),
-                        components=(lp.components if (lp := live_proj_by_key.get((p.player_id, p.role))) else None),
+                        components=(_lp_for(p).components if _lp_for(p) else None),
                     )[0]
                     for p, ps in s.picks if (ps is None or ps.counted_in_total)
                 ), 2),
