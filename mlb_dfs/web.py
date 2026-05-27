@@ -2877,12 +2877,20 @@ def _draft_state(dr) -> dict:
         labels = {}
     try:
         projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
-        proj_by_id = {p.player_id: p for p in projs}
+        proj_by_id: dict[int, list] = {}
+        for pr in projs:
+            proj_by_id.setdefault(pr.player_id, []).append(pr)
     except Exception:
         proj_by_id = {}
     def _pick_dict(p):
         ls = lineups.get(p.player_id)
-        proj = proj_by_id.get(p.player_id)
+        # Slot-aware for two-way players (Ohtani): an SP/RP/P-slotted pick maps
+        # to the pitcher projection, everything else to the bat — robust even
+        # if the pick's stored role is stale.
+        cands = proj_by_id.get(p.player_id) or []
+        want_pitcher = (p.slot in ("SP", "RP", "P")) or (p.role == "pitcher")
+        proj = next((x for x in cands if (x.role == "pitcher") == want_pitcher),
+                    (cands[0] if cands else None))
         # Prefer the LIVE projection over the snapshot at draft-time so values
         # reflect the current model + latest stats. Falls back to snapshot if
         # the player isn't in today's slate (e.g., off day).
