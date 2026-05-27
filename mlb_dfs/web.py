@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.26 — 2026-05-27",
+                "title": "Calibration: ratchet HOT-hitter boost (pitcher tune confirmed holding)",
+                "changes": [
+                    "3-day audit (n=971): model well-calibrated overall (+0.40 / MAE 4.21), and the v9.20 pitcher tune HELD — pitchers now +0.05 (were +1.30), AVERAGE-QoC +0.21 (was +1.99). One persistent signal: HOT hitters under-projected +2.13 (~3.3σ), recurring across audits (+1.11→+1.22→+2.13). A/B over the window was monotonic + overshoot-free, so ratcheted the HOT post-matchup boost 1.07→1.13 (HOT bias +2.11→+1.47, HOT MAE 6.98→6.89, overall MAE 3.98→3.97). COLD left alone (−0.31, well-controlled).",
+                ],
+            },
+            {
                 "version": "v9.25 — 2026-05-26",
                 "title": "Quiz: live 'actual trivia' (real current-season leaders)",
                 "changes": [

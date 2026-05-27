@@ -59,6 +59,14 @@ LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (
                                             # the ghost prior in the bucket-weighted base.
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
+# HOT-hitter post-matchup boost. Recurring multi-audit signal: HOT bats keep
+# beating their projection (+1.11 → +1.22 → +2.13 over successive windows),
+# ~3.3σ — past the documented 0.7σ ratchet threshold. 3-day A/B (n=113 HOT)
+# was monotonic and overshoot-free: 1.07→1.13 cuts HOT bias +2.11→+1.47 and
+# HOT MAE 6.98→6.89 (overall MAE 3.98→3.97). Ratcheted one notch to 1.13;
+# re-audit before going further (HOT is high-variance).
+_HOT_HITTER_BOOST = 1.13
+
 # v9.20 tier-targeted lift for AVERAGE/POOR-QoC startable pitchers (see
 # project_pitcher). A/B-confirmed on the 6-day window (n=157): all-pitcher
 # bias +1.00→+0.72 AND MAE 5.87→5.78; targeted AVERAGE/POOR subset (n=100)
@@ -722,9 +730,9 @@ def project_hitter(
     # in a future audit, ratchet these further (1.07→1.10 / 0.85→0.80).
     hot_cold_factor = 1.0
     if form_tag == "HOT":
-        hot_cold_factor = 1.07
+        hot_cold_factor = _HOT_HITTER_BOOST
         proj *= hot_cold_factor
-        notes.append("HOT post-matchup boost x1.07 (close +1.11 residual)")
+        notes.append(f"HOT post-matchup boost x{_HOT_HITTER_BOOST} (close persistent HOT under-projection)")
     elif form_tag == "COLD":
         # v9.7: tightened from 0.85 to 0.80 after 14-day audit (n=1195)
         # showed COLD still over-projecting by -0.67 (5σ). 0.80 closes
@@ -1826,7 +1834,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-26-v9.20" # AVERAGE/POOR-QoC pitcher lift (A/B-confirmed: bias +1.00->+0.72, MAE 5.87->5.78)
+MODEL_REV = "2026-05-27-v9.26" # HOT-hitter boost 1.07->1.13 (A/B: HOT bias +2.11->+1.47, MAE down)
 
 
 def _proj_disk_path(key: tuple) -> str:
