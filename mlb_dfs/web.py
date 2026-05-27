@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.27 — 2026-05-27",
+                "title": "Two-way players (Ohtani) draftable as BOTH pitcher and hitter",
+                "changes": [
+                    "A two-way player has one MLB id but two projection rows (a pitcher line and a bat). The draft keyed 'drafted' on id alone, so taking Ohtani in one role removed both from the pool — you couldn't roster the arm AND the bat. Now dedup, the pool filter, the pick/replace endpoints, recommendations, and the live-score mapping are all role-aware (keyed on id+role): draft him into SP and you get the pitcher line; into OF/UT and you get the bat; you can roster both, but not the same role twice. Scoring already split correctly by slot.",
+                ],
+            },
+            {
                 "version": "v9.26 — 2026-05-27",
                 "title": "Calibration: ratchet HOT-hitter boost (pitcher tune confirmed holding)",
                 "changes": [
@@ -1120,10 +1127,17 @@ def make_pick(draft_id: str, req: PickRequest):
     projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
-    by_id = {p.player_id: p for p in projs}
-    proj = by_id.get(req.player_id)
-    if not proj:
+    # A two-way player (Ohtani) has two projections under one id — a hitter and
+    # a pitcher row. Pick the one matching the requested slot's role so drafting
+    # him into SP grabs the pitcher line and into OF/UT grabs the bat.
+    by_id: dict[int, list] = {}
+    for p in projs:
+        by_id.setdefault(p.player_id, []).append(p)
+    cands = by_id.get(req.player_id)
+    if not cands:
         raise HTTPException(404, f"player {req.player_id} not in the draft pool")
+    want_pitcher = req.slot in ("SP", "RP", "P")
+    proj = next((p for p in cands if (p.role == "pitcher") == want_pitcher), cands[0])
 
     try:
         game_pk = _resolve_game_pk_for_pick(dr, proj, req.game_pk)
@@ -1728,10 +1742,17 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
     projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
-    by_id = {p.player_id: p for p in projs}
-    proj = by_id.get(req.player_id)
-    if not proj:
+    # Resolve to the projection whose role matches the slot being replaced
+    # (two-way players have a hitter and a pitcher row under one id).
+    old_slot = dr.picks[pick_number - 1].slot if 0 < pick_number <= len(dr.picks) else None
+    want_pitcher = old_slot in ("SP", "RP", "P")
+    by_id: dict[int, list] = {}
+    for p in projs:
+        by_id.setdefault(p.player_id, []).append(p)
+    cands = by_id.get(req.player_id)
+    if not cands:
         raise HTTPException(404, f"player {req.player_id} not in the draft pool")
+    proj = next((p for p in cands if (p.role == "pitcher") == want_pitcher), cands[0])
     try:
         game_pk = _resolve_game_pk_for_pick(dr, proj, req.game_pk)
     except HTTPException:
@@ -2550,7 +2571,7 @@ def get_pool(draft_id: str):
     projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter,
     )
-    picked = dr.picked_ids()
+    picked = dr.picked_keys()  # role-aware: two-way players stay draftable in their other role
     on_clock = dr.on_the_clock()
     # When the snake is in non-SP free-for-all mode, anyone with an open slot
     # can pick — the pool's "open slots" should reflect the UNION across all
@@ -2572,7 +2593,7 @@ def get_pool(draft_id: str):
     remaining_by_drafter = {d: dr.remaining_slots(d) for d in dr.drafters}
     pool = []
     for p in projs:
-        if p.player_id in picked:
+        if (p.player_id, p.role) in picked:
             continue
         eligible = []          # open-slot pills (only slots the user can still fill)
         position_slots = []    # what position(s) this player qualifies for, regardless of need
@@ -2722,17 +2743,18 @@ def score(draft_id: str):
     # not the snapshot at draft time.
     try:
         live_projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
-        live_proj_by_id = {lp.player_id: lp for lp in live_projs}
+        # Key by (id, role) so a two-way player's pitcher pick maps to the
+        # pitcher projection and his hitter pick to the bat — not whichever
+        # row happened to land last under the shared id.
+        live_proj_by_key = {(lp.player_id, lp.role): lp for lp in live_projs}
     except Exception:
-        live_proj_by_id = {}
+        live_proj_by_key = {}
 
     def _pick_row(p, ps):
-        pre_proj = (live_proj_by_id[p.player_id].projected_points
-                    if p.player_id in live_proj_by_id
-                    else (p.projected_points or 0.0))
+        lp = live_proj_by_key.get((p.player_id, p.role))
+        pre_proj = lp.projected_points if lp else (p.projected_points or 0.0)
         actual = (ps.points if ps and ps.played else None)
-        components = (live_proj_by_id[p.player_id].components
-                      if p.player_id in live_proj_by_id else None)
+        components = lp.components if lp else None
         live_proj, remaining_frac = _live_projection(
             role=(ps.role if ps else p.role),
             pre_game_proj=pre_proj,
@@ -2772,14 +2794,13 @@ def score(draft_id: str):
                 "live_projected_total": round(sum(
                     _live_projection(
                         role=(ps.role if ps else p.role),
-                        pre_game_proj=(live_proj_by_id[p.player_id].projected_points
-                                       if p.player_id in live_proj_by_id
+                        pre_game_proj=(live_proj_by_key[(p.player_id, p.role)].projected_points
+                                       if (p.player_id, p.role) in live_proj_by_key
                                        else (p.projected_points or 0.0)),
                         actual=(ps.points if ps and ps.played else None),
                         raw=(ps.raw if ps else None),
                         game_state=(ps.game_state if ps else None),
-                        components=(live_proj_by_id[p.player_id].components
-                                    if p.player_id in live_proj_by_id else None),
+                        components=(lp.components if (lp := live_proj_by_key.get((p.player_id, p.role))) else None),
                     )[0]
                     for p, ps in s.picks if (ps is None or ps.counted_in_total)
                 ), 2),

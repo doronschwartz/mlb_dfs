@@ -216,6 +216,13 @@ class Draft:
     def picked_ids(self) -> set[int]:
         return {p.player_id for p in self.picks}
 
+    def picked_keys(self) -> set[tuple]:
+        """Role-aware drafted identity. A two-way player (Ohtani) has ONE MLB
+        id but can be rostered once as a pitcher AND once as a hitter — so
+        dedup on (player_id, role), not id alone. For normal players this is
+        equivalent to id-only (their role never varies)."""
+        return {(p.player_id, p.role) for p in self.picks}
+
     def move_pick(self, pick_number: int, new_slot: str) -> tuple[Pick, Pick | None]:
         """Move an existing pick to a different slot.
 
@@ -299,9 +306,9 @@ class Draft:
         if idx is None:
             raise ValueError(f"no pick #{pick_number}")
         old = self.picks[idx]
-        if projection.player_id == old.player_id:
+        if (projection.player_id, projection.role) == (old.player_id, old.role):
             raise ValueError("new player is the same as the old one")
-        if projection.player_id in self.picked_ids():
+        if (projection.player_id, projection.role) in self.picked_keys():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(old.slot, projection):
             raise ValueError(f"{projection.name} ({projection.position}) is not eligible for {old.slot}")
@@ -350,7 +357,7 @@ class Draft:
                 )
             drafter = drafter_override
             is_ooo = True
-        if projection.player_id in self.picked_ids():
+        if (projection.player_id, projection.role) in self.picked_keys():
             raise ValueError(f"{projection.name} is already drafted")
         if not _slot_eligible(slot, projection):
             raise ValueError(f"{projection.name} ({projection.position}) is not eligible for {slot}")
@@ -402,8 +409,8 @@ class Draft:
             return []
         drafter, next_slot = info
 
-        already = self.picked_ids()
-        avail = [p for p in projections if p.player_id not in already]
+        already = self.picked_keys()  # role-aware: two-way player stays recommendable in his other role
+        avail = [p for p in projections if (p.player_id, p.role) not in already]
 
         remaining = self.remaining_slots(drafter)
         # Compute a need-weight per role
