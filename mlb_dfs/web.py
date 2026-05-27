@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.28 — 2026-05-27",
+                "title": "Fix: SP-drafted two-way player shows pitching projection",
+                "changes": [
+                    "An Ohtani pick already in an SP slot was displaying his bat projection (~11) instead of his arm (~23.9) — the projection lookup keyed on the pick's stored role, which was stale for picks made before v9.27. The score view now resolves the live projection SLOT-aware (SP/RP/P → pitcher line, else bat), matching how scoring already worked. SP-Ohtani now reads ~23.9.",
+                ],
+            },
+            {
                 "version": "v9.27 — 2026-05-27",
                 "title": "Two-way players (Ohtani) draftable as BOTH pitcher and hitter",
                 "changes": [
