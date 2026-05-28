@@ -475,6 +475,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.29 — 2026-05-28",
+                "title": "Calibration: de-compress pitcher projections (HOT tune confirmed holding)",
+                "changes": [
+                    "6-day audit (n=1962) clean overall (+0.09) and confirmed the HOT-hitter boost held (HOT +2.13→+0.82, within noise). A deeper cut found pitcher projections were COMPRESSED — over-shrunk toward the league prior: proj<8 over-projected −2.77 (3.0σ, bad starts crater worse than modeled), proj 8-13 under +2.39 (2.8σ). Post-hoc A/B (every variant improved) → de-compress around a pivot (pivot 9, k 1.25): overall pitcher MAE 6.44→6.24, all magnitude buckets roughly halved. Hitters clean across all magnitudes — no change there.",
+                ],
+            },
+            {
                 "version": "v9.28 — 2026-05-27",
                 "title": "Fix: SP-drafted two-way player shows pitching projection",
                 "changes": [

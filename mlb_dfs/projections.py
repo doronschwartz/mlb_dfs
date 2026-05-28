@@ -59,6 +59,14 @@ LEAGUE_AVG_HITTER_POINTS_PER_GAME = 7.0   # bumped from 6.5 — "—" qoc tier (
                                             # the ghost prior in the bucket-weighted base.
 LEAGUE_AVG_SP_POINTS_PER_START = 11.0
 
+# Pitcher projection de-compression (v9.29). Projections were over-shrunk
+# toward the league prior, over-projecting bad starts and under-projecting good
+# ones. Expand the spread around a pivot: proj = pivot + (proj - pivot) * k.
+# A/B-tuned (n=172): pivot 9 / k 1.25 → overall MAE 6.44→6.24, bucket biases
+# roughly halved. Applied before the opener clamp.
+_PIT_SPREAD_PIVOT = 9.0
+_PIT_SPREAD_K = 1.25
+
 # HOT-hitter post-matchup boost. Recurring multi-audit signal: HOT bats keep
 # beating their projection (+1.11 → +1.22 → +2.13 over successive windows),
 # ~3.3σ — past the documented 0.7σ ratchet threshold. 3-day A/B (n=113 HOT)
@@ -1161,6 +1169,14 @@ def project_pitcher(
         proj *= qoc_tier_lift
         notes.append(f"{qoc_tier}-QoC pitcher lift x{qoc_tier_lift} (v9.20 audit)")
 
+    # v9.29: pitcher projections were COMPRESSED — over-shrunk toward the
+    # league-average prior. 6-day audit (n=172): proj<8 over-projected −2.77
+    # (3.0σ, bad starts crater worse), proj 8-13 under +2.39 (2.8σ). De-compress
+    # around a pivot: a post-hoc A/B confirmed pivot 9 / k 1.25 cuts overall
+    # MAE 6.44→6.24 and halves every bucket bias. Floor at 1.0 (a projection
+    # shouldn't go negative even though a real bad start can).
+    proj = max(1.0, _PIT_SPREAD_PIVOT + (proj - _PIT_SPREAD_PIVOT) * _PIT_SPREAD_K)
+
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
     # outing). Project no higher than 9 pts even if rolling form says more.
@@ -1834,7 +1850,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-27-v9.26" # HOT-hitter boost 1.07->1.13 (A/B: HOT bias +2.11->+1.47, MAE down)
+MODEL_REV = "2026-05-28-v9.29" # pitcher de-compression (pivot 9, k 1.25): MAE 6.44->6.24
 
 
 def _proj_disk_path(key: tuple) -> str:
