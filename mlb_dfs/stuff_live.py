@@ -93,6 +93,12 @@ def compute(start: str, end: str) -> dict:
 
     t0 = time.time()
     df = statcast(start_dt=start, end_dt=end)
+    # TOTAL pitches thrown per (pitcher, pitch type) — for the displayed count.
+    # engineer_features keeps only competitive outcomes (swings/called strikes/
+    # balls in play), which is the SCORED sample but ~60% of total, so reporting
+    # that as "pitches" undercounts. We display total, shrink on scored.
+    tot = (df[df["pitch_type"].isin(F.PITCH_TYPES_TO_MODEL)]
+           .groupby(["pitcher", "pitch_type"]).size().to_dict())
     eng = F.engineer_features(df)
     scored = M.train_models(eng)          # all pitch types
     out = M.score_pitches(scored)         # adds stuff_plus per pitch, 100±10
@@ -102,20 +108,21 @@ def compute(start: str, end: str) -> dict:
     by_pitcher: dict[int, dict] = {}
     grp = out.groupby(["pitcher", "player_name", "pitch_type"])
     for (pid, name, pt), g in grp:
-        n = len(g)
+        scored_n = len(g)                       # modeled pitches (for shrink)
+        pid = int(pid)
+        total_n = int(tot.get((pid, pt), scored_n))  # all pitches of this type (display)
         raw = float(g["stuff_plus"].mean())
         whiff = float(g["whiff"].mean() * 100) if "whiff" in g else None
-        pid = int(pid)
         agg = by_pitcher.setdefault(pid, {
             "pitcher_id": pid, "name": _flip(str(name)),
             "_num": 0.0, "_den": 0.0, "total_pitches": 0, "arsenal": [],
         })
-        shrunk = _shrink(raw, n)
-        agg["_num"] += shrunk * n
-        agg["_den"] += n
-        agg["total_pitches"] += n
+        shrunk = _shrink(raw, scored_n)
+        agg["_num"] += shrunk * total_n         # usage-weight by total thrown
+        agg["_den"] += total_n
+        agg["total_pitches"] += total_n
         agg["arsenal"].append({
-            "pitch_type": pt, "pitches": n,
+            "pitch_type": pt, "pitches": total_n, "scored": scored_n,
             "stuff": round(shrunk, 1), "stuff_raw": round(raw, 1),
             "whiff_pct": round(whiff, 1) if whiff is not None else None,
         })

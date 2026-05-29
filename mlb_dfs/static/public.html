@@ -163,6 +163,8 @@ $$("nav button[data-tab]").forEach(b=>b.onclick=()=>{
   if(b.dataset.tab==="stuff"&&!stuffCache.length) loadStuff();
 });
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Accent-insensitive normalize so "sanchez" matches "Sánchez", "pena"↔"Peña", etc.
+const na=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 
 async function loadAcc(){
   try{const d=await(await fetch("/api/accuracy?days=7")).json();const o=d.overall||{};
@@ -184,8 +186,8 @@ async function loadProj(){
   }catch(e){$("#proj-body").innerHTML='<tr><td colspan="4" class="muted">No slate yet today.</td></tr>';}
 }
 function renderProj(){
-  const q=($("#proj-search").value||"").toLowerCase(), role=$("#proj-role").value;
-  const rows=projCache.filter(p=>(role==="all"||p.role===role)&&(!q||p.name.toLowerCase().includes(q))).slice(0,300);
+  const q=na($("#proj-search").value), role=$("#proj-role").value;
+  const rows=projCache.filter(p=>(role==="all"||p.role===role)&&(!q||na(p.name).includes(q))).slice(0,300);
   $("#proj-body").innerHTML=rows.map((p,i)=>`<tr><td class="muted">${i+1}</td>
     <td>${esc(p.name)}</td><td>${esc(p.position||p.role||"")}</td>
     <td class="num"><b>${p.projected_points.toFixed(2)}</b></td></tr>`).join("")
@@ -199,8 +201,8 @@ async function loadDyn(){
   }catch(e){$("#dyn-body").innerHTML='<tr><td colspan="7" class="muted">Board refreshing…</td></tr>';}
 }
 function renderDyn(){
-  const q=($("#dyn-search").value||"").toLowerCase();
-  const rows=dynCache.filter(v=>!q||v.name.toLowerCase().includes(q)).slice(0,500);
+  const q=na($("#dyn-search").value);
+  const rows=dynCache.filter(v=>!q||na(v.name).includes(q)).slice(0,500);
   $("#dyn-body").innerHTML=rows.map(v=>{
     const dd=v.rank_delta, ds=dd===0?"—":(dd>0?"▲"+dd:"▼"+(-dd)), dc=dd>0?"edge-pos":dd<0?"edge-neg":"muted";
     return `<tr><td><b>${v.our_rank}</b></td><td>${esc(v.name)}</td><td>${esc(v.pos)}</td>
@@ -238,10 +240,10 @@ async function loadStuff(){
 }
 $("#stuff-window").onchange=loadStuff;
 function renderStuff(){
-  const q=($("#stuff-search").value||"").toLowerCase();
+  const q=na($("#stuff-search").value);
   const raw=$("#stuff-raw").checked;
   const val=(p)=> raw ? avgRaw(p) : p.stuff;
-  const rows=stuffCache.filter(p=>!q||p.name.toLowerCase().includes(q))
+  const rows=stuffCache.filter(p=>!q||na(p.name).includes(q))
     .map(p=>({p,v:val(p)})).sort((a,b)=>b.v-a.v).slice(0,400);
   $("#stuff-meta").textContent=stuffCache.length+" pitchers"+(raw?" · RAW (un-shrunk)":" · shrunk");
   $("#stuff-body").innerHTML=rows.map(({p,v},i)=>{

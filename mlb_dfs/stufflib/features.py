@@ -177,18 +177,22 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     if "pitcher" in df.columns:
 
-        # fastball reference per pitcher
-        fb = df[df["pitch_type"] == "FF"].groupby("pitcher").agg({
-            "release_speed": "mean",
-            "pfx_x_in": "mean",
-            "pfx_z_in": "mean",
-            "vaa": "mean"
-        }).rename(columns={
-            "release_speed": "fb_vel",
-            "pfx_x_in": "fb_hb",
-            "pfx_z_in": "fb_ivb",
-            "vaa": "fb_vaa"
-        })
+        # Fastball reference per pitcher. FIX: was FF-only, which made every
+        # sinker-primary pitcher with no 4-seam (Cristopher Sánchez, Framber
+        # Valdez, Bassitt, ~half the league) get NaN *_fb features → dropped
+        # entirely by the dropna in train_models. Fall back to the sinker (SI),
+        # then any fastest fastball-family pitch, so they aren't lost.
+        def _fb_agg(d):
+            return d.groupby("pitcher").agg({
+                "release_speed": "mean", "pfx_x_in": "mean",
+                "pfx_z_in": "mean", "vaa": "mean",
+            }).rename(columns={"release_speed": "fb_vel", "pfx_x_in": "fb_hb",
+                               "pfx_z_in": "fb_ivb", "vaa": "fb_vaa"})
+        ff = _fb_agg(df[df["pitch_type"] == "FF"])
+        si = _fb_agg(df[df["pitch_type"] == "SI"])
+        fc = _fb_agg(df[df["pitch_type"] == "FC"])
+        # prefer FF, else SI, else cutter — pitchers' velocity/shape anchor
+        fb = ff.combine_first(si).combine_first(fc)
 
         df = df.merge(fb, on="pitcher", how="left")
 
