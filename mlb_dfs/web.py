@@ -65,6 +65,19 @@ async def _prewarm_projections():
             _log.info("projection pre-warm complete for %s", d.isoformat())
         except Exception as e:
             _log.warning("projection pre-warm failed: %s", e)
+        # On the public site also warm the dynasty board + accuracy snapshot so
+        # those tabs aren't slow on first visit (no disk cache there).
+        if PUBLIC_MODE:
+            try:
+                from . import dynasty as _d
+                _d.rankings(d.year)
+                _log.info("dynasty pre-warm complete")
+            except Exception as e:
+                _log.warning("dynasty pre-warm failed: %s", e)
+            try:
+                _refresh_accuracy_bg(7)
+            except Exception as e:
+                _log.warning("accuracy pre-warm failed: %s", e)
     threading.Thread(target=_warm, daemon=True).start()
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -1166,23 +1179,18 @@ def calibration(date: str):
 # Cached a few hours (the underlying per-date scoring is itself disk-cached).
 _ACCURACY_CACHE: dict[int, tuple[float, dict]] = {}
 _ACCURACY_TTL = 3 * 3600
+_ACCURACY_SNAPSHOT = Path(__file__).parent / "data" / "accuracy_snapshot.json"
+_accuracy_refreshing = False
 
 
-@app.get("/api/accuracy")
-def accuracy(days: int = 7):
-    """Rolling-window projection accuracy across the last `days` completed
-    slates — overall + by role + by form tag. Powers the public /accuracy page."""
-    import time
-    days = max(1, min(days, 21))
-    hit = _ACCURACY_CACHE.get(days)
-    if hit and (time.time() - hit[0]) < _ACCURACY_TTL:
-        return hit[1]
+def _compute_accuracy(days: int) -> dict:
+    """Score the last `days` completed slates. SLOW (recomputes slates if the
+    cache is cold) — never call this in a request path on the public app; it's
+    the background refresher behind the snapshot."""
     today = Date.today()
     rows: list[dict] = []
     dates_used: list[str] = []
-    # Walk back from yesterday; collect completed slates until we have `days`.
-    checked = 0
-    di = 1
+    checked = 0; di = 1
     while len(dates_used) < days and checked < days + 10:
         dt = (today - timedelta(days=di)).isoformat()
         di += 1; checked += 1
@@ -1191,8 +1199,7 @@ def accuracy(days: int = 7):
         except Exception:
             drows = []
         if drows:
-            rows.extend(drows)
-            dates_used.append(dt)
+            rows.extend(drows); dates_used.append(dt)
 
     def _agg(lst):
         if not lst:
@@ -1200,18 +1207,72 @@ def accuracy(days: int = 7):
         n = len(lst); diffs = [r["diff"] for r in lst]
         return {"n": n, "bias": round(sum(diffs) / n, 2),
                 "mae": round(sum(abs(x) for x in diffs) / n, 2)}
-
-    res = {
-        "window_days": len(dates_used),
-        "dates": sorted(dates_used),
+    import time as _t
+    return {
+        "window_days": len(dates_used), "dates": sorted(dates_used),
         "overall": _agg(rows),
         "hitter": _agg([r for r in rows if r["role"] == "hitter"]),
         "pitcher": _agg([r for r in rows if r["role"] == "pitcher"]),
         "by_form_tag": {t: _agg([r for r in rows if r["form_tag"] == t])
                         for t in ["HOT", "COLD", "STEADY", "ELITE"]},
-        "model_rev": projections.MODEL_REV,
+        "model_rev": projections.MODEL_REV, "generated_at": int(_t.time()),
     }
+
+
+def _refresh_accuracy_bg(days: int):
+    """Recompute the snapshot in a background thread; best-effort, write to disk
+    + in-memory cache. Only one runs at a time."""
+    global _accuracy_refreshing
+    if _accuracy_refreshing:
+        return
+    _accuracy_refreshing = True
+    import threading, time as _t
+
+    def _work():
+        global _accuracy_refreshing
+        try:
+            res = _compute_accuracy(days)
+            if res["overall"]["n"] > 0:
+                _ACCURACY_CACHE[days] = (_t.time(), res)
+                try:
+                    import json as _j
+                    _ACCURACY_SNAPSHOT.write_text(_j.dumps(res))
+                except Exception:
+                    pass
+        except Exception as e:
+            import logging as _l; _l.warning("accuracy refresh failed: %s", e)
+        finally:
+            _accuracy_refreshing = False
+    threading.Thread(target=_work, daemon=True).start()
+
+
+@app.get("/api/accuracy")
+def accuracy(days: int = 7):
+    """Rolling-window projection accuracy. Serves a precomputed snapshot
+    INSTANTLY (never blocks on a 7-slate recompute — that 502'd the cacheless
+    public app), and refreshes the snapshot in the background when stale."""
+    import time, json
+    days = max(1, min(days, 21))
+    # 1) warm in-memory cache
+    hit = _ACCURACY_CACHE.get(days)
+    if hit and (time.time() - hit[0]) < _ACCURACY_TTL:
+        return hit[1]
+    # 2) on-disk snapshot — instant; kick a background refresh if it's stale
+    try:
+        snap = json.loads(_ACCURACY_SNAPSHOT.read_text())
+        age = time.time() - snap.get("generated_at", 0)
+        if age > _ACCURACY_TTL:
+            _refresh_accuracy_bg(days)
+        return snap
+    except Exception:
+        pass
+    # 3) no snapshot at all — compute once (slow, rare) and persist
+    res = _compute_accuracy(days)
     _ACCURACY_CACHE[days] = (time.time(), res)
+    try:
+        _ACCURACY_SNAPSHOT.write_text(json.dumps(res))
+    except Exception:
+        pass
     return res
 
 
