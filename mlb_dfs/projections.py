@@ -75,6 +75,10 @@ _PIT_SPREAD_K = 1.25
 # re-audit before going further (HOT is high-variance).
 _HOT_HITTER_BOOST = 1.13
 
+# Streak-override recency weight (HOT/COLD hitters): base = w*L3 + (1-w)*weighted.
+# JL flagged daily projections may over-weight recent form — A/B-tunable here.
+_STREAK_W = 0.85
+
 # v9.20 tier-targeted lift for AVERAGE/POOR-QoC startable pitchers (see
 # project_pitcher). A/B-confirmed on the 6-day window (n=157): all-pitcher
 # bias +1.00→+0.72 AND MAE 5.87→5.78; targeted AVERAGE/POOR subset (n=100)
@@ -458,8 +462,8 @@ def project_hitter(
         #   v6 0.80 → HOT +1.31 / COLD -1.10 (still moving same direction)
         # Each +0.10 weight closes ~28% / 16% of residual. v7 at 0.85 should
         # bring HOT into ±0.7 range — getting close to single-day noise floor.
-        streak_base = 0.85 * pg_3_safe + 0.15 * base_pg
-        notes.append(f"streak override ({form_tag}): 0.85*L3 + 0.15*weighted → {streak_base:.2f}")
+        streak_base = _STREAK_W * pg_3_safe + (1 - _STREAK_W) * base_pg
+        notes.append(f"streak override ({form_tag}): {_STREAK_W}*L3 + {round(1-_STREAK_W,2)}*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: ERA + WHIP + K/9. K/9 added in v9.3 because K is the

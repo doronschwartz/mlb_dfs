@@ -3034,13 +3034,19 @@ if STATIC_DIR.exists():
 # hardcoded in the repo. Surfaced as CTAs on the public pages; empty links are
 # hidden client-side. Zero marginal cost, pays per signup.
 @app.get("/api/stuff")
-def stuff_leaderboard(min_pitches: int = 150, limit: int = 300):
+def stuff_leaderboard(min_pitches: int = 150, limit: int = 400):
     """JL's Stuff+ pitch-quality leaderboard, Bayesian-shrunk + usage-weighted
     to a pitcher-level number. Public — the 'JL's Lab' section of the site."""
     from . import stuff
     lb = stuff.pitcher_leaderboard(min_pitches=min_pitches)[:limit]
-    return {"pitchers": lb, "league_mean": 100, "metric": "Stuff+",
-            "note": "100 = league average; higher = nastier stuff. Sample-shrunk."}
+    return {
+        "pitchers": lb, "league_mean": 100, "metric": "Stuff+",
+        "as_of": stuff.snapshot_date(),
+        "shrink_k": stuff._K_STUFF,
+        "note": ("100 = league average; higher = nastier. Bayesian-shrunk toward "
+                 "100 by pitches/(pitches+%d), then usage-weighted across pitch "
+                 "types. SNAPSHOT — not live; refreshed when the model re-runs." % int(stuff._K_STUFF)),
+    }
 
 
 @app.get("/api/affiliates")

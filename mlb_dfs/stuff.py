@@ -141,6 +141,19 @@ def stuff_for_pitcher(pitcher_id: int) -> float | None:
     return stuff_by_id().get(pitcher_id)
 
 
+# Data vintage of the current leaderboard snapshot — JL's pipeline run date,
+# NOT the file copy date (file mtime would falsely read "today"). The 2026
+# season is only captured THROUGH this date, so pitch counts lag the live
+# season (e.g. Chase Burns ~581 here vs more by now). Update when JL re-runs.
+_SNAPSHOT_AS_OF = "2026-04-14"
+
+
+def snapshot_date() -> str:
+    """Data vintage of the snapshot (JL's run date). The board is a static
+    export — the season is only covered through this date, not live."""
+    return _SNAPSHOT_AS_OF
+
+
 def stuff_z(pitcher_id: int, cap: float = 2.0) -> float | None:
     """Stuff+ as a capped z-score (process-skill signal). None if not covered."""
     v = stuff_by_id().get(pitcher_id)

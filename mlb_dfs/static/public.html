@@ -98,13 +98,27 @@
   <section class="tab" id="tab-stuff">
     <p class="muted">A <b>Stuff+</b> pitch-quality model by <b>JL</b> — scores pitch nastiness from physical traits
     (velocity, break, extension, approach angle, arsenal-relative deception) via XGBoost, one model per pitch type.
-    <b>100 = league average; higher = nastier.</b> We added sample-size shrinkage on top so small-sample arms regress to the mean.</p>
-    <div class="ctrls"><input id="stuff-search" placeholder="Search pitcher…" style="width:220px;"><span class="muted" id="stuff-meta"></span></div>
+    <b>100 = league average; higher = nastier.</b></p>
+    <details class="num-legend" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:8px 0;">
+      <summary style="cursor:pointer;color:var(--accent);">ℹ️ How it's scored + the Bayesian shrink</summary>
+      <div style="font-size:13px;margin-top:6px;line-height:1.5;">
+        Each pitch type is modeled separately (whiff / called-strike / weak-contact / GB / hard-hit probabilities → composite), normalized so 100 = league average.
+        <br><br><b>Bayesian shrinkage (our add):</b> the raw model has no regression to the mean, so a 50-pitch sample looked as trustworthy as a 1,200-pitch one. We pull each pitch type's Stuff+ toward 100 by <code>pitches / (pitches + <span id="shrink-k">80</span>)</code>, then usage-weight the pitch types into one pitcher number. A 50-pitch read is ~38% regressed; a 240-pitch read ~25%. Toggle "raw" below to see the un-shrunk values.
+      </div>
+    </details>
+    <div class="ctrls">
+      <input id="stuff-search" placeholder="Search pitcher…" style="width:200px;">
+      <label class="muted" style="font-size:13px;">Min pitches
+        <input id="stuff-minp" type="number" value="150" min="0" max="2000" step="25" style="width:80px;">
+      </label>
+      <label class="muted" style="font-size:13px;"><input id="stuff-raw" type="checkbox"> show raw (un-shrunk)</label>
+      <span class="muted" id="stuff-meta"></span>
+    </div>
     <div class="scroll"><table>
-      <thead><tr><th>#</th><th>Pitcher</th><th>T</th><th class="num">Stuff+</th><th class="num">Pitches</th><th>Top arsenal (Stuff+ by pitch)</th></tr></thead>
+      <thead><tr><th>#</th><th>Pitcher</th><th>T</th><th class="num">Stuff+</th><th class="num">Pitches</th><th>Arsenal — each pitch vs his avg (click row)</th></tr></thead>
       <tbody id="stuff-body"><tr><td colspan="6" class="muted">Loading JL's leaderboard…</td></tr></tbody>
     </table></div>
-    <p class="muted" style="font-size:12px;margin-top:8px;">Stuff+ is a leading indicator — it stabilizes faster than ERA and predicts future K-skill. Snapshot; refreshed when the model re-runs.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px;">Stuff+ is a leading indicator — stabilizes faster than ERA, predicts future K-skill. <b>📸 Snapshot as of <span id="stuff-asof">—</span> — not live.</b> Refreshes when JL re-runs the pipeline on current data.</p>
     <p class="muted" style="font-size:12px;margin-top:6px;">🧪 Stuff+ model © JL 2026. All rights reserved. Sample-size shrinkage + integration by the Diamond Model team.</p>
   </section>
 
@@ -187,22 +201,57 @@ function renderDyn(){
 $("#dyn-search").oninput=renderDyn;
 
 async function loadStuff(){
-  try{const d=await(await fetch("/api/stuff?min_pitches=150")).json();
-    stuffCache=d.pitchers||[]; $("#stuff-meta").textContent=stuffCache.length+" pitchers · 100 = avg"; renderStuff();
+  const mp=Math.max(0,parseInt($("#stuff-minp").value||"150",10));
+  try{const d=await(await fetch("/api/stuff?min_pitches="+mp)).json();
+    stuffCache=d.pitchers||[];
+    $("#stuff-asof").textContent=d.as_of||"—";
+    if(d.shrink_k) $("#shrink-k").textContent=d.shrink_k;
+    renderStuff();
   }catch(e){$("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Leaderboard unavailable.</td></tr>';}
 }
 function renderStuff(){
   const q=($("#stuff-search").value||"").toLowerCase();
-  const rows=stuffCache.filter(p=>!q||p.name.toLowerCase().includes(q)).slice(0,300);
-  $("#stuff-body").innerHTML=rows.map((p,i)=>{
-    const ars=(p.arsenal||[]).slice(0,4).map(a=>`${esc(a.pitch_type)} <b>${a.stuff.toFixed(0)}</b>`).join(" · ");
-    const cls=p.stuff>=103?"edge-pos":p.stuff<=97?"edge-neg":"";
-    return `<tr><td class="muted">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.throws)}</td>
-      <td class="num ${cls}"><b>${p.stuff.toFixed(1)}</b></td><td class="num muted">${p.total_pitches.toLocaleString()}</td>
-      <td class="muted" style="font-size:12px;">${ars}</td></tr>`;
+  const raw=$("#stuff-raw").checked;
+  const val=(p)=> raw ? avgRaw(p) : p.stuff;
+  const rows=stuffCache.filter(p=>!q||p.name.toLowerCase().includes(q))
+    .map(p=>({p,v:val(p)})).sort((a,b)=>b.v-a.v).slice(0,400);
+  $("#stuff-meta").textContent=stuffCache.length+" pitchers"+(raw?" · RAW (un-shrunk)":" · shrunk");
+  $("#stuff-body").innerHTML=rows.map(({p,v},i)=>{
+    // each pitch vs the pitcher's OWN average → shows his best/worst offering
+    const avg=v;
+    const ars=(p.arsenal||[]).slice(0,5).map(a=>{
+      const s=raw?a.stuff_raw:a.stuff; const d=s-avg;
+      const c=d>=1?"edge-pos":d<=-1?"edge-neg":"muted";
+      return `${esc(a.pitch_type)} <b class="${c}">${s.toFixed(0)}</b>`;
+    }).join(" · ");
+    const cls=v>=103?"edge-pos":v<=97?"edge-neg":"";
+    return `<tr class="stuff-row" data-i="${i}" style="cursor:pointer;"><td class="muted">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.throws)}</td>
+      <td class="num ${cls}"><b>${v.toFixed(1)}</b></td><td class="num muted">${p.total_pitches.toLocaleString()}</td>
+      <td class="muted" style="font-size:12px;">${ars}</td></tr>
+      <tr class="stuff-detail" data-d="${i}" hidden><td colspan="6" style="background:var(--panel2);"></td></tr>`;
   }).join("")||'<tr><td colspan="6" class="muted">No matches.</td></tr>';
+  $("#stuff-body")._rows=rows;
+  $$("#stuff-body .stuff-row").forEach(tr=>tr.onclick=()=>{
+    const i=tr.dataset.i, det=$(`#stuff-body .stuff-detail[data-d="${i}"]`);
+    if(!det) return;
+    if(!det.hidden){det.hidden=true;return;}
+    $$("#stuff-body .stuff-detail").forEach(d=>d.hidden=true);
+    const {p,v}=$("#stuff-body")._rows[i]; const raw=$("#stuff-raw").checked;
+    det.querySelector("td").innerHTML=`<div style="padding:8px 12px;font-size:13px;">
+      <b>${esc(p.name)}</b> overall ${v.toFixed(1)} — each pitch ranked vs his own average:
+      <table style="margin-top:6px;"><tr><th>Pitch</th><th class="num">Stuff+</th><th class="num">vs his avg</th><th class="num">Pitches</th><th class="num">Whiff%</th><th class="num">Velo</th></tr>
+      ${(p.arsenal||[]).map(a=>{const s=raw?a.stuff_raw:a.stuff; const dd=s-v; const c=dd>=0?"edge-pos":"edge-neg";
+        return `<tr><td>${esc(a.pitch_type)}</td><td class="num"><b>${s.toFixed(1)}</b></td><td class="num ${c}">${dd>=0?"+":""}${dd.toFixed(1)}</td><td class="num muted">${a.pitches}</td><td class="num">${a.whiff_pct!=null?a.whiff_pct.toFixed(1):"—"}</td><td class="num">${a.velo!=null?a.velo.toFixed(1):"—"}</td></tr>`;}).join("")}
+      </table></div>`;
+    det.hidden=false;
+  });
+}
+function avgRaw(p){ // usage-weighted raw (un-shrunk) for the toggle
+  let n=0,d=0; (p.arsenal||[]).forEach(a=>{n+=a.stuff_raw*a.pitches;d+=a.pitches;}); return d?n/d:100;
 }
 $("#stuff-search").oninput=renderStuff;
+$("#stuff-raw").onchange=renderStuff;
+$("#stuff-minp").onchange=loadStuff;
 
 $("#trade-go").onclick=async()=>{
   const parse=id=>($(id).value||"").split("\n").map(s=>s.trim()).filter(Boolean);
