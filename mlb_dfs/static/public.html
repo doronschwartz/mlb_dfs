@@ -55,6 +55,7 @@
   <nav>
     <button data-tab="proj" class="active">Projections</button>
     <button data-tab="dyn">Dynasty</button>
+    <button data-tab="stuff">🧪 Stuff+ (JL's Lab)</button>
     <button data-tab="trade">Trade Analyzer</button>
     <button onclick="location.href='/accuracy'">📊 Accuracy</button>
   </nav>
@@ -93,6 +94,19 @@
     </table></div>
   </section>
 
+  <!-- STUFF+ (JL) -->
+  <section class="tab" id="tab-stuff">
+    <p class="muted">A <b>Stuff+</b> pitch-quality model by <b>JL</b> — scores pitch nastiness from physical traits
+    (velocity, break, extension, approach angle, arsenal-relative deception) via XGBoost, one model per pitch type.
+    <b>100 = league average; higher = nastier.</b> We added sample-size shrinkage on top so small-sample arms regress to the mean.</p>
+    <div class="ctrls"><input id="stuff-search" placeholder="Search pitcher…" style="width:220px;"><span class="muted" id="stuff-meta"></span></div>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Pitcher</th><th>T</th><th class="num">Stuff+</th><th class="num">Pitches</th><th>Top arsenal (Stuff+ by pitch)</th></tr></thead>
+      <tbody id="stuff-body"><tr><td colspan="6" class="muted">Loading JL's leaderboard…</td></tr></tbody>
+    </table></div>
+    <p class="muted" style="font-size:12px;margin-top:8px;">Stuff+ is a leading indicator — it stabilizes faster than ERA and predicts future K-skill. Snapshot; refreshed when the model re-runs.</p>
+  </section>
+
   <!-- TRADE -->
   <section class="tab" id="tab-trade">
     <p class="muted">Paste players (one per line) on each side. Non-additive package value + a fairness verdict + balancer suggestions.</p>
@@ -113,13 +127,14 @@
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
-let projCache=[], dynCache=[];
+let projCache=[], dynCache=[], stuffCache=[];
 $$("nav button[data-tab]").forEach(b=>b.onclick=()=>{
   $$("nav button[data-tab]").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   $$(".tab").forEach(t=>t.classList.remove("active"));
   $("#tab-"+b.dataset.tab).classList.add("active");
   if(b.dataset.tab==="dyn"&&!dynCache.length) loadDyn();
+  if(b.dataset.tab==="stuff"&&!stuffCache.length) loadStuff();
 });
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -168,6 +183,24 @@ function renderDyn(){
   }).join("")||'<tr><td colspan="7" class="muted">No matches.</td></tr>';
 }
 $("#dyn-search").oninput=renderDyn;
+
+async function loadStuff(){
+  try{const d=await(await fetch("/api/stuff?min_pitches=150")).json();
+    stuffCache=d.pitchers||[]; $("#stuff-meta").textContent=stuffCache.length+" pitchers · 100 = avg"; renderStuff();
+  }catch(e){$("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Leaderboard unavailable.</td></tr>';}
+}
+function renderStuff(){
+  const q=($("#stuff-search").value||"").toLowerCase();
+  const rows=stuffCache.filter(p=>!q||p.name.toLowerCase().includes(q)).slice(0,300);
+  $("#stuff-body").innerHTML=rows.map((p,i)=>{
+    const ars=(p.arsenal||[]).slice(0,4).map(a=>`${esc(a.pitch_type)} <b>${a.stuff.toFixed(0)}</b>`).join(" · ");
+    const cls=p.stuff>=103?"edge-pos":p.stuff<=97?"edge-neg":"";
+    return `<tr><td class="muted">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.throws)}</td>
+      <td class="num ${cls}"><b>${p.stuff.toFixed(1)}</b></td><td class="num muted">${p.total_pitches.toLocaleString()}</td>
+      <td class="muted" style="font-size:12px;">${ars}</td></tr>`;
+  }).join("")||'<tr><td colspan="6" class="muted">No matches.</td></tr>';
+}
+$("#stuff-search").oninput=renderStuff;
 
 $("#trade-go").onclick=async()=>{
   const parse=id=>($(id).value||"").split("\n").map(s=>s.trim()).filter(Boolean);

@@ -497,6 +497,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.32 — 2026-05-29",
+                "title": "JL's Stuff+ model on the public site (Bayesian-corrected)",
+                "changes": [
+                    "New '🧪 Stuff+ (JL's Lab)' section on the public site: JL's XGBoost pitch-quality model (nastiness from velo/break/extension/approach-angle/arsenal-deception), ingested from his leaderboard and served as a searchable pitcher leaderboard (100 = league avg).",
+                    "Fixed the one gap in his model — it had no sample-size regression, so a 50-pitch read sat next to a 1,200-pitch read. Added n/(n+k) shrinkage toward 100 (k=80 pitches) + usage-weighted pitch types into one pitcher-level Stuff+. (Will Vest's 51-pitch CH: 110.9 → 104.2; top board = Mason Miller, Skubal, Díaz, Crochet — face-valid.)",
+                    "stuff.py exposes stuff_for_pitcher(id) so Stuff+ can later feed our pitcher skill/projection — pending a calibration A/B + season alignment before it touches live numbers.",
+                ],
+            },
+            {
                 "version": "v9.31 — 2026-05-29",
                 "title": "PUBLIC_MODE — separate public product site (same engine)",
                 "changes": [
@@ -2963,6 +2972,16 @@ if STATIC_DIR.exists():
 # Affiliate / referral links — fill in real codes via env so they're not
 # hardcoded in the repo. Surfaced as CTAs on the public pages; empty links are
 # hidden client-side. Zero marginal cost, pays per signup.
+@app.get("/api/stuff")
+def stuff_leaderboard(min_pitches: int = 150, limit: int = 300):
+    """JL's Stuff+ pitch-quality leaderboard, Bayesian-shrunk + usage-weighted
+    to a pitcher-level number. Public — the 'JL's Lab' section of the site."""
+    from . import stuff
+    lb = stuff.pitcher_leaderboard(min_pitches=min_pitches)[:limit]
+    return {"pitchers": lb, "league_mean": 100, "metric": "Stuff+",
+            "note": "100 = league average; higher = nastier stuff. Sample-shrunk."}
+
+
 @app.get("/api/affiliates")
 def affiliates():
     return {
