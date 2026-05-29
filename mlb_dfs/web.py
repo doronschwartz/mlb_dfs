@@ -78,13 +78,9 @@ async def _prewarm_projections():
                 _refresh_accuracy_bg(7)
             except Exception as e:
                 _log.warning("accuracy pre-warm failed: %s", e)
-            # Pre-warm the "2026 season" live Stuff+ window so the default view
-            # is ready (it's the slow one — full-season pull + train).
-            try:
-                from . import stuff_live as _sl
-                _sl.compute_bg(_sl.SEASON_START, d.isoformat())
-            except Exception as e:
-                _log.warning("stuff_live season pre-warm failed: %s", e)
+            # NB: do NOT train Stuff+ here — it's CPU-bound and would peg the
+            # single shared vCPU, starving the web server. Live windows are
+            # precomputed offline + served from committed JSON.
     threading.Thread(target=_warm, daemon=True).start()
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -3068,29 +3064,18 @@ def stuff_leaderboard(min_pitches: int = 150, limit: int = 400):
 
 
 @app.get("/api/stuff/live")
-def stuff_live_endpoint(start: str, end: str, min_pitches: int = 150, limit: int = 400):
-    """Live, date-adjustable Stuff+ — runs JL's feature+model pipeline on
-    Statcast pulled for [start, end]. HEAVY: serves the cached window instantly,
-    else kicks a background compute (~3-5 min) and returns status=computing.
-    Window capped to protect the box."""
+def stuff_live_endpoint(window: str = "season", min_pitches: int = 150, limit: int = 400):
+    """Live Stuff+ for a preset window (season / 30d / 14d). Served from a
+    PRECOMPUTED, committed leaderboard — the serving box never trains (XGBoost
+    is CPU-bound and would starve the single-vCPU web server). The windows are
+    regenerated offline (scripts/refresh_stuff_live.py) and shipped."""
     from . import stuff_live
-    try:
-        s = Date.fromisoformat(start); e = Date.fromisoformat(end)
-    except ValueError:
-        raise HTTPException(400, "start/end must be YYYY-MM-DD")
-    if e < s:
-        raise HTTPException(400, "end before start")
-    if (e - s).days > 120:
-        raise HTTPException(400, "window too wide (max 120 days) — pulls/trains would be too heavy")
-    res = stuff_live.cached(start, end)
-    if res:
-        pitchers = [p for p in res["pitchers"] if p["total_pitches"] >= min_pitches][:limit]
-        return {**{k: v for k, v in res.items() if k != "pitchers"}, "pitchers": pitchers,
-                "status": "ready"}
-    stuff_live.compute_bg(start, end)
-    return {"status": "computing", "start": start, "end": end,
-            "note": "Pulling Statcast + training models for this window (~3-5 min). "
-                    "Re-request shortly; the result is cached once ready."}
+    res = stuff_live.load_window(window)
+    if not res:
+        raise HTTPException(404, f"window '{window}' not available (use season / 30d / 14d)")
+    pitchers = [p for p in res["pitchers"] if p["total_pitches"] >= min_pitches][:limit]
+    return {**{k: v for k, v in res.items() if k != "pitchers"}, "pitchers": pitchers,
+            "status": "ready"}
 
 
 @app.get("/api/affiliates")

@@ -109,18 +109,11 @@
     <div class="ctrls" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--panel);">
       <b style="font-size:13px;">⚡ Live window:</b>
       <select id="stuff-window" style="font-size:13px;">
-        <option value="season">2026 season (live, from opening day)</option>
-        <option value="14">Last 14 days (live)</option>
-        <option value="30">Last 30 days (live)</option>
-        <option value="60">Last 60 days (live)</option>
-        <option value="snapshot">Snapshot (instant, trailing-year)</option>
-        <option value="custom">Custom range…</option>
+        <option value="season">2026 season (from opening day)</option>
+        <option value="30d">Last 30 days</option>
+        <option value="14d">Last 14 days</option>
+        <option value="snapshot">Snapshot (trailing-year)</option>
       </select>
-      <span id="stuff-custom" style="display:none;">
-        <input id="stuff-start" type="date" style="font-size:13px;">
-        <input id="stuff-end" type="date" style="font-size:13px;">
-        <button id="stuff-run" class="btn" style="padding:5px 12px;">Run</button>
-      </span>
       <span class="muted" id="stuff-live-status" style="font-size:12px;"></span>
     </div>
     <div class="ctrls">
@@ -232,34 +225,18 @@ async function loadStuff(){
     }catch(e){$("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Leaderboard unavailable.</td></tr>';}
     return;
   }
-  // live window
-  let start,end; const today=new Date().toISOString().slice(0,10);
-  if(win==="custom"){ start=$("#stuff-start").value; end=$("#stuff-end").value;
-    if(!start||!end){$("#stuff-live-status").textContent="pick a start and end date";return;}
-  } else if(win==="season"){ start="2026-03-18"; end=today;
-  } else {
-    const s=new Date(Date.now()-parseInt(win,10)*864e5);
-    end=today; start=s.toISOString().slice(0,10);
-  }
-  await fetchLive(start,end,mp);
-}
-async function fetchLive(start,end,mp){
+  // live preset window (precomputed + served from committed JSON)
   try{
-    const d=await(await fetch(`/api/stuff/live?start=${start}&end=${end}&min_pitches=${mp}`)).json();
-    if(d.status==="computing"){
-      $("#stuff-live-status").innerHTML=`⏳ computing ${start} → ${end} (live Statcast pull + model train, ~3–5 min)… auto-refreshing`;
-      $("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Training models on live data for this window…</td></tr>';
-      stuffPoll=setTimeout(()=>fetchLive(start,end,mp),20000);
-      return;
-    }
-    stuffCache=d.pitchers||[];
-    $("#stuff-asof").textContent=`${d.start} → ${d.end} (LIVE)`;
-    $("#stuff-live-status").innerHTML=`✓ live: ${d.n_pitchers} pitchers, computed in ${d.compute_secs||"?"}s`;
+    const d=await(await fetch(`/api/stuff/live?window=${win}&min_pitches=${mp}`)).json();
+    if(!d.pitchers){$("#stuff-live-status").textContent="window unavailable";return;}
+    stuffCache=d.pitchers;
+    $("#stuff-asof").textContent=`${d.start} → ${d.end} (live, ${d.n_pitchers} pitchers)`;
+    const when=d.computed_at?new Date(d.computed_at*1000).toISOString().slice(0,10):"";
+    $("#stuff-live-status").innerHTML=`✓ live window — computed ${when}`;
     renderStuff();
   }catch(e){$("#stuff-live-status").textContent="live fetch failed: "+e.message;}
 }
-$("#stuff-window").onchange=()=>{ $("#stuff-custom").style.display=$("#stuff-window").value==="custom"?"inline":"none"; if($("#stuff-window").value!=="custom") loadStuff(); };
-$("#stuff-run").onclick=loadStuff;
+$("#stuff-window").onchange=loadStuff;
 function renderStuff(){
   const q=($("#stuff-search").value||"").toLowerCase();
   const raw=$("#stuff-raw").checked;

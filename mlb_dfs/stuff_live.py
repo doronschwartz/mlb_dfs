@@ -22,6 +22,22 @@ from . import disk_cache
 
 _CACHE_DIR = os.environ.get("MLB_DFS_CACHE_DIR",
                             os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cache"))
+# Precomputed window leaderboards (season / 30d / 14d), generated OFFLINE and
+# committed. The serving box must NOT train — XGBoost is CPU-bound and pegs the
+# single shared vCPU, starving the web server. So we precompute on a real
+# machine + ship the JSON; the endpoint only ever reads these.
+_PRECOMPUTED_DIR = os.path.join(os.path.dirname(__file__), "data", "stuff_live")
+
+
+def load_window(name: str) -> dict | None:
+    """Serve a precomputed window leaderboard by name (season / 30d / 14d)."""
+    if name not in ("season", "30d", "14d"):
+        return None
+    try:
+        with open(os.path.join(_PRECOMPUTED_DIR, name + ".json")) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 _K_STUFF = 80.0            # shrink prior (pitches), same as stuff.py
 _LEAGUE_MEAN = 100.0
 _MIN_PITCHES = 150         # pitcher-level qualifier for the board
