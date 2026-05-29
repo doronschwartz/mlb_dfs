@@ -51,6 +51,12 @@ from .features import get_feature_cols, PITCH_TYPES_TO_MODEL
 MIN_TRAIN_PITCHES = 500
 MIN_BIP_PITCHES = 150
 
+# FAST mode (live serving): skip the 5-fold cross-validation (which trains each
+# model 6× just to report a diagnostic AUC we don't use for the leaderboard)
+# and trim the tree count. ~6× faster on a shared single core. Set by stuff_live.
+FAST = False
+FAST_ESTIMATORS = 250
+
 WHIFF_W = 1.40
 CSW_W = 0.60
 WEAK_W = 0.50
@@ -235,7 +241,7 @@ def _train_classifier(X, y, groups):
 
     if XGB_AVAILABLE:
         model = xgb.XGBClassifier(
-            n_estimators=400,
+            n_estimators=FAST_ESTIMATORS if FAST else 400,
             max_depth=5,
             learning_rate=0.03,
             subsample=0.8,
@@ -255,20 +261,17 @@ def _train_classifier(X, y, groups):
             random_state=42,
         )
 
+    if FAST:
+        # Skip CV — the AUC is diagnostic only; the leaderboard just needs the
+        # fitted model. One fit instead of six.
+        model.fit(X, y)
+        return model, 0.0
+
     cv = GroupKFold(n_splits=5)
-
     scores = cross_val_score(
-        model,
-        X,
-        y,
-        cv=cv,
-        groups=groups,
-        scoring="roc_auc",
-        n_jobs=-1,
+        model, X, y, cv=cv, groups=groups, scoring="roc_auc", n_jobs=-1,
     )
-
     model.fit(X, y)
-
     return model, scores.mean()
 
 

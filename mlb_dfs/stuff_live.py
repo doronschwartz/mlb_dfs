@@ -25,6 +25,7 @@ _CACHE_DIR = os.environ.get("MLB_DFS_CACHE_DIR",
 _K_STUFF = 80.0            # shrink prior (pitches), same as stuff.py
 _LEAGUE_MEAN = 100.0
 _MIN_PITCHES = 150         # pitcher-level qualifier for the board
+SEASON_START = "2026-03-18"  # 2026 opening week — "from first game" season view
 
 # In-flight guard so two requests don't both compute the same window.
 _computing: set[str] = set()
@@ -72,6 +73,7 @@ def compute(start: str, end: str) -> dict:
     warnings.filterwarnings("ignore")
     from pybaseball import statcast
     from .stufflib import features as F, model as M
+    M.FAST = True   # skip CV + fewer trees — ~6× faster on the shared core
 
     t0 = time.time()
     df = statcast(start_dt=start, end_dt=end)

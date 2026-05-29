@@ -78,6 +78,13 @@ async def _prewarm_projections():
                 _refresh_accuracy_bg(7)
             except Exception as e:
                 _log.warning("accuracy pre-warm failed: %s", e)
+            # Pre-warm the "2026 season" live Stuff+ window so the default view
+            # is ready (it's the slow one — full-season pull + train).
+            try:
+                from . import stuff_live as _sl
+                _sl.compute_bg(_sl.SEASON_START, d.isoformat())
+            except Exception as e:
+                _log.warning("stuff_live season pre-warm failed: %s", e)
     threading.Thread(target=_warm, daemon=True).start()
 
 STATIC_DIR = Path(__file__).parent / "static"

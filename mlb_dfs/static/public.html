@@ -109,10 +109,11 @@
     <div class="ctrls" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--panel);">
       <b style="font-size:13px;">⚡ Live window:</b>
       <select id="stuff-window" style="font-size:13px;">
-        <option value="snapshot">Snapshot (instant)</option>
+        <option value="season">2026 season (live, from opening day)</option>
         <option value="14">Last 14 days (live)</option>
         <option value="30">Last 30 days (live)</option>
         <option value="60">Last 60 days (live)</option>
+        <option value="snapshot">Snapshot (instant, trailing-year)</option>
         <option value="custom">Custom range…</option>
       </select>
       <span id="stuff-custom" style="display:none;">
@@ -232,12 +233,13 @@ async function loadStuff(){
     return;
   }
   // live window
-  let start,end;
+  let start,end; const today=new Date().toISOString().slice(0,10);
   if(win==="custom"){ start=$("#stuff-start").value; end=$("#stuff-end").value;
     if(!start||!end){$("#stuff-live-status").textContent="pick a start and end date";return;}
+  } else if(win==="season"){ start="2026-03-18"; end=today;
   } else {
-    const e=new Date(); const s=new Date(Date.now()-parseInt(win,10)*864e5);
-    end=e.toISOString().slice(0,10); start=s.toISOString().slice(0,10);
+    const s=new Date(Date.now()-parseInt(win,10)*864e5);
+    end=today; start=s.toISOString().slice(0,10);
   }
   await fetchLive(start,end,mp);
 }
