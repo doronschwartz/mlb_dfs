@@ -3050,11 +3050,40 @@ def stuff_leaderboard(min_pitches: int = 150, limit: int = 400):
     return {
         "pitchers": lb, "league_mean": 100, "metric": "Stuff+",
         "as_of": stuff.snapshot_date(),
+        "coverage": stuff.snapshot_coverage(),
         "shrink_k": stuff._K_STUFF,
         "note": ("100 = league average; higher = nastier. Bayesian-shrunk toward "
                  "100 by pitches/(pitches+%d), then usage-weighted across pitch "
-                 "types. SNAPSHOT — not live; refreshed when the model re-runs." % int(stuff._K_STUFF)),
+                 "types. STATIC SNAPSHOT covering %s (a trailing ~12-month window, "
+                 "NOT 2026-only — so pitch counts include 2025). Not live."
+                 % (int(stuff._K_STUFF), stuff.snapshot_coverage())),
     }
+
+
+@app.get("/api/stuff/live")
+def stuff_live_endpoint(start: str, end: str, min_pitches: int = 150, limit: int = 400):
+    """Live, date-adjustable Stuff+ — runs JL's feature+model pipeline on
+    Statcast pulled for [start, end]. HEAVY: serves the cached window instantly,
+    else kicks a background compute (~3-5 min) and returns status=computing.
+    Window capped to protect the box."""
+    from . import stuff_live
+    try:
+        s = Date.fromisoformat(start); e = Date.fromisoformat(end)
+    except ValueError:
+        raise HTTPException(400, "start/end must be YYYY-MM-DD")
+    if e < s:
+        raise HTTPException(400, "end before start")
+    if (e - s).days > 120:
+        raise HTTPException(400, "window too wide (max 120 days) — pulls/trains would be too heavy")
+    res = stuff_live.cached(start, end)
+    if res:
+        pitchers = [p for p in res["pitchers"] if p["total_pitches"] >= min_pitches][:limit]
+        return {**{k: v for k, v in res.items() if k != "pitchers"}, "pitchers": pitchers,
+                "status": "ready"}
+    stuff_live.compute_bg(start, end)
+    return {"status": "computing", "start": start, "end": end,
+            "note": "Pulling Statcast + training models for this window (~3-5 min). "
+                    "Re-request shortly; the result is cached once ready."}
 
 
 @app.get("/api/affiliates")

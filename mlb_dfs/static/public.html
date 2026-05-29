@@ -106,6 +106,22 @@
         <br><br><b>Bayesian shrinkage (our add):</b> the raw model has no regression to the mean, so a 50-pitch sample looked as trustworthy as a 1,200-pitch one. We pull each pitch type's Stuff+ toward 100 by <code>pitches / (pitches + <span id="shrink-k">80</span>)</code>, then usage-weight the pitch types into one pitcher number. A 50-pitch read is ~38% regressed; a 240-pitch read ~25%. Toggle "raw" below to see the un-shrunk values.
       </div>
     </details>
+    <div class="ctrls" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--panel);">
+      <b style="font-size:13px;">⚡ Live window:</b>
+      <select id="stuff-window" style="font-size:13px;">
+        <option value="snapshot">Snapshot (instant)</option>
+        <option value="14">Last 14 days (live)</option>
+        <option value="30">Last 30 days (live)</option>
+        <option value="60">Last 60 days (live)</option>
+        <option value="custom">Custom range…</option>
+      </select>
+      <span id="stuff-custom" style="display:none;">
+        <input id="stuff-start" type="date" style="font-size:13px;">
+        <input id="stuff-end" type="date" style="font-size:13px;">
+        <button id="stuff-run" class="btn" style="padding:5px 12px;">Run</button>
+      </span>
+      <span class="muted" id="stuff-live-status" style="font-size:12px;"></span>
+    </div>
     <div class="ctrls">
       <input id="stuff-search" placeholder="Search pitcher…" style="width:200px;">
       <label class="muted" style="font-size:13px;">Min pitches
@@ -118,7 +134,7 @@
       <thead><tr><th>#</th><th>Pitcher</th><th>T</th><th class="num">Stuff+</th><th class="num">Pitches</th><th>Arsenal — each pitch vs his avg (click row)</th></tr></thead>
       <tbody id="stuff-body"><tr><td colspan="6" class="muted">Loading JL's leaderboard…</td></tr></tbody>
     </table></div>
-    <p class="muted" style="font-size:12px;margin-top:8px;">Stuff+ is a leading indicator — stabilizes faster than ERA, predicts future K-skill. <b>📸 Snapshot as of <span id="stuff-asof">—</span> — not live.</b> Refreshes when JL re-runs the pipeline on current data.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px;">Stuff+ is a leading indicator — stabilizes faster than ERA, predicts future K-skill. <b>📸 Static snapshot covering <span id="stuff-asof">—</span> — a trailing ~12-month window (includes 2025), NOT 2026-only, so pitch counts run higher than a season-to-date board. Not live yet.</b></p>
     <p class="muted" style="font-size:12px;margin-top:6px;">🧪 Stuff+ model © JL 2026. All rights reserved. Sample-size shrinkage + integration by the Diamond Model team.</p>
   </section>
 
@@ -200,15 +216,48 @@ function renderDyn(){
 }
 $("#dyn-search").oninput=renderDyn;
 
+let stuffPoll=null;
 async function loadStuff(){
   const mp=Math.max(0,parseInt($("#stuff-minp").value||"150",10));
-  try{const d=await(await fetch("/api/stuff?min_pitches="+mp)).json();
-    stuffCache=d.pitchers||[];
-    $("#stuff-asof").textContent=d.as_of||"—";
-    if(d.shrink_k) $("#shrink-k").textContent=d.shrink_k;
-    renderStuff();
-  }catch(e){$("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Leaderboard unavailable.</td></tr>';}
+  const win=$("#stuff-window").value;
+  $("#stuff-live-status").textContent="";
+  if(stuffPoll){clearTimeout(stuffPoll);stuffPoll=null;}
+  if(win==="snapshot"){
+    try{const d=await(await fetch("/api/stuff?min_pitches="+mp)).json();
+      stuffCache=d.pitchers||[];
+      $("#stuff-asof").textContent=(d.coverage||d.as_of||"—");
+      if(d.shrink_k) $("#shrink-k").textContent=d.shrink_k;
+      renderStuff();
+    }catch(e){$("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Leaderboard unavailable.</td></tr>';}
+    return;
+  }
+  // live window
+  let start,end;
+  if(win==="custom"){ start=$("#stuff-start").value; end=$("#stuff-end").value;
+    if(!start||!end){$("#stuff-live-status").textContent="pick a start and end date";return;}
+  } else {
+    const e=new Date(); const s=new Date(Date.now()-parseInt(win,10)*864e5);
+    end=e.toISOString().slice(0,10); start=s.toISOString().slice(0,10);
+  }
+  await fetchLive(start,end,mp);
 }
+async function fetchLive(start,end,mp){
+  try{
+    const d=await(await fetch(`/api/stuff/live?start=${start}&end=${end}&min_pitches=${mp}`)).json();
+    if(d.status==="computing"){
+      $("#stuff-live-status").innerHTML=`⏳ computing ${start} → ${end} (live Statcast pull + model train, ~3–5 min)… auto-refreshing`;
+      $("#stuff-body").innerHTML='<tr><td colspan="6" class="muted">Training models on live data for this window…</td></tr>';
+      stuffPoll=setTimeout(()=>fetchLive(start,end,mp),20000);
+      return;
+    }
+    stuffCache=d.pitchers||[];
+    $("#stuff-asof").textContent=`${d.start} → ${d.end} (LIVE)`;
+    $("#stuff-live-status").innerHTML=`✓ live: ${d.n_pitchers} pitchers, computed in ${d.compute_secs||"?"}s`;
+    renderStuff();
+  }catch(e){$("#stuff-live-status").textContent="live fetch failed: "+e.message;}
+}
+$("#stuff-window").onchange=()=>{ $("#stuff-custom").style.display=$("#stuff-window").value==="custom"?"inline":"none"; if($("#stuff-window").value!=="custom") loadStuff(); };
+$("#stuff-run").onclick=loadStuff;
 function renderStuff(){
   const q=($("#stuff-search").value||"").toLowerCase();
   const raw=$("#stuff-raw").checked;

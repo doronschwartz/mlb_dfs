@@ -40,4 +40,4 @@ primary_region = "iad"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "1gb"
+  memory = "2gb"  # 2GB: live Stuff+ pulls ~60k Statcast rows + trains XGBoost per pitch type

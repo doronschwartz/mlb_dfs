@@ -141,17 +141,23 @@ def stuff_for_pitcher(pitcher_id: int) -> float | None:
     return stuff_by_id().get(pitcher_id)
 
 
-# Data vintage of the current leaderboard snapshot — JL's pipeline run date,
-# NOT the file copy date (file mtime would falsely read "today"). The 2026
-# season is only captured THROUGH this date, so pitch counts lag the live
-# season (e.g. Chase Burns ~581 here vs more by now). Update when JL re-runs.
-_SNAPSHOT_AS_OF = "2026-04-14"
+# TRUE coverage of the snapshot, read from the underlying pitch dates:
+# 2025-04-01 → 2026-04-13. So it's a TRAILING ~12-month window (all of 2025 +
+# 2026 through Apr 13), NOT a 2026-season-to-date board — which is why pitch
+# counts look high for "2026" (Snell ~640, Burns ~581 span 2025 too) and why
+# it's ~6 weeks stale on the front. Update both when JL re-runs the pipeline.
+_SNAPSHOT_COVERAGE = "2025-04-01 → 2026-04-13"
+_SNAPSHOT_AS_OF = "2026-04-13"
 
 
 def snapshot_date() -> str:
-    """Data vintage of the snapshot (JL's run date). The board is a static
-    export — the season is only covered through this date, not live."""
+    """End of the snapshot's data window (last game date covered)."""
     return _SNAPSHOT_AS_OF
+
+
+def snapshot_coverage() -> str:
+    """Full date range the snapshot covers (trailing ~12 months, not 2026-only)."""
+    return _SNAPSHOT_COVERAGE
 
 
 def stuff_z(pitcher_id: int, cap: float = 2.0) -> float | None:
