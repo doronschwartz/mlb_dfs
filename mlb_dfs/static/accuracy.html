@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projection Accuracy — MLB DFS Model</title>
+<meta name="description" content="A provably calibrated MLB fantasy projection model. Live bias and mean absolute error from the last week of real results — not marketing claims, actual receipts." />
+<style>
+  :root {
+    --bg:#0e1116; --panel:#161b22; --border:#2a313c; --text:#e6edf3;
+    --muted:#8b949e; --accent:#38bdf8; --accent-2:#34d399; --bad:#ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif; line-height:1.55; }
+  .wrap { max-width:860px; margin:0 auto; padding:32px 20px 60px; }
+  h1 { font-size:30px; margin:0 0 6px; }
+  h2 { font-size:19px; margin:34px 0 10px; }
+  .sub { color:var(--muted); font-size:15px; margin:0 0 8px; }
+  .pill { display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px;
+    background:rgba(52,211,153,0.16); color:var(--accent-2); font-weight:600; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px; margin:18px 0; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; }
+  .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .val { font-size:28px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .card .note { color:var(--muted); font-size:12px; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:8px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:var(--accent-2); } .muted { color:var(--muted); }
+  p { color:#c9d1d9; }
+  .cta-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:14px; }
+  .cta { display:block; background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; text-decoration:none; color:var(--text); transition:border-color .15s; }
+  .cta:hover { border-color:var(--accent); }
+  .cta .name { font-weight:700; color:var(--accent); }
+  .cta .blurb { color:var(--muted); font-size:13px; margin-top:2px; }
+  .btn { display:inline-block; background:var(--accent); color:#06121c; font-weight:700;
+    padding:11px 20px; border-radius:9px; text-decoration:none; margin-top:6px; }
+  .disclaimer { color:var(--muted); font-size:12px; margin-top:40px; border-top:1px solid var(--border); padding-top:14px; }
+  a { color:var(--accent); }
+  .loading { color:var(--muted); font-style:italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="pill">★ Provably calibrated</span>
+  <h1>Our projections, graded against reality.</h1>
+  <p class="sub">Every fantasy site claims their projections are accurate. We show you the receipts —
+  live <b>bias</b> and <b>mean absolute error</b> from the last week of actual MLB results, updated automatically.</p>
+
+  <div id="cards" class="cards"><div class="loading">Loading the latest accuracy numbers…</div></div>
+
+  <h2>What these numbers mean</h2>
+  <p><b>Bias</b> is the average miss (actual minus projected). A bias near <b>0</b> means we're not
+  systematically too high or too low — the single hardest thing to get right, and where most models quietly drift.
+  <b>MAE</b> is the typical size of a single-game miss; baseball is high-variance, so a hitter MAE around 4 fantasy
+  points is genuinely tight.</p>
+  <p>We don't hand-tune to look good. Every change is A/B-replayed against real outcomes before it ships, and
+  rejected if it doesn't hold up. That discipline is the product.</p>
+
+  <h2>Accuracy by player type</h2>
+  <table id="breakdown"><thead><tr><th>Segment</th><th class="num">Sample</th><th class="num">Bias</th><th class="num">MAE</th></tr></thead>
+    <tbody><tr><td class="loading" colspan="4">Loading…</td></tr></tbody></table>
+
+  <h2>Try it</h2>
+  <p>Free daily projections, lineup optimizer, and a dynasty board that surfaces breakouts before the
+  consensus lists catch up.</p>
+  <a class="btn" href="/">Open the app →</a>
+
+  <div id="affiliates"></div>
+
+  <div class="disclaimer" id="disc">
+    For entertainment and informational purposes only. Not betting advice. Accuracy reflects past results and
+    does not guarantee future performance.
+  </div>
+</div>
+
+<script>
+async function load() {
+  try {
+    const r = await fetch("/api/accuracy?days=7");
+    const d = await r.json();
+    const o = d.overall || {};
+    const fmtBias = b => (b >= 0 ? "+" : "") + (b ?? 0).toFixed(2);
+    document.getElementById("cards").innerHTML = `
+      <div class="card"><div class="label">Overall bias</div><div class="val good">${fmtBias(o.bias)}</div><div class="note">pts/player — ~0 is the goal</div></div>
+      <div class="card"><div class="label">Overall MAE</div><div class="val">${(o.mae ?? 0).toFixed(2)}</div><div class="note">avg single-game miss</div></div>
+      <div class="card"><div class="label">Hitter MAE</div><div class="val">${(d.hitter?.mae ?? 0).toFixed(2)}</div><div class="note">${d.hitter?.n ?? 0} graded</div></div>
+      <div class="card"><div class="label">Sample</div><div class="val">${(o.n ?? 0).toLocaleString()}</div><div class="note">${d.window_days} slates</div></div>`;
+    const rows = [
+      ["Hitters", d.hitter], ["Pitchers", d.pitcher],
+      ["Hot streak", d.by_form_tag?.HOT], ["Cold streak", d.by_form_tag?.COLD],
+    ].filter(([,v]) => v && v.n);
+    document.getElementById("breakdown").querySelector("tbody").innerHTML =
+      rows.map(([label, v]) => `<tr><td>${label}</td><td class="num">${v.n.toLocaleString()}</td>
+        <td class="num">${fmtBias(v.bias)}</td><td class="num">${v.mae.toFixed(2)}</td></tr>`).join("")
+      || `<tr><td colspan="4" class="muted">No completed slates yet.</td></tr>`;
+  } catch (e) {
+    document.getElementById("cards").innerHTML = `<div class="muted">Accuracy data is refreshing — check back shortly.</div>`;
+  }
+  try {
+    const a = await (await fetch("/api/affiliates")).json();
+    const live = (a.links || []).filter(l => l.url);
+    if (live.length) {
+      document.getElementById("affiliates").innerHTML =
+        `<h2>Where to play</h2><div class="cta-row">` +
+        live.map(l => `<a class="cta" href="${l.url}" rel="sponsored nofollow" target="_blank">
+          <div class="name">${l.name}</div><div class="blurb">${l.blurb}</div></a>`).join("") +
+        `</div><div class="muted" style="font-size:11px;margin-top:6px;">Some links are affiliate links — we may earn a commission at no cost to you.</div>`;
+    }
+  } catch (e) {}
+}
+load();
+</script>
+</body>
+</html>

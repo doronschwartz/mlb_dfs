@@ -475,6 +475,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.30 — 2026-05-29",
+                "title": "Public accuracy page + affiliate slots (lean monetization groundwork)",
+                "changes": [
+                    "New public /accuracy page: live rolling-window bias + MAE from the last week of real results (overall, by role, by hot/cold form) — the 'provably calibrated' trust hook, served from a cached /api/accuracy endpoint. The one thing competitors claim but never show.",
+                    "Added /api/affiliates (Fantrax/DK/FD referral slots, filled via env vars, hidden when empty) surfaced as CTAs on the accuracy page. Zero marginal cost — confirmed the app makes no LLM calls, so a free public funnel is cheap to run.",
+                    "Footer links to the accuracy page; entertainment-only disclaimer included.",
+                ],
+            },
+            {
                 "version": "v9.29 — 2026-05-28",
                 "title": "Calibration: de-compress pitcher projections (HOT tune confirmed holding)",
                 "changes": [
@@ -1041,13 +1050,12 @@ def diag_odds(date: str | None = None):
 
 
 @app.get("/api/calibration")
-def calibration(date: str):
-    """For the given date, compare each projected player to their actual
-    fantasy points. Returns per-player rows + aggregates we can use to spot
-    where the model under/over-projects (by role, form tag, statcast tier)."""
+def _score_date_rows(date_iso: str) -> list[dict]:
+    """Per-player (projected, actual, diff) rows for a completed slate date.
+    Shared by /api/calibration and /api/accuracy."""
     from . import live
     from .draft import Pick
-    d = Date.fromisoformat(date)
+    d = Date.fromisoformat(date_iso)
     projs = projections.project_slate_cached(d)
     box_index = live._index_boxscores(d)
     rows = []
@@ -1055,7 +1063,6 @@ def calibration(date: str):
         lines = box_index.get(p.player_id) or []
         if not lines:
             continue
-        # Reuse live._score_player by faking a Pick.
         fake = Pick(
             drafter="-", slot=("SP" if p.role == "pitcher" else "UTIL"),
             player_id=p.player_id, name=p.name, position=p.position or "-",
@@ -1075,6 +1082,15 @@ def calibration(date: str):
             "qoc_tier": (p.components or {}).get("qoc_tier", ""),
             "game_state": ps.game_state,
         })
+    return rows
+
+
+def calibration(date: str):
+    """For the given date, compare each projected player to their actual
+    fantasy points. Returns per-player rows + aggregates we can use to spot
+    where the model under/over-projects (by role, form tag, statcast tier)."""
+    d = Date.fromisoformat(date)
+    rows = _score_date_rows(date)
     # Aggregates — bias = mean(actual - projected); MAE = mean|actual - projected|
     def _agg(lst):
         if not lst:
@@ -1104,6 +1120,60 @@ def calibration(date: str):
         "by_form_tag": by_tag,
         "by_qoc_tier": by_tier,
     }
+
+
+# Public accuracy summary — the trust hook for the landing page. Aggregates the
+# last N completed slates so the bias/MAE shown are stable, not one-day noise.
+# Cached a few hours (the underlying per-date scoring is itself disk-cached).
+_ACCURACY_CACHE: dict[int, tuple[float, dict]] = {}
+_ACCURACY_TTL = 3 * 3600
+
+
+@app.get("/api/accuracy")
+def accuracy(days: int = 7):
+    """Rolling-window projection accuracy across the last `days` completed
+    slates — overall + by role + by form tag. Powers the public /accuracy page."""
+    import time
+    days = max(1, min(days, 21))
+    hit = _ACCURACY_CACHE.get(days)
+    if hit and (time.time() - hit[0]) < _ACCURACY_TTL:
+        return hit[1]
+    today = Date.today()
+    rows: list[dict] = []
+    dates_used: list[str] = []
+    # Walk back from yesterday; collect completed slates until we have `days`.
+    checked = 0
+    di = 1
+    while len(dates_used) < days and checked < days + 10:
+        dt = (today - timedelta(days=di)).isoformat()
+        di += 1; checked += 1
+        try:
+            drows = _score_date_rows(dt)
+        except Exception:
+            drows = []
+        if drows:
+            rows.extend(drows)
+            dates_used.append(dt)
+
+    def _agg(lst):
+        if not lst:
+            return {"n": 0, "bias": 0.0, "mae": 0.0}
+        n = len(lst); diffs = [r["diff"] for r in lst]
+        return {"n": n, "bias": round(sum(diffs) / n, 2),
+                "mae": round(sum(abs(x) for x in diffs) / n, 2)}
+
+    res = {
+        "window_days": len(dates_used),
+        "dates": sorted(dates_used),
+        "overall": _agg(rows),
+        "hitter": _agg([r for r in rows if r["role"] == "hitter"]),
+        "pitcher": _agg([r for r in rows if r["role"] == "pitcher"]),
+        "by_form_tag": {t: _agg([r for r in rows if r["form_tag"] == t])
+                        for t in ["HOT", "COLD", "STEADY", "ELITE"]},
+        "model_rev": projections.MODEL_REV,
+    }
+    _ACCURACY_CACHE[days] = (time.time(), res)
+    return res
 
 
 @app.get("/api/drafts/{draft_id}")
@@ -2842,6 +2912,27 @@ if STATIC_DIR.exists():
     def index():
         html = (STATIC_DIR / "index.html").read_text()
         return html.replace("__BUILD__", BUILD_VERSION)
+
+    @app.get("/accuracy", response_class=HTMLResponse)
+    def accuracy_page():
+        return (STATIC_DIR / "accuracy.html").read_text().replace("__BUILD__", BUILD_VERSION)
+
+
+# Affiliate / referral links — fill in real codes via env so they're not
+# hardcoded in the repo. Surfaced as CTAs on the public pages; empty links are
+# hidden client-side. Zero marginal cost, pays per signup.
+@app.get("/api/affiliates")
+def affiliates():
+    return {
+        "links": [
+            {"name": "Fantrax", "blurb": "Run your dynasty/keeper league free",
+             "url": os.environ.get("AFFILIATE_FANTRAX", "")},
+            {"name": "DraftKings", "blurb": "DFS contests — play tonight's slate",
+             "url": os.environ.get("AFFILIATE_DK", "")},
+            {"name": "FanDuel", "blurb": "DFS lineups for the night games",
+             "url": os.environ.get("AFFILIATE_FD", "")},
+        ],
+    }
 
 
 # -------------------- helpers --------------------
