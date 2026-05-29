@@ -29,15 +29,52 @@ _CACHE_DIR = os.environ.get("MLB_DFS_CACHE_DIR",
 _PRECOMPUTED_DIR = os.path.join(os.path.dirname(__file__), "data", "stuff_live")
 
 
+# League-average whiff% by pitch type (whiffs / competitive pitches). Used by
+# the artifact guard below.
+_WHIFF_BASE = {"FF": 16.1, "SI": 8.9, "FC": 16.6, "SL": 25.6, "ST": 23.4,
+               "CU": 21.0, "KC": 26.2, "CH": 26.5, "FS": 30.1}
+
+
+def _apply_whiff_guard(board: list[dict]) -> list[dict]:
+    """Fix the extreme-arm-slot artifact: Stuff+ models extrapolate "elite" for
+    submariners / low-slot arms (Tyler Rogers' 83mph sinker rated 116 on a 7.3%
+    whiff) because their release geometry is out-of-distribution. A pitch can't
+    be ELITE stuff while missing few bats — so cap any pitch's Stuff+ at 103
+    when its whiff% is below league average for that type. High-whiff power
+    pitches (Misiorowski, Skenes) are untouched. Recomputes the usage-weighted
+    overall. Applied at serve time so it works on existing cached boards."""
+    ELITE_CAP = 103.0
+    out = []
+    for p in board:
+        num = den = 0.0
+        ars = []
+        for a in p.get("arsenal", []):
+            s = a["stuff"]; w = a.get("whiff_pct")
+            base = _WHIFF_BASE.get(a["pitch_type"], 14.0)
+            if s > ELITE_CAP and w is not None and w < base:
+                s = ELITE_CAP  # elite claim not backed by whiffs → cap
+            ars.append({**a, "stuff": round(s, 1)})
+            num += s * a["pitches"]; den += a["pitches"]
+        q = dict(p)
+        q["arsenal"] = ars
+        q["stuff"] = round(num / den, 1) if den else p["stuff"]
+        out.append(q)
+    out.sort(key=lambda x: -x["stuff"])
+    return out
+
+
 def load_window(name: str) -> dict | None:
-    """Serve a precomputed window leaderboard by name (season / 30d / 14d)."""
+    """Serve a precomputed window leaderboard by name (season / 30d / 14d),
+    with the extreme-arm-slot artifact guard applied."""
     if name not in ("season", "30d", "14d"):
         return None
     try:
         with open(os.path.join(_PRECOMPUTED_DIR, name + ".json")) as f:
-            return json.load(f)
+            res = json.load(f)
     except (OSError, ValueError):
         return None
+    res["pitchers"] = _apply_whiff_guard(res["pitchers"])
+    return res
 _K_STUFF = 80.0            # shrink prior (pitches), same as stuff.py
 _LEAGUE_MEAN = 100.0
 _MIN_PITCHES = 150         # pitcher-level qualifier for the board

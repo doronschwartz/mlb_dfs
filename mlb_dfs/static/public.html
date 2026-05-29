@@ -104,6 +104,7 @@
       <div style="font-size:13px;margin-top:6px;line-height:1.5;">
         Each pitch type is modeled separately (whiff / called-strike / weak-contact / GB / hard-hit probabilities → composite), normalized so 100 = league average.
         <br><br><b>Bayesian shrinkage (our add):</b> the raw model has no regression to the mean, so a 50-pitch sample looked as trustworthy as a 1,200-pitch one. We pull each pitch type's Stuff+ toward 100 by <code>pitches / (pitches + <span id="shrink-k">80</span>)</code>, then usage-weight the pitch types into one pitcher number. A 50-pitch read is ~38% regressed; a 240-pitch read ~25%. Toggle "raw" below to see the un-shrunk values.
+        <br><br><b>Extreme-arm-slot guard (our add):</b> Stuff+ models over-rate submariners / low-slot arms — their release geometry is out-of-distribution, so the model extrapolated "elite" for soft-tossers who miss no bats (Tyler Rogers' 83mph sinker rated 116 on a 7.3% whiff). We cap a pitch out of the elite tier when its whiff rate is below league average for that type — so you can't be the "nastiest pitch in baseball" while getting 7% swings-and-misses. Power arms that actually whiff are untouched.
       </div>
     </details>
     <div class="ctrls" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--panel);">
