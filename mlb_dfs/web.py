@@ -1088,7 +1088,6 @@ def diag_odds(date: str | None = None):
     return state
 
 
-@app.get("/api/calibration")
 def _score_date_rows(date_iso: str) -> list[dict]:
     """Per-player (projected, actual, diff) rows for a completed slate date.
     Shared by /api/calibration and /api/accuracy."""
@@ -1124,6 +1123,7 @@ def _score_date_rows(date_iso: str) -> list[dict]:
     return rows
 
 
+@app.get("/api/calibration")
 def calibration(date: str):
     """For the given date, compare each projected player to their actual
     fantasy points. Returns per-player rows + aggregates we can use to spot

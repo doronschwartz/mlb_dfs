@@ -33,7 +33,7 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date as Date
 
-from . import disk_cache, injuries, mlb_api, savant
+from . import disk_cache, injuries, mlb_api, savant, stuff
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _CSV = os.path.join(_DATA_DIR, "dynasty_top500.csv")
@@ -747,14 +747,24 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 continue
             kp = (ppct.get(pid) or {}).get("k")
             k_z = max(-2.0, min((kp - 50.0) / 25.0, 2.0)) if kp is not None else None
+            # JL's Stuff+ — process/pitch-quality skill. Most forward-looking
+            # input (stabilizes faster than outcome stats), two-directional:
+            # tempers over-performers (Schlittler 101 Stuff+ vs his shiny ERA)
+            # and rewards elite-stuff arms. None when not in JL's leaderboard.
+            stuff_z_val = stuff.stuff_z(pid) if pid else None
             zs = {
                 "xera": -_z(wm["xera"], *_PIT_BASE["xera"]) if wm["xera"] is not None else None,
                 "xwoba_against": -_z(wm["xwoba_against"], *_PIT_BASE["xwoba_against"]) if wm["xwoba_against"] is not None else None,
                 "barrel_allowed": -_z(wm["barrel_allowed"], *_PIT_BASE["barrel_allowed"]) if wm["barrel_allowed"] is not None else None,
                 "hardhit_allowed": -_z(wm["hardhit_allowed"], *_PIT_BASE["hardhit_allowed"]) if wm["hardhit_allowed"] is not None else None,
                 "k_rate": k_z,
+                "stuff": stuff_z_val,
             }
-            w = {"xera": 0.32, "xwoba_against": 0.20, "barrel_allowed": 0.14, "hardhit_allowed": 0.10, "k_rate": 0.24}
+            # Rebalanced toward PROCESS (k_rate + stuff = 0.48) vs OUTCOME
+            # (xera + xwoba = 0.52) per the Stuff+ thesis: process predicts
+            # the future better than results. Self-normalizes over present terms.
+            w = {"xera": 0.28, "xwoba_against": 0.18, "barrel_allowed": 0.12,
+                 "hardhit_allowed": 0.08, "k_rate": 0.20, "stuff": 0.24}
             num = sum(w[k] * zs[k] for k in w if zs[k] is not None)
             den = sum(w[k] for k in w if zs[k] is not None)
             if den <= 0 or not name:
@@ -769,6 +779,7 @@ def _skill_scores(season: int) -> dict[str, dict]:
                 "pa": int(cur_sample),
                 "total_pa": int(total_sample),
                 "multi_year": len([1 for v, _w in metrics["xera"] if v is not None]),
+                "stuff_plus": stuff.stuff_for_pitcher(pid) if pid else None,
             }
             out[_norm(name)] = {"role": "pitcher", "skill_z": round(num / den, 3),
                                 "comps": comps, "traj": round(traj, 3) if traj is not None else None}

@@ -119,10 +119,31 @@ def pitcher_leaderboard(min_pitches: int = 0) -> list[dict]:
     return _CACHE
 
 
+_BY_ID: dict[int, float] | None = None
+
+# Pitcher-level shrunk Stuff+ is ~N(100, 1.7) across the qualified pool; used to
+# z-score Stuff+ as a skill signal in the dynasty + projection models.
+_STUFF_MEAN = 100.0
+_STUFF_SD = 1.7
+
+
+def stuff_by_id() -> dict[int, float]:
+    """{mlb_pitcher_id: shrunk pitcher-level Stuff+}. Cached."""
+    global _BY_ID
+    if _BY_ID is None:
+        _BY_ID = {p["pitcher_id"]: p["stuff"] for p in pitcher_leaderboard()
+                  if p["pitcher_id"] is not None}
+    return _BY_ID
+
+
 def stuff_for_pitcher(pitcher_id: int) -> float | None:
-    """Overall shrunk Stuff+ for one MLB pitcher id, or None if not in the set.
-    This is the input our skill/projection models can consume."""
-    for p in pitcher_leaderboard():
-        if p["pitcher_id"] == pitcher_id:
-            return p["stuff"]
-    return None
+    """Overall shrunk Stuff+ for one MLB pitcher id, or None if not in the set."""
+    return stuff_by_id().get(pitcher_id)
+
+
+def stuff_z(pitcher_id: int, cap: float = 2.0) -> float | None:
+    """Stuff+ as a capped z-score (process-skill signal). None if not covered."""
+    v = stuff_by_id().get(pitcher_id)
+    if v is None:
+        return None
+    return max(-cap, min((v - _STUFF_MEAN) / _STUFF_SD, cap))
