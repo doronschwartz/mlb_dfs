@@ -1013,8 +1013,19 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     # baseline, then walk the age curve forward 6 seasons with a discount.
     # dynasty_score = Σ discounted future-year values. This is what makes a
     # 23yo worth more than a 31yo at the same current rank.
-    DISCOUNT = 0.90
+    #
+    # UNCERTAINTY-AWARE discount (JL): the farther out a projection is, the less
+    # certain it is, so it's worth less — and that's WORST for a player who
+    # hasn't faced MLB pitching. We key the discount rate to MLB exposure via
+    # the consensus level: a proven MLB bat keeps the standard 0.90/yr, while an
+    # A-ball prospect (least-certain future) discounts at 0.75/yr — so by year 6
+    # his value is ~0.18× vs the MLB guy's 0.59×. Geometric, so it compounds
+    # with distance exactly as JL described.
     HORIZON = 6
+    _DISCOUNT_BY_LEVEL = {"": 0.90, "MLB": 0.90, "AAA": 0.85, "AA": 0.81,
+                          "A+": 0.78, "A": 0.75, "RK": 0.73, "ROOKIE": 0.73,
+                          "CPX": 0.72, "DSL": 0.70}
+    DISCOUNT = _DISCOUNT_BY_LEVEL.get((cons.get("level") or "").strip().upper(), 0.90)
     curve: list[dict] = []
     cur_age_factor = _age_factor(age, role) if age else 1.0
     peak_value = base / max(cur_age_factor, 0.5)  # implied peak production value

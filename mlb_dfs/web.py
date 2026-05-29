@@ -510,6 +510,14 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "Dynasty v1.21 — 2026-05-29",
+                "title": "Uncertainty-aware future discount (the farther/less-proven, the less it's worth)",
+                "changes": [
+                    "Per JL: a projection further out is less certain — worth less — and that's worst for a player who hasn't faced MLB pitching. The 6-year value discount is now keyed to MLB exposure (consensus level): proven MLB keeps 0.90/yr, AAA 0.85, AA 0.81, A+ 0.78, A 0.75 — so by year 6 an A-ball prospect's value is ~0.18× vs a proven bat's 0.59×. Compounds with distance exactly as described.",
+                    "Effect: never-faced-MLB prospects drop toward market reality (Leodalis De Vries #13→#30; Jesús Made, Walcott down), and a debuted prospect (Roman Anthony, MLB) now ranks ABOVE the AA guys. Proven players (Elly, Judge, Skubal, Chourio) unchanged.",
+                ],
+            },
+            {
                 "version": "v9.32 — 2026-05-29",
                 "title": "JL's Stuff+ model on the public site (Bayesian-corrected)",
                 "changes": [

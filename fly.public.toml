@@ -16,14 +16,10 @@ primary_region = "iad"
 [env]
   PORT = "8080"
   PUBLIC_MODE = "true"
-  # Persist the projection/Statcast/dynasty disk caches like the private app,
-  # so the public site computes a slate once and serves it fast thereafter
-  # (instead of recomputing from scratch every cold start).
-  MLB_DFS_CACHE_DIR = "/data/cache"
-
-[[mounts]]
-  source = "pubcache"
-  destination = "/data"
+  # NOTE: no disk-cache volume — a single warm machine (min_machines_running=1)
+  # keeps the in-memory projection/dynasty/accuracy caches resident, which is
+  # enough. (A persistent volume fought the single-machine rolling deploy; the
+  # warm machine + accuracy snapshot already eliminate the cold-compute 502s.)
 
 [http_service]
   internal_port = 8080
