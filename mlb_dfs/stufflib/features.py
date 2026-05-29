@@ -102,6 +102,11 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # -------------------------------------------------------------
     # Keep relevant pitch outcomes
     # -------------------------------------------------------------
+    # v2 (JL): include BALLS so the model is stuff+COMMAND, not pure stuff.
+    # A ball is an all-negative event (no whiff / called strike / in-play), so
+    # pitches a pitcher throws out of the zone count against his score. Also
+    # means the per-type count threshold is on ALL pitches (fixes secondary
+    # pitches like Rogers' slider getting dropped on a low competitive count).
     valid_events = {
         "swinging_strike",
         "swinging_strike_blocked",
@@ -109,6 +114,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "foul_tip",
         "hit_into_play",
         "called_strike",
+        "ball",
+        "blocked_ball",
     }
 
     df = df[df["description"].isin(valid_events)].copy()
