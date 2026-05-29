@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- BRAND: rename "Diamond Model" everywhere to your chosen name. -->
+<title>Diamond Model — MLB Projections & Dynasty Rankings</title>
+<meta name="description" content="A provably calibrated MLB projection model + data-driven dynasty rankings with live minor-league breakout detection. See the accuracy receipts." />
+<style>
+  :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c2330;--border:#2a313c;--text:#e6edf3;
+    --muted:#8b949e;--accent:#38bdf8;--accent2:#34d399;--bad:#ef4444;}
+  *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;line-height:1.5;}
+  header{border-bottom:1px solid var(--border);padding:14px 20px;display:flex;
+    align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .brand{font-size:20px;font-weight:800;} .brand small{color:var(--muted);font-weight:400;font-size:13px;}
+  nav{display:flex;gap:6px;flex-wrap:wrap;}
+  nav button{background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:7px 13px;border-radius:8px;cursor:pointer;font-size:14px;}
+  nav button.active{background:var(--accent);color:#06121c;font-weight:700;border-color:var(--accent);}
+  .wrap{max-width:980px;margin:0 auto;padding:20px;}
+  .hero{padding:8px 0 16px;} .hero h1{font-size:26px;margin:0 0 6px;}
+  .hero p{color:#c9d1d9;margin:0;} .pill{display:inline-block;font-size:12px;padding:3px 9px;
+    border-radius:999px;background:rgba(52,211,153,.16);color:var(--accent2);font-weight:600;margin-bottom:8px;}
+  .accuracy-strip{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0;padding:12px 14px;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;}
+  .accuracy-strip .m{font-size:13px;color:var(--muted);} .accuracy-strip .m b{color:var(--text);font-size:17px;}
+  .tab{display:none;} .tab.active{display:block;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em;cursor:default;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .scroll{max-height:64vh;overflow-y:auto;border:1px solid var(--border);border-radius:9px;}
+  .scroll thead th{position:sticky;top:0;background:var(--panel);z-index:2;}
+  input,textarea,select{background:var(--panel);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:7px 9px;font-size:14px;font-family:inherit;}
+  .ctrls{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center;}
+  .btn{background:var(--accent);color:#06121c;font-weight:700;border:none;border-radius:8px;
+    padding:9px 16px;cursor:pointer;font-size:14px;}
+  .muted{color:var(--muted);} .good{color:var(--accent2);} .bad{color:var(--bad);}
+  .edge-pos{color:var(--accent2);} .edge-neg{color:var(--bad);}
+  .cta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:16px 0;}
+  .cta{display:block;background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:12px 14px;text-decoration:none;color:var(--text);} .cta:hover{border-color:var(--accent);}
+  .cta .n{font-weight:700;color:var(--accent);} .cta .b{color:var(--muted);font-size:12.5px;margin-top:2px;}
+  .trade-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start;}
+  .disclaimer{color:var(--muted);font-size:12px;margin:34px 0 10px;border-top:1px solid var(--border);padding-top:12px;}
+  a{color:var(--accent);}
+  @media(max-width:640px){.trade-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">⚾ Diamond Model <small>— MLB projections & dynasty</small></div>
+  <nav>
+    <button data-tab="proj" class="active">Projections</button>
+    <button data-tab="dyn">Dynasty</button>
+    <button data-tab="trade">Trade Analyzer</button>
+    <button onclick="location.href='/accuracy'">📊 Accuracy</button>
+  </nav>
+</header>
+<div class="wrap">
+  <div class="hero">
+    <span class="pill">★ Provably calibrated</span>
+    <h1>Projections graded against reality — and a dynasty board that finds breakouts early.</h1>
+    <p>Daily MLB projections from a model we A/B-test against real outcomes, plus data-driven dynasty rankings with live minor-league breakout detection. <a href="/accuracy">See the accuracy receipts →</a></p>
+  </div>
+  <div class="accuracy-strip" id="acc-strip"><span class="muted">Loading accuracy…</span></div>
+
+  <!-- PROJECTIONS -->
+  <section class="tab active" id="tab-proj">
+    <div class="ctrls">
+      <input id="proj-search" placeholder="Search player…" style="width:220px;">
+      <select id="proj-role"><option value="all">All</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
+      <span class="muted" id="proj-meta"></span>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="num">Proj (pts)</th></tr></thead>
+      <tbody id="proj-body"><tr><td colspan="4" class="muted">Loading today's slate…</td></tr></tbody>
+    </table></div>
+    <p class="muted" style="font-size:12px;margin-top:8px;">Projections use our scoring model. For DraftKings/FanDuel exact scoring, treat as relative rankings.</p>
+  </section>
+
+  <!-- DYNASTY -->
+  <section class="tab" id="tab-dyn">
+    <div class="ctrls">
+      <input id="dyn-search" placeholder="Search player…" style="width:220px;">
+      <span class="muted">Our rank vs market consensus. ▲ = we're higher than the market.</span>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="num">Age</th><th class="num">Dyn value</th><th class="num">Consensus</th><th class="num">Δ</th></tr></thead>
+      <tbody id="dyn-body"><tr><td colspan="7" class="muted">Loading dynasty board…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <!-- TRADE -->
+  <section class="tab" id="tab-trade">
+    <p class="muted">Paste players (one per line) on each side. Non-additive package value + a fairness verdict + balancer suggestions.</p>
+    <div class="trade-grid">
+      <div><div class="muted" style="font-size:12px;margin-bottom:3px;">Side A gives</div>
+        <textarea id="ta" rows="5" style="width:100%;" placeholder="Elly De La Cruz"></textarea></div>
+      <div style="align-self:center;font-weight:700;color:var(--muted);">⇄</div>
+      <div><div class="muted" style="font-size:12px;margin-bottom:3px;">Side B gives</div>
+        <textarea id="tb" rows="5" style="width:100%;" placeholder="Aaron Judge&#10;Cal Raleigh"></textarea></div>
+    </div>
+    <div style="margin-top:10px;"><button class="btn" id="trade-go">Evaluate trade</button></div>
+    <div id="trade-out" style="margin-top:12px;"></div>
+  </section>
+
+  <div id="affiliates"></div>
+  <div class="disclaimer">For entertainment and informational purposes only. Not betting advice. Some outbound links may be affiliate links — we may earn a commission at no cost to you.</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+let projCache=[], dynCache=[];
+$$("nav button[data-tab]").forEach(b=>b.onclick=()=>{
+  $$("nav button[data-tab]").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  $$(".tab").forEach(t=>t.classList.remove("active"));
+  $("#tab-"+b.dataset.tab).classList.add("active");
+  if(b.dataset.tab==="dyn"&&!dynCache.length) loadDyn();
+});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function loadAcc(){
+  try{const d=await(await fetch("/api/accuracy?days=7")).json();const o=d.overall||{};
+    const fb=b=>(b>=0?"+":"")+(b??0).toFixed(2);
+    $("#acc-strip").innerHTML=
+      `<div class="m">Overall bias <b class="good">${fb(o.bias)}</b></div>
+       <div class="m">Overall MAE <b>${(o.mae??0).toFixed(2)}</b></div>
+       <div class="m">Hitter MAE <b>${(d.hitter?.mae??0).toFixed(2)}</b></div>
+       <div class="m">Graded <b>${(o.n??0).toLocaleString()}</b> over ${d.window_days} slates</div>
+       <div class="m"><a href="/accuracy">full report →</a></div>`;
+  }catch(e){$("#acc-strip").innerHTML='<span class="muted">Accuracy refreshing…</span>';}
+}
+async function loadProj(){
+  try{const d=await(await fetch("/api/projections")).json();
+    projCache=(d.projections||[]).filter(p=>p.projected_points!=null)
+      .sort((a,b)=>b.projected_points-a.projected_points);
+    $("#proj-meta").textContent=d.date+" · "+projCache.length+" players";
+    renderProj();
+  }catch(e){$("#proj-body").innerHTML='<tr><td colspan="4" class="muted">No slate yet today.</td></tr>';}
+}
+function renderProj(){
+  const q=($("#proj-search").value||"").toLowerCase(), role=$("#proj-role").value;
+  const rows=projCache.filter(p=>(role==="all"||p.role===role)&&(!q||p.name.toLowerCase().includes(q))).slice(0,300);
+  $("#proj-body").innerHTML=rows.map((p,i)=>`<tr><td class="muted">${i+1}</td>
+    <td>${esc(p.name)}</td><td>${esc(p.position||p.role||"")}</td>
+    <td class="num"><b>${p.projected_points.toFixed(2)}</b></td></tr>`).join("")
+    ||'<tr><td colspan="4" class="muted">No matches.</td></tr>';
+}
+$("#proj-search").oninput=renderProj; $("#proj-role").onchange=renderProj;
+
+async function loadDyn(){
+  try{const d=await(await fetch("/api/dynasty/rankings?limit=500")).json();
+    dynCache=d.rankings||[]; renderDyn();
+  }catch(e){$("#dyn-body").innerHTML='<tr><td colspan="7" class="muted">Board refreshing…</td></tr>';}
+}
+function renderDyn(){
+  const q=($("#dyn-search").value||"").toLowerCase();
+  const rows=dynCache.filter(v=>!q||v.name.toLowerCase().includes(q)).slice(0,500);
+  $("#dyn-body").innerHTML=rows.map(v=>{
+    const dd=v.rank_delta, ds=dd===0?"—":(dd>0?"▲"+dd:"▼"+(-dd)), dc=dd>0?"edge-pos":dd<0?"edge-neg":"muted";
+    return `<tr><td><b>${v.our_rank}</b></td><td>${esc(v.name)}</td><td>${esc(v.pos)}</td>
+      <td class="num">${v.age??"?"}</td><td class="num"><b>${v.dynasty_score.toFixed(0)}</b></td>
+      <td class="num muted">#${v.consensus_rank}</td><td class="num ${dc}">${ds}</td></tr>`;
+  }).join("")||'<tr><td colspan="7" class="muted">No matches.</td></tr>';
+}
+$("#dyn-search").oninput=renderDyn;
+
+$("#trade-go").onclick=async()=>{
+  const parse=id=>($(id).value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  const a=parse("#ta"),b=parse("#tb");
+  if(!a.length||!b.length){$("#trade-out").innerHTML='<span class="muted">Add at least one player to each side.</span>';return;}
+  $("#trade-out").innerHTML='<span class="muted">Evaluating…</span>';
+  try{
+    const r=await(await fetch("/api/dynasty/trade",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({side_a:a,side_b:b})})).json();
+    const side=(L,s)=>`<div><b>Side ${L}</b> — total <b>${s.total.toFixed(0)}</b>${s.avg_age?` · avg age ${s.avg_age}`:""}
+      <ul style="margin:4px 0 0 16px;font-size:13px;">${s.players.map(p=>`<li>${esc(p.name)} <span class="muted">(${esc(p.pos)}, ${p.age??"?"}) — ${p.dynasty_score.toFixed(0)}</span></li>`).join("")}</ul>
+      ${s.missing.length?`<div class="muted" style="font-size:11px;">⚠ not in top-500: ${s.missing.map(esc).join(", ")}</div>`:""}</div>`;
+    const bal=r.balancer;
+    const balHtml=bal&&bal.suggestions&&bal.suggestions.length?
+      `<div style="margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:var(--panel2);">
+        <b>⚖️ To even it:</b> side ${bal.side_to_add} adds ~<b>${bal.gap.toFixed(0)}</b> of value. Closest fits:
+        <ul style="margin:5px 0 0 16px;font-size:13px;">${bal.suggestions.map(s=>`<li><b>${esc(s.name)}</b> <span class="muted">(${esc(s.pos)}, ${s.age??"?"}) — ${s.dynasty_score.toFixed(0)}</span></li>`).join("")}</ul></div>`:"";
+    $("#trade-out").innerHTML=`<div style="font-size:16px;font-weight:700;margin-bottom:6px;">${esc(r.verdict)} <span class="muted" style="font-weight:400;font-size:12px;">(gap ${Math.abs(r.diff).toFixed(0)})</span></div>
+      <div class="trade-grid"><div>${side("A",r.side_a)}</div><div></div><div>${side("B",r.side_b)}</div></div>
+      ${(r.context||[]).length?`<ul class="muted" style="margin:8px 0 0 16px;font-size:12px;">${r.context.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}${balHtml}`;
+  }catch(e){$("#trade-out").innerHTML='<span class="muted">Trade eval failed — try full names.</span>';}
+};
+
+async function loadAff(){
+  try{const a=await(await fetch("/api/affiliates")).json();const live=(a.links||[]).filter(l=>l.url);
+    if(live.length) $("#affiliates").innerHTML=`<h3 style="margin:18px 0 6px;">Where to play</h3>
+      <div class="cta-row">${live.map(l=>`<a class="cta" href="${esc(l.url)}" rel="sponsored nofollow" target="_blank"><div class="n">${esc(l.name)}</div><div class="b">${esc(l.blurb)}</div></a>`).join("")}</div>`;
+  }catch(e){}
+}
+loadAcc(); loadProj(); loadAff();
+</script>
+</body>
+</html>

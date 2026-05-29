@@ -28,6 +28,28 @@ from . import fantrax, mlb_api, notify, odds_api, projections, umpires, weather 
 
 app = FastAPI(title="MLB DFS", version="0.1.0")
 
+# PUBLIC_MODE: when set, this deploy is the PUBLIC product site — it serves the
+# public landing/projections/dynasty frontend and BLOCKS the private league
+# tooling (drafts, Fantrax sync, trivia, league pickups) so the boys' tool
+# isn't exposed. Same codebase + engine, separate Fly app + domain.
+PUBLIC_MODE = os.environ.get("PUBLIC_MODE", "").lower() in ("1", "true", "yes")
+
+# Path prefixes that are private (league tool) — 404'd in PUBLIC_MODE.
+_PRIVATE_PREFIXES = ("/api/drafts", "/api/fantrax", "/api/trivia", "/api/lineup",
+                     "/api/dynasty/pickups", "/api/records", "/api/lineups",
+                     "/api/schedule", "/api/diag")
+
+
+@app.middleware("http")
+async def _gate_private(request, call_next):
+    if PUBLIC_MODE:
+        path = request.url.path
+        if any(path == p or path.startswith(p + "/") or path.startswith(p + "?")
+               for p in _PRIVATE_PREFIXES):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "not available"}, status_code=404)
+    return await call_next(request)
+
 
 @app.on_event("startup")
 async def _prewarm_projections():
@@ -474,6 +496,14 @@ def get_changelog():
     return {
         "current": projections.MODEL_REV,
         "entries": [
+            {
+                "version": "v9.31 — 2026-05-29",
+                "title": "PUBLIC_MODE — separate public product site (same engine)",
+                "changes": [
+                    "New PUBLIC_MODE deploy: same codebase/engine, but serves a public product frontend (projections + dynasty board + trade analyzer + accuracy) and BLOCKS the private league tooling (drafts, Fantrax sync, trivia, league pickups) via middleware — so the boys' tool isn't exposed. Ships as a second Fly app (fly.public.toml) on its own domain; the private deploy is unchanged (flag defaults off).",
+                    "Public site (static public.html) is self-contained and read-only against the public API endpoints; affiliate CTAs light up once the AFFILIATE_* secrets are set.",
+                ],
+            },
             {
                 "version": "v9.30 — 2026-05-29",
                 "title": "Public accuracy page + affiliate slots (lean monetization groundwork)",
@@ -2910,12 +2940,24 @@ if STATIC_DIR.exists():
 
     @app.get("/", response_class=HTMLResponse)
     def index():
-        html = (STATIC_DIR / "index.html").read_text()
+        # Public deploy serves the product site; private deploy serves the
+        # league tool. Same engine + API underneath.
+        fname = "public.html" if PUBLIC_MODE else "index.html"
+        html = (STATIC_DIR / fname).read_text()
         return html.replace("__BUILD__", BUILD_VERSION)
 
     @app.get("/accuracy", response_class=HTMLResponse)
     def accuracy_page():
         return (STATIC_DIR / "accuracy.html").read_text().replace("__BUILD__", BUILD_VERSION)
+
+    # The league tool stays reachable on the public deploy at an unlinked path
+    # (so the boys can still use one URL if they want), but it's not advertised.
+    @app.get("/app", response_class=HTMLResponse)
+    def app_page():
+        if PUBLIC_MODE:
+            from fastapi import HTTPException as _H
+            raise _H(404, "not available")
+        return (STATIC_DIR / "index.html").read_text().replace("__BUILD__", BUILD_VERSION)
 
 
 # Affiliate / referral links — fill in real codes via env so they're not

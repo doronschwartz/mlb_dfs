@@ -1,0 +1,38 @@
+# Public product deploy — same image/engine as the private league app, but
+# PUBLIC_MODE hides the league tooling (drafts/Fantrax/trivia) and serves the
+# public projections + dynasty + accuracy site.
+#
+# Deploy:   flyctl deploy -c fly.public.toml
+# First time, create the app + set secrets:
+#   flyctl apps create mlb-dfs-public
+#   flyctl secrets set -a mlb-dfs-public ODDS_API_KEY=... \
+#       AFFILIATE_FANTRAX=... AFFILIATE_DK=... AFFILIATE_FD=...
+# Point a domain:  flyctl certs add -a mlb-dfs-public yourdomain.com
+app = "mlb-dfs-public"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "8080"
+  PUBLIC_MODE = "true"
+
+# No drafts volume — the public site has no league tooling to persist.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/api/health"
+  timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
