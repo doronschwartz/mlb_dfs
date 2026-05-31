@@ -75,6 +75,14 @@ _PIT_SPREAD_K = 1.25
 # re-audit before going further (HOT is high-variance).
 _HOT_HITTER_BOOST = 1.13
 
+# COLD-pitcher post-matchup shrink. Recurring high-σ over-projection (cold
+# starters implode worse than the chain implies) — progressively tightened
+# 0.80→0.70→0.65→0.55; 6-day audit still shows COLD pitcher bias -4.04 (4.2σ).
+# A/B-tunable here. v9.33: 0.55→0.38 after a 5-day A/B (monotonic, no overshoot)
+# — COLD bias -3.79→-2.24, COLD MAE 5.13→4.60, overall pitcher bias -1.42→-1.10.
+# (0.30 tested even better; left margin on this high-variance bucket.)
+_COLD_PITCHER_SHRINK = 0.38
+
 # Streak-override recency weight (HOT/COLD hitters): base = w*L3 + (1-w)*weighted.
 # JL flagged daily projections may over-weight recent form — A/B-tunable here.
 _STREAK_W = 0.85
@@ -1145,9 +1153,9 @@ def project_pitcher(
         # projecting ~5.2, scoring ~1.1. Each multiplicative step closes
         # less because the chain below the multiplier dominates, but the
         # direction is unambiguous and the sample is solid. v9.16 → ×0.55.
-        hot_cold_factor = 0.55
+        hot_cold_factor = _COLD_PITCHER_SHRINK
         proj *= hot_cold_factor
-        notes.append("COLD post-matchup shrink x0.55 (close residual -3.96)")
+        notes.append(f"COLD post-matchup shrink x{_COLD_PITCHER_SHRINK} (recurring over-projection)")
     elif form_tag == "HOT":
         hot_cold_factor = 1.05
         proj *= hot_cold_factor
@@ -1854,7 +1862,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-28-v9.29" # pitcher de-compression (pivot 9, k 1.25): MAE 6.44->6.24
+MODEL_REV = "2026-05-31-v9.33" # COLD pitcher shrink 0.55->0.38 (A/B: COLD bias -3.79->-2.24, no overshoot)
 
 
 def _proj_disk_path(key: tuple) -> str:

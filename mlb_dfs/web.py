@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.33 — 2026-05-31",
+                "title": "Calibration: tighten COLD-pitcher shrink (recurring over-projection)",
+                "changes": [
+                    "6-day audit: model calibrated overall (-0.10) and hitters perfect (-0.01). Only real, recurring signal: COLD starters still over-projected -4.04 (4.2σ) — they implode worse than the chain implies, and the shrink has been progressively tightened for exactly this (0.80→0.70→0.65→0.55). 5-day A/B was monotonic + overshoot-free; tightened the COLD post-matchup shrink 0.55→0.38 (COLD bias -3.79→-2.24, COLD MAE 5.13→4.60, overall pitcher bias -1.42→-1.10). The borderline ELITE/SOLID-QoC pitcher tilt (~2σ, small high-variance buckets) was left alone as likely a noisy week — not tuned on noise.",
+                ],
+            },
+            {
                 "version": "Dynasty v1.21 — 2026-05-29",
                 "title": "Uncertainty-aware future discount (the farther/less-proven, the less it's worth)",
                 "changes": [
