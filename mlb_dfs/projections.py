@@ -884,7 +884,7 @@ def project_hitter(
             "opp_abbr": opp_abbr,
             "opp_sp_name": opp_sp_name,
             "is_home": is_home,
-            "injury": injuries.lookup(name),
+            "injury": injuries.lookup(name, _TEAM_FULLNAME.get(team_id)),
         },
         notes=notes,
     )
@@ -1290,7 +1290,7 @@ def project_pitcher(
             "point_decomp": _point_decomp_pitcher(rolling_events, proj) if rolling_events else None,
             "opp_abbr": opp_abbr,
             "is_home": is_home,
-            "injury": injuries.lookup(name),
+            "injury": injuries.lookup(name, _TEAM_FULLNAME.get(team_id)),
         },
         notes=notes,
     )

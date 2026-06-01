@@ -46,14 +46,16 @@ def _fetch_raw() -> dict:
         return json.loads(r.read())
 
 
-def league_injuries() -> dict[str, dict]:
-    """Returns {normalized_player_name: {status, type, return_date, comment, team_name}}.
-    Empty dict on failure (don't break projections if ESPN is down)."""
+def league_injuries() -> dict[str, list[dict]]:
+    """Returns {normalized_player_name: [records]}. A LIST per name so two
+    players who share a name (e.g. Max Muncy — Dodgers 3B, healthy, vs the A's
+    infielder on the IL) don't overwrite each other; lookup() disambiguates by
+    team. Empty dict on failure (don't break projections if ESPN is down)."""
     cached = _MEM_CACHE.get("all")
     now = time.time()
     if cached and (now - cached[0]) < _TTL_SEC:
         return cached[1]
-    out: dict[str, dict] = {}
+    out: dict[str, list[dict]] = {}
     try:
         data = _fetch_raw()
     except Exception as e:
@@ -67,7 +69,7 @@ def league_injuries() -> dict[str, dict]:
             if not name:
                 continue
             details = inj.get("details", {}) or {}
-            out[_norm(name)] = {
+            out.setdefault(_norm(name), []).append({
                 "status": inj.get("status", ""),         # "Day-To-Day" | "10-Day-IL" | "15-Day-IL" | "60-Day-IL" | ...
                 "type": details.get("type", ""),          # "Hand" / "Quadriceps" / "Oblique" / ...
                 "side": details.get("side", ""),
@@ -75,17 +77,59 @@ def league_injuries() -> dict[str, dict]:
                 "comment": (inj.get("shortComment") or "")[:280],
                 "team_name": team_name,
                 "as_of": inj.get("date", ""),
-            }
+            })
     _MEM_CACHE["all"] = (now, out)
     return out
 
 
-def lookup(name: str) -> dict | None:
-    """Returns the injury record for a player by name, or None if healthy
-    (or unknown to ESPN — same thing from our perspective)."""
+# Team abbreviation → ESPN full display name, so a caller that only has the
+# abbr (dynasty) can still disambiguate a name collision.
+_ABBR2FULL = {
+    "LAA": "Los Angeles Angels", "AZ": "Arizona Diamondbacks", "ARI": "Arizona Diamondbacks",
+    "BAL": "Baltimore Orioles", "BOS": "Boston Red Sox", "CHC": "Chicago Cubs",
+    "CIN": "Cincinnati Reds", "CLE": "Cleveland Guardians", "COL": "Colorado Rockies",
+    "DET": "Detroit Tigers", "HOU": "Houston Astros", "KC": "Kansas City Royals",
+    "LAD": "Los Angeles Dodgers", "WSH": "Washington Nationals", "WSN": "Washington Nationals",
+    "NYM": "New York Mets", "ATH": "Athletics", "OAK": "Athletics", "PIT": "Pittsburgh Pirates",
+    "SD": "San Diego Padres", "SDP": "San Diego Padres", "SEA": "Seattle Mariners",
+    "SF": "San Francisco Giants", "SFG": "San Francisco Giants", "STL": "St. Louis Cardinals",
+    "TB": "Tampa Bay Rays", "TBR": "Tampa Bay Rays", "TEX": "Texas Rangers",
+    "TOR": "Toronto Blue Jays", "MIN": "Minnesota Twins", "PHI": "Philadelphia Phillies",
+    "ATL": "Atlanta Braves", "CWS": "Chicago White Sox", "CHW": "Chicago White Sox",
+    "MIA": "Miami Marlins", "NYY": "New York Yankees", "MIL": "Milwaukee Brewers",
+}
+
+
+def _team_matches(want: str, record_team: str) -> bool:
+    """Loose team match: accepts a full name OR an abbreviation."""
+    if not want:
+        return False
+    w = want.strip()
+    full = _ABBR2FULL.get(w.upper(), w)          # abbr → full if known
+    rt = (record_team or "").lower()
+    return full.lower() == rt or full.lower() in rt or rt in full.lower()
+
+
+def lookup(name: str, team: str | None = None) -> dict | None:
+    """Injury record for a player, or None if healthy/unknown. When a name maps
+    to MULTIPLE injured players (Max Muncy), `team` (full name or abbr)
+    disambiguates; without a team match we return None rather than risk pinning
+    the wrong player's IL stint on someone (the Dodgers' Max Muncy is healthy)."""
     if not name:
         return None
-    return league_injuries().get(_norm(name))
+    recs = league_injuries().get(_norm(name))
+    if not recs:
+        return None
+    # When we know the team, REQUIRE a match — even for a single record. This is
+    # the Max Muncy case: only the A's Muncy is on the IL (one record), so a
+    # Dodgers-Muncy lookup must NOT inherit it. A non-match → healthy/unknown.
+    if team:
+        for r in recs:
+            if _team_matches(team, r.get("team_name", "")):
+                return r
+        return None
+    # No team to disambiguate: safe only if the name is unique in the feed.
+    return recs[0] if len(recs) == 1 else None
 
 
 # Status → short badge label used in the UI.

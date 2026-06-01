@@ -824,14 +824,15 @@ _PROSPECT_RISK = {
 }
 
 
-def _injury_factor(name: str, role: str) -> tuple[float, str]:
+def _injury_factor(name: str, role: str, team: str | None = None) -> tuple[float, str]:
     """Dynasty injury-risk discount. We don't have multi-year IL history, but
     the ESPN feed's CURRENT status is a reasonable proxy: a guy on the 60-day
     IL right now carries real dynasty risk, a day-to-day tweak almost none.
     Pitchers carry a small standing arm-risk haircut on top (TJ attrition) —
-    kept light since the steeper pitcher age curve already prices some of it."""
+    kept light since the steeper pitcher age curve already prices some of it.
+    `team` disambiguates same-name players (Max Muncy)."""
     mult, note = 1.0, ""
-    rec = injuries.lookup(name)
+    rec = injuries.lookup(name, team)
     if rec:
         s = (rec.get("status") or "").lower()
         typ = rec.get("type") or ""
@@ -973,7 +974,7 @@ def dynasty_value(nname: str, season: int) -> dict | None:
     pos_mult = _pos_scarcity(cons["pos"])
     luck = _statcast_luck(season).get(nname)
     luck_mult, luck_note = _luck_multiplier(luck, role)
-    inj_mult, inj_note = _injury_factor(cons["name"], role)
+    inj_mult, inj_note = _injury_factor(cons["name"], role, cons.get("team"))
     dur = _durability(season).get(nname)
     dur_mult = dur["mult"] if dur else 1.0
     dur_note = dur["note"] if dur else ""
