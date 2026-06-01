@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.34 — 2026-05-31",
+                "title": "Calibration: trim ELITE/SOLID-QoC pitchers (good-stuff tiers ran hot)",
+                "changes": [
+                    "Rolling audit through Sunday (n=1,848): v9.33 held (COLD pitchers -4.04→-2.27), hitters clean. The confirmed signal — good-QoC pitcher tiers over-projected: SOLID -1.53 (4.5σ, n=268), ELITE -0.67 (2.3σ). Their elite xERA/barrel anchors run the chain hot (the mirror of the v9.20 AVERAGE/POOR lift). A/B (n=159) was monotonic + overshoot-free: trim improves overall pitcher bias (-0.76→) and MAE. Shipped SOLID ×0.93, ELITE ×0.97 (ELITE light — its A/B sweet spot; harder overshoots it positive). Held off last audit because the signal was on overlapping windows; including Sunday + more days confirmed it independently.",
+                ],
+            },
+            {
                 "version": "v9.33 — 2026-05-31",
                 "title": "Calibration: tighten COLD-pitcher shrink (recurring over-projection)",
                 "changes": [

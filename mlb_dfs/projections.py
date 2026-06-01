@@ -83,6 +83,14 @@ _HOT_HITTER_BOOST = 1.13
 # (0.30 tested even better; left margin on this high-variance bucket.)
 _COLD_PITCHER_SHRINK = 0.38
 
+# v9.34 ELITE/SOLID-QoC pitcher trim (good-stuff tiers over-projected; 6-day
+# incl Sun: SOLID -1.53/4.5σ, ELITE -0.67/2.3σ). A/B (n=159): trim improves
+# overall pitcher bias -0.76→ and MAE monotonically, no overshoot. ELITE light
+# (0.97 → -0.12, harder overshoots); SOLID firmer (stubborn). A/B-tunable.
+_PIT_QOC_TRIM = True
+_PIT_QOC_TRIM_SOLID = 0.93
+_PIT_QOC_TRIM_ELITE = 0.97
+
 # Streak-override recency weight (HOT/COLD hitters): base = w*L3 + (1-w)*weighted.
 # JL flagged daily projections may over-weight recent form — A/B-tunable here.
 _STREAK_W = 0.85
@@ -1180,6 +1188,14 @@ def project_pitcher(
         qoc_tier_lift = 1.06 if qoc_tier == "AVERAGE" else 1.04
         proj *= qoc_tier_lift
         notes.append(f"{qoc_tier}-QoC pitcher lift x{qoc_tier_lift} (v9.20 audit)")
+    # v9.34: the mirror — ELITE/SOLID-QoC (good-stuff) pitchers are now OVER-
+    # projected (6-day incl Sun: SOLID -1.53 / 4.5σ, ELITE -0.67 / 2.3σ). Their
+    # elite xERA/barrel anchors run the chain a touch hot. Tier-targeted trim;
+    # skip COLD (already shrunk). A/B-gated.
+    elif _PIT_QOC_TRIM and form_tag != "COLD" and qoc_tier in ("ELITE", "SOLID"):
+        qoc_tier_trim = _PIT_QOC_TRIM_SOLID if qoc_tier == "SOLID" else _PIT_QOC_TRIM_ELITE
+        proj *= qoc_tier_trim
+        notes.append(f"{qoc_tier}-QoC pitcher trim x{qoc_tier_trim} (v9.34 audit)")
 
     # v9.29: pitcher projections were COMPRESSED — over-shrunk toward the
     # league-average prior. 6-day audit (n=172): proj<8 over-projected −2.77
@@ -1862,7 +1878,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-31-v9.33" # COLD pitcher shrink 0.55->0.38 (A/B: COLD bias -3.79->-2.24, no overshoot)
+MODEL_REV = "2026-05-31-v9.34" # ELITE/SOLID-QoC pitcher trim (A/B: pitcher bias -0.76->~-0.4, no overshoot)
 
 
 def _proj_disk_path(key: tuple) -> str:
