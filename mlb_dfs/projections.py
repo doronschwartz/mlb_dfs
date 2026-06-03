@@ -805,6 +805,26 @@ def project_hitter(
     if _HIT_COMPRESS_K != 1.0:
         proj = _HIT_COMPRESS_PIVOT + (proj - _HIT_COMPRESS_PIVOT) * _HIT_COMPRESS_K
 
+    # v9.36: recent-form residual shrink. A leak-free GBM-vs-chain backtest
+    # (n=3,615 point-in-time player-games, time-split) found the ONE signal a
+    # gradient-boosted model could still extract from the chain's own features:
+    # it is too FLAT on recent (L3) form. Held-out decomposition of the chain's
+    # own error:
+    #   COLD form_tag:   bias -0.75 (7.5σ, n=922)  — over-projected even after
+    #                    the pre-compression x0.80 above
+    #   L3<4 non-COLD:   bias -0.94 (11.2σ, n=1427) — weak-last-3 hitters
+    #                    over-projected; most never tagged COLD
+    # Applied HERE (post-compression) because that is where the A/B was measured
+    # — sizing it pre-compression would ship an unvalidated magnitude. A/B grid
+    # (n=3,286): overall MAE 4.234→4.205, overall bias -0.03→+0.07 (<0.7σ),
+    # COLD residual -0.75→-0.53. One conservative ratchet; re-audit before more.
+    if form_tag == "COLD":
+        proj *= 0.90  # on top of the pre-compression x0.80 (≈0.72 effective)
+        notes.append("COLD recent-form residual shrink x0.90 (v9.36 backtest)")
+    elif pg_3 is not None and pg_3 < 4 and games_3 >= 2:
+        proj *= 0.92  # untagged weak-last-3 hitters over-projected by 0.94 (11σ)
+        notes.append("weak-L3 residual shrink x0.92 (v9.36 backtest)")
+
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1896,7 +1916,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-31-v9.35" # hitter compression k=0.85 (A/B: studs -1.92->-0.75, scrubs +0.27->-0.05)
+MODEL_REV = "2026-06-03-v9.36" # recent-form residual shrink (GBM backtest: COLD x0.90, weak-L3 x0.92; MAE 4.234->4.205)
 
 
 def _proj_disk_path(key: tuple) -> str:

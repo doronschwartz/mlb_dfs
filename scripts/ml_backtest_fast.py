@@ -8,7 +8,7 @@ import numpy as np
 
 BASE = "https://mlb-dfs-doron.fly.dev"
 END = datetime.date(2026, 5, 30)
-NDAYS = 5
+NDAYS = 14
 DATES = [(END - datetime.timedelta(days=i)).isoformat() for i in range(NDAYS)][::-1]
 TEST_FRAC = 0.30
 
@@ -62,6 +62,11 @@ def evaluate(rows, role):
     if len(sub) < 200:
         print("  %s: too few rows (%d)" % (role, len(sub))); return
     df = pd.DataFrame(sub)
+    # JSON Nones make some columns object dtype; coerce to numeric for XGBoost.
+    df[NUM_FEATS] = df[NUM_FEATS].apply(pd.to_numeric, errors="coerce")
+    df["chain_proj"] = pd.to_numeric(df["chain_proj"], errors="coerce")
+    df["actual"] = pd.to_numeric(df["actual"], errors="coerce")
+    df = df.dropna(subset=["chain_proj", "actual"]).reset_index(drop=True)
     cut = int(len(df) * (1 - TEST_FRAC))
     feat_cols = NUM_FEATS + ["cat_" + c for c in CAT_FEATS]
     X = pd.get_dummies(df[feat_cols], columns=["cat_" + c for c in CAT_FEATS], dummy_na=False)
@@ -96,6 +101,7 @@ if __name__ == "__main__":
     print("Pulling %d dates from server endpoints..." % NDAYS, flush=True)
     rows = build()
     print("\nTotal player-games: %d" % len(rows))
+    json.dump(rows, open("/tmp/ml_rows.json", "w"))  # save so re-train skips re-fetch
     for role in ("hitter", "pitcher"):
         evaluate(rows, role)
     print("\nDONE")

@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.36 — 2026-06-03",
+                "title": "ML head-to-head → recent-form residual shrink",
+                "changes": [
+                    "Ran a fair, leak-free head-to-head: a gradient-boosted model (XGBoost) vs the hand-built factor chain, same point-in-time features, time-split over 3,615 player-games. Verdict: the chain WINS on hitters — a from-scratch GBM only tied it (+0.9% MAE, noise) and lost badly on pitchers (too little data). ML is not the upgrade. But the one signal the GBM could extract was real and actionable: the chain is too FLAT on recent (last-3-game) form. Held-out decomposition confirmed it — COLD hitters still over-projected -0.75 (7.5σ) even after the existing shrink, and weak-last-3 hitters (many never tagged COLD) over-projected -0.94 (11.2σ). Fix is a targeted chain tweak, not an ML layer: an extra COLD residual shrink ×0.90 and a new weak-L3 shrink ×0.92, applied post-compression where the A/B was measured. A/B grid (n=3,286, monotonic): overall MAE 4.234→4.205, overall bias -0.03→+0.07 (<0.7σ), COLD residual -0.75→-0.53. Conservative one-notch ratchet; re-audit before pushing further.",
+                ],
+            },
+            {
                 "version": "v9.35 — 2026-05-31",
                 "title": "Calibration: compress hitter projections (spread was too wide)",
                 "changes": [
