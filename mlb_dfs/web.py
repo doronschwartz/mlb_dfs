@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.35 — 2026-05-31",
+                "title": "Calibration: compress hitter projections (spread was too wide)",
+                "changes": [
+                    "Overall hitter bias looked fine (~0), but a magnitude decomposition exposed a structural error hiding inside it: studs (proj 10+) over-projected -1.92 (4.3σ, n=277) and scrubs (proj 0-4) under-projected +0.28 (3.1σ, n=728), with the middle dead-on — the two cancel in the aggregate. Hitter projections were simply too spread out (the mirror of the v9.29 pitcher de-compression). Fix: compress toward the hitter mean — proj = 5.6 + (proj-5.6)×0.85. A/B (n=1662, monotonic, no overshoot): scrubs +0.27→-0.05, studs -1.92→-0.75, overall MAE flat. Per-day bias bounces ±1 (variance), so the overall -0.43 this window was correctly NOT chased — only the magnitude-conditional structural signal was.",
+                ],
+            },
+            {
                 "version": "v9.34 — 2026-05-31",
                 "title": "Calibration: trim ELITE/SOLID-QoC pitchers (good-stuff tiers ran hot)",
                 "changes": [

@@ -75,6 +75,14 @@ _PIT_SPREAD_K = 1.25
 # re-audit before going further (HOT is high-variance).
 _HOT_HITTER_BOOST = 1.13
 
+# v9.35 hitter compression — projections too spread (studs over, scrubs under).
+# proj = pivot + (proj - pivot) * k, k<1 pulls extremes toward the mean. Pivot ~
+# league-avg hitter pts/G. A/B-tunable.
+_HIT_COMPRESS_PIVOT = 5.6
+# A/B (6-day, n=1662): k=0.85 closes scrubs (+0.27→-0.05) and more than halves
+# studs (-1.92→-0.75) with flat overall MAE; 0.78 overshoots scrubs + hurts MAE.
+_HIT_COMPRESS_K = 0.85
+
 # COLD-pitcher post-matchup shrink. Recurring high-σ over-projection (cold
 # starters implode worse than the chain implies) — progressively tightened
 # 0.80→0.70→0.65→0.55; 6-day audit still shows COLD pitcher bias -4.04 (4.2σ).
@@ -787,6 +795,16 @@ def project_hitter(
         hot_cold_factor = 1.12
         proj *= hot_cold_factor
         notes.append("STEADY form post-matchup boost x1.12")
+
+    # v9.35: hitter projections are too SPREAD OUT — magnitude audit (n>1000)
+    # shows studs (proj 10+) over-projected -1.92 (4.3σ) and scrubs (proj 0-4)
+    # under-projected +0.28 (3.1σ), while the middle is dead-on. Overall bias
+    # hides it (the two cancel). Compress toward the hitter mean (a pivot
+    # transform, the mirror of the v9.29 pitcher de-compression): pulls the
+    # studs down and the scrubs up. A/B-tuned.
+    if _HIT_COMPRESS_K != 1.0:
+        proj = _HIT_COMPRESS_PIVOT + (proj - _HIT_COMPRESS_PIVOT) * _HIT_COMPRESS_K
+
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -1878,7 +1896,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-05-31-v9.34" # ELITE/SOLID-QoC pitcher trim (A/B: pitcher bias -0.76->~-0.4, no overshoot)
+MODEL_REV = "2026-05-31-v9.35" # hitter compression k=0.85 (A/B: studs -1.92->-0.75, scrubs +0.27->-0.05)
 
 
 def _proj_disk_path(key: tuple) -> str:
