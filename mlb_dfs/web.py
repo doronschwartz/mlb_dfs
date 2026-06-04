@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.37 — 2026-06-04",
+                "title": "Recent-form re-audit: tighten weak-L3, reject the hot-recent trap",
+                "changes": [
+                    "Post-v9.36 residual audit (same 3,615-game held-out set, v9.36 applied). Two hitter axes are now fully calibrated — magnitude (every proj bucket ≤0.23 bias, the v9.35 compression held) and QoC (nothing ≥3σ). The recent-form (L3) axis was the last live one. Weak-last-3 hitters still over-projected -0.72 (8.7σ, n=1427) — v9.36's 0.92 was one conservative notch on a -0.94 signal, and that bucket is LOW-variance (MAE 2.46), so tightening 0.92→0.88 improves overall MAE monotonically (4.205→4.200). Shipped. The tempting symmetric fix — hot-recent hitters (L3≥7) under-projected +1.0 (3.3σ) — was REJECTED on purpose: that bucket is high-variance (MAE 5.8), so multiplicatively boosting it fixed the mean bias but made overall AND bucket MAE worse. A bias-fix that hurts accuracy is not a fix. Pitchers (n=329) had only 2.5-2.8σ wobbles — underpowered, not tuned on noise. The model is near diminishing returns on this window; next is a fresh out-of-sample audit on post-deploy dates.",
+                ],
+            },
+            {
                 "version": "v9.36 — 2026-06-03",
                 "title": "ML head-to-head → recent-form residual shrink",
                 "changes": [

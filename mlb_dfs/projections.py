@@ -822,8 +822,15 @@ def project_hitter(
         proj *= 0.90  # on top of the pre-compression x0.80 (≈0.72 effective)
         notes.append("COLD recent-form residual shrink x0.90 (v9.36 backtest)")
     elif pg_3 is not None and pg_3 < 4 and games_3 >= 2:
-        proj *= 0.92  # untagged weak-last-3 hitters over-projected by 0.94 (11σ)
-        notes.append("weak-L3 residual shrink x0.92 (v9.36 backtest)")
+        # v9.37: post-v9.36 re-audit showed this bucket STILL over-projected
+        # -0.72 (8.7σ, n=1427) — the 0.92 was one conservative notch on a -0.94
+        # signal. It's a LOW-variance bucket (MAE 2.46), so tightening helps
+        # MAE monotonically (A/B: 0.92→0.88, overall MAE 4.205→4.200). The
+        # symmetric hot-recent boost (l3≥7 under-projected +1.0) was REJECTED:
+        # that bucket is high-variance (MAE 5.8), so correcting its mean bias
+        # made MAE worse — a bias-fix that hurts accuracy is not a fix.
+        proj *= 0.88
+        notes.append("weak-L3 residual shrink x0.88 (v9.37 re-audit, 8.7σ)")
 
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
@@ -1916,7 +1923,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-03-v9.36" # recent-form residual shrink (GBM backtest: COLD x0.90, weak-L3 x0.92; MAE 4.234->4.205)
+MODEL_REV = "2026-06-04-v9.37" # weak-L3 shrink ratchet 0.92->0.88 (8.7σ); hot-recent boost rejected (variance trap)
 
 
 def _proj_disk_path(key: tuple) -> str:
