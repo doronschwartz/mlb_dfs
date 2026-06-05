@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.38 — 2026-06-05",
+                "title": "Out-of-sample audit: tighten COLD shrink (confirmed across two windows)",
+                "changes": [
+                    "First fully OUT-OF-SAMPLE check: scored the live model on 5/31–6/4 (n=1,457), dates that were never in the tuning window. Three results. (1) The magnitude and QoC axes held out-of-sample — the v9.35 compression generalizes. (2) The hot-recent boost we REJECTED in v9.37 was vindicated: that bucket's bias flipped sign across windows (+1.04 in-sample → -0.51 out-of-sample), so boosting it would have hurt these dates — confirming a bias-fix on a high-variance bucket is a trap. (3) COLD hitters are still over-projected -0.77 (4.5σ, n=288) out-of-sample, matching the -0.53 in-sample — a signal that replicates across two independent windows at 4.5σ+ is real. Tightened the COLD post-compression shrink 0.90→0.81. Key nuance the split exposed: the broader 'weak last-3' bucket also read -0.69, but that was ENTIRELY the COLD players within it — non-COLD weak-L3 is +0.004 (already perfectly calibrated), so v9.37's weak-L3 factor was correctly left untouched. The model is now calibrated on every axis we can power: magnitude, QoC, and recent form. Pitchers remain underpowered (n=126, nothing ≥3σ).",
+                ],
+            },
+            {
                 "version": "v9.37 — 2026-06-04",
                 "title": "Recent-form re-audit: tighten weak-L3, reject the hot-recent trap",
                 "changes": [

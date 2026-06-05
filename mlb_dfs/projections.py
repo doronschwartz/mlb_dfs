@@ -819,8 +819,18 @@ def project_hitter(
     # (n=3,286): overall MAE 4.234→4.205, overall bias -0.03→+0.07 (<0.7σ),
     # COLD residual -0.75→-0.53. One conservative ratchet; re-audit before more.
     if form_tag == "COLD":
-        proj *= 0.90  # on top of the pre-compression x0.80 (≈0.72 effective)
-        notes.append("COLD recent-form residual shrink x0.90 (v9.36 backtest)")
+        # v9.38: a fresh OUT-OF-SAMPLE audit (5/31–6/4, n=1,457, dates never in
+        # the tuning window) confirmed COLD is STILL over-projected — -0.77
+        # (4.5σ, n=288) on top of v9.36's 0.90, and -0.53 in-sample. A signal
+        # that replicates across two independent windows at 4.5σ+ is real, not
+        # a tuned-on-noise artifact. Tightened 0.90→0.81 (≈0.65 effective with
+        # the pre-compression 0.80). Dual-window A/B: closes COLD to ~-0.40
+        # (in-sample) / -0.58 (out-of-sample) — both improve, neither overshoots.
+        # NB: the broader L3<4 bucket also read -0.69, but that was ENTIRELY the
+        # COLD players inside it — non-COLD weak-L3 is +0.004 (perfectly
+        # calibrated), so the v9.37 weak-L3 0.88 below is left untouched.
+        proj *= 0.81  # on top of the pre-compression x0.80 (≈0.65 effective)
+        notes.append("COLD recent-form residual shrink x0.81 (v9.38 OOS audit)")
     elif pg_3 is not None and pg_3 < 4 and games_3 >= 2:
         # v9.37: post-v9.36 re-audit showed this bucket STILL over-projected
         # -0.72 (8.7σ, n=1427) — the 0.92 was one conservative notch on a -0.94
@@ -1923,7 +1933,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-04-v9.37" # weak-L3 shrink ratchet 0.92->0.88 (8.7σ); hot-recent boost rejected (variance trap)
+MODEL_REV = "2026-06-05-v9.38" # COLD shrink 0.90->0.81 (confirmed out-of-sample 4.5σ across 2 windows)
 
 
 def _proj_disk_path(key: tuple) -> str:
