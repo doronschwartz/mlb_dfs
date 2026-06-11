@@ -12,3 +12,4 @@ data/drafts/*.json
 !data/drafts/.gitkeep
 data/cache/
 data/trivia/
+data/audit_reports/
