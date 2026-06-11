@@ -237,6 +237,7 @@ def get_pitcher_strikeout_lines_cached(date_iso: str, *, force_refresh: bool = F
     if not force_refresh:
         saved = saved_odds(date_iso)
         if saved and saved.get("pitchers"):
+            _archive_lines(date_iso, "_pitchers", saved["pitchers"])  # backfill archive
             return saved["pitchers"], {"cached": True, "fetched_at": saved.get("fetched_at")}
     fresh = get_pitcher_strikeout_lines(date_iso)
     if fresh:
@@ -256,6 +257,7 @@ def get_batter_total_bases_lines_cached(date_iso: str, *, force_refresh: bool = 
             with open(path) as f:
                 saved = json.load(f)
             if saved.get("batters"):
+                _archive_lines(date_iso, "_batters", saved["batters"])  # backfill archive
                 return saved["batters"], {"cached": True, "fetched_at": saved.get("fetched_at")}
         except Exception:
             pass
