@@ -274,6 +274,98 @@ def get_batter_total_bases_lines_cached(date_iso: str, *, force_refresh: bool = 
     return fresh, {"cached": False, "fetched_at": time.time() if fresh else None}
 
 
+def get_pitcher_outs_lines_cached(date_iso: str, *, force_refresh: bool = False) -> tuple[dict[str, dict], dict]:
+    """pitcher_outs prop lines, cache-first per day (stored as <date>_outs.json,
+    archived permanently like the other prop markets). Returns (pitchers, meta).
+    The outs market prices expected workload — the sharpest signal for IP,
+    the biggest pitcher scoring component and the place rolling stats (2-3
+    starts of sample) are weakest."""
+    cleanup_old_odds(date_iso)
+    path = _odds_path(date_iso + "_outs")
+    if not force_refresh and os.path.exists(path):
+        try:
+            with open(path) as f:
+                saved = json.load(f)
+            if saved.get("outs"):
+                _archive_lines(date_iso, "_outs", saved["outs"])  # backfill archive
+                return saved["outs"], {"cached": True, "fetched_at": saved.get("fetched_at")}
+        except Exception:
+            pass
+    fresh = _get_player_prop_lines(date_iso, "pitcher_outs")
+    if fresh:
+        _archive_lines(date_iso, "_outs", fresh)
+        _ensure_odds_dir()
+        tmp = f"{path}.tmp"
+        with open(tmp, "w") as f:
+            json.dump({"fetched_at": time.time(), "date": date_iso, "outs": fresh}, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    return fresh, {"cached": False, "fetched_at": time.time() if fresh else None}
+
+
+def _get_player_prop_lines(date_iso: str, market: str) -> dict[str, dict]:
+    """Generic per-event player-prop fetcher: {player_name: {line, over_odds,
+    under_odds, book_count}} for any odds-api player market. Most-booked line
+    wins; median odds across those books."""
+    if not is_configured():
+        return {}
+    try:
+        events = _get("/sports/baseball_mlb/events")
+    except Exception as e:
+        import logging
+        logging.error("odds_api %s events fetch failed: %s", market, e)
+        _LAST_ERROR[market + "_events"] = (time.time(), str(e))
+        return {}
+    out: dict[str, dict] = {}
+    for event in events:
+        if _commence_et_date(event.get("commence_time", "")) != date_iso:
+            continue
+        eid = event.get("id")
+        if not eid:
+            continue
+        try:
+            data = _get(
+                f"/sports/baseball_mlb/events/{eid}/odds",
+                params={"markets": market, "regions": "us", "oddsFormat": "american"},
+            )
+        except Exception:
+            continue
+        per_player: dict[str, dict[float, dict]] = {}
+        for bm in data.get("bookmakers", []):
+            for mkt in bm.get("markets", []):
+                if mkt.get("key") != market:
+                    continue
+                for outcome in mkt.get("outcomes", []):
+                    name = outcome.get("description")
+                    line = outcome.get("point")
+                    side = outcome.get("name")
+                    odds = outcome.get("price")
+                    if not name or line is None or odds is None:
+                        continue
+                    pp = per_player.setdefault(name, {})
+                    entry = pp.setdefault(float(line), {
+                        "over_odds": [], "under_odds": [], "books": set(),
+                    })
+                    entry["books"].add(bm.get("key"))
+                    if side == "Over":
+                        entry["over_odds"].append(int(odds))
+                    elif side == "Under":
+                        entry["under_odds"].append(int(odds))
+        for name, lines in per_player.items():
+            if not lines:
+                continue
+            best_line = max(lines.keys(), key=lambda L: len(lines[L]["books"]))
+            entry = lines[best_line]
+            out[name] = {
+                "line": best_line,
+                "over_odds": int(median(entry["over_odds"])) if entry["over_odds"] else None,
+                "under_odds": int(median(entry["under_odds"])) if entry["under_odds"] else None,
+                "book_count": len(entry["books"]),
+            }
+    return out
+
+
 def get_batter_total_bases_lines(date_iso: str) -> dict[str, dict]:
     """Returns {batter_name: {line, over_odds, under_odds, book_count}} from
     the batter_total_bases player-prop market. Total bases is the closest

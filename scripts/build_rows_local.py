@@ -26,7 +26,7 @@ NUM_FEATS = ["base_pg","pg_l3","pg_l7","pg_l14","games_l3","games_l7","games_l14
     "barrel_pct","hardhit_pct","sweet_spot_pct","chain_product","base_per_start",
     "k9_season","ip_per_start","xera","xwoba_against","barrel_pct_allowed",
     "opp_implied_total","k_prop_adj","tto_factor",
-    "tb_prop_z","tb_prop_factor","arsenal_factor"]
+    "tb_prop_z","tb_prop_factor","arsenal_factor","vegas_outs_line","outs_prop_adj","p_dud"]
 CAT_FEATS = ["form_tag", "qoc_tier"]
 
 

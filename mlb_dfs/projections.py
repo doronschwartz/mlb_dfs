@@ -945,6 +945,26 @@ def project_hitter(
         proj *= 0.88
         notes.append("weak-L3 residual shrink x0.88 (v9.37 re-audit, 8.7σ)")
 
+    # v9.42: continuous recency residual correction. Re-bucketing the 25-date
+    # audit by L3 RELATIVE TO BASE (not absolute L3 — that's what every prior
+    # audit used, and it washed this out) exposed the largest remaining
+    # miscalibration in the model: bias runs monotonically -4.27 (9.6σ) for
+    # L3<<base to +6.59 (8.4σ) for L3>>base, and the gradient survives
+    # controls for matchup strength AND projection magnitude (6-12σ in every
+    # slice). The chain still under-weights how much recent form carries.
+    # Additive (not multiplicative — the effect is in DEVIATION units):
+    # proj += c·clamp(L3−base, ±6). Grid: MAE improves monotonically on both
+    # time halves through c=0.45 (4.365→4.302 / 4.380→4.299); shipped c=0.35,
+    # one notch inside. Sits AFTER the step-function shrinks (marginal effect
+    # validated on top of them) and BEFORE lineup-out zeroing.
+    l3_dev_adj = 0.0
+    if pg_3 is not None and games_3 >= 2:
+        l3_dev = max(-6.0, min(pg_3 - base_pg, 6.0))
+        if abs(l3_dev) > 0.1:
+            l3_dev_adj = 0.35 * l3_dev
+            proj += l3_dev_adj
+            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.42)")
+
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -963,16 +983,20 @@ def project_hitter(
     # negative-EV play. The streak override above already protects against
     # noise-driven negatives by flooring the L3 input at 0.
 
-    # Confidence interval — DYNAMIC sigma (v9.39). The old flat 5.5 was fiction
-    # at both extremes: a 25-date residual study (n=6,372) shows single-game
-    # stdev scales nearly linearly with the projection itself —
-    #   proj 0-3 → σ 3.4,  5-7 → 6.2,  9-12 → 7.9,  12+ → 9.6
-    # Weighted fit: σ ≈ 2.97 + 0.469·proj. Flat 5.5 overstated scrub risk and
-    # badly understated stud upside (a 14-pt projection's real ceiling band is
-    # ±9.6, not ±5.5). Floor/ceiling = ±1σ; floor clamped at 0.
+    # Confidence interval — EMPIRICAL QUANTILES (v9.42, upgrades the v9.39
+    # dynamic sigma). Residuals are skewed, so ±1σ Gaussian bands were wrong
+    # in both directions: mid-range hitters' real p90 is ~+8.8 (not +5.9) —
+    # ceilings were understated right where tournament leverage lives — and
+    # studs' real p10 is −12.1 (not −9.0), fat left tail. Fits from 6,362
+    # local leak-free outcomes (25 dates):
+    #   p10 offset ≈ −(2.60 + 0.712·proj)   p90 offset ≈ +4.88 + 0.459·proj
+    #   P(dud: actual ≤ 0) ≈ sigmoid(0.434 − 0.2802·proj)  (63% @1 → 5% @14+)
+    # sigma kept for legacy display; floor/ceiling are now p10/p90.
+    import math
     sigma = round(max(2.5, min(3.0 + 0.47 * max(proj, 0.0), 11.0)), 1)
-    floor = max(0.0, proj - sigma)
-    ceiling = proj + sigma
+    floor = max(-3.0, proj - (2.60 + 0.712 * max(proj, 0.0)))
+    ceiling = proj + 4.88 + 0.459 * max(proj, 0.0)
+    p_dud = round(1.0 / (1.0 + math.exp(-(0.434 - 0.2802 * proj))), 3)
     pitfalls: list[str] = []
     if games_14 < 7:
         pitfalls.append(f"Small sample — only {int(games_14)} G in last 14d")
@@ -1046,6 +1070,8 @@ def project_hitter(
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
+            "p_dud": p_dud,
+            "l3_dev_adj": round(l3_dev_adj, 2) if l3_dev_adj else None,
             "rolling_cats": rolling_cats,
             "point_decomp": _point_decomp_hitter(rolling_events, proj) if rolling_events else None,
             "opp_abbr": opp_abbr,
@@ -1072,6 +1098,7 @@ def project_pitcher(
     ump_k_factor: float | None = None,
     opp_lineup_avg_pg: float | None = None,
     vegas_k_line: float | None = None,
+    vegas_outs_line: float | None = None,
     catcher_framing_runs: float | None = None,
     as_of: Date | None = None,
 ) -> Projection:
@@ -1311,6 +1338,24 @@ def project_pitcher(
                 f"rolling-implied {expected_K:.1f})"
             )
 
+    # Vegas outs-prop adjustment (v9.42). Pitchers are the model's thinnest
+    # data (2-3 starts per rolling window), and IP is the biggest scoring
+    # component (outs ×0.75 plus the 6-IP QS gate) — exactly where a sharp
+    # market line helps most. pitcher_outs prices expected workload including
+    # things rolling stats can't see (pitch-count plans, bullpen games,
+    # manager intent). Same damped-delta blend as the K-prop: half weight,
+    # capped ±2 pts.
+    outs_prop_adj = 0.0
+    if vegas_outs_line is not None and vegas_outs_line > 0:
+        expected_outs = (ip_total_l14 / max(int(starts_14), 1)) * 3 if starts_14 else 16.5
+        delta_outs = vegas_outs_line - expected_outs
+        outs_prop_adj = max(-2.0, min(delta_outs * 0.75 * 0.5, 2.0))
+        proj += outs_prop_adj
+        notes.append(
+            f"outs-prop adj {outs_prop_adj:+.2f} pts (Vegas {vegas_outs_line:.1f} outs vs "
+            f"rolling-implied {expected_outs:.1f})"
+        )
+
     # Post-matchup HOT/COLD residual correction (v9.10). Mirror of the hitter
     # rule shipped in v9.7. 8-day audit (n=43 cold pitchers) showed a -5.9
     # bias — projecting ~17, scoring ~11. The streak signal already feeds the
@@ -1390,13 +1435,15 @@ def project_pitcher(
         notes.append(f"opener clamp: capping projection at 9.0 (was {proj:.1f})")
         proj = 9.0
 
-    # Pitcher single-start stdev — DYNAMIC (v9.39). Same 25-date residual
-    # study (n=662): σ scales with the projection (proj 0-6 → 6.4, 12-15 →
-    # 7.7, 15+ → 8.4; weighted fit σ ≈ 5.94 + 0.126·proj). Flatter slope than
-    # hitters — a bad start craters anyone — but aces still carry wider bands.
+    # Pitcher bands — EMPIRICAL QUANTILES (v9.42, upgrades v9.39 sigma). Same
+    # skew story as hitters: real p90 ≈ +9.1 nearly flat (good starts cluster),
+    # real p10 ≈ −(6.5+0.25·proj) (aces have the furthest to fall). Fits from
+    # 662 local outcomes. P(dud: ≤0) ≈ sigmoid(0.233 − 0.2904·proj).
+    import math
     sigma = round(max(5.5, min(5.9 + 0.13 * max(proj, 0.0), 9.5)), 1)
-    floor = max(-5.0, proj - sigma)   # pitchers can score negative on bad starts
-    ceiling = proj + sigma
+    floor = max(-8.0, proj - (6.5 + 0.25 * max(proj, 0.0)))
+    ceiling = proj + 9.1 + 0.046 * max(proj, 0.0)
+    p_dud = round(1.0 / (1.0 + math.exp(-(0.233 - 0.2904 * proj))), 3)
     pitfalls: list[str] = []
     # SPs typically start every ~5 days, so 2-3 GS in 14d is the norm. Only
     # flag truly tiny samples (1 or 0 starts) — that's where projection noise
@@ -1463,9 +1510,12 @@ def project_pitcher(
             "k9_season": round(_safe_float(seasn.get("strikeoutsPer9Inn")), 1) or None,
             "vegas_k_line": vegas_k_line,
             "k_prop_adj": round(k_prop_adj, 2) if vegas_k_line else None,
+            "vegas_outs_line": vegas_outs_line,
+            "outs_prop_adj": round(outs_prop_adj, 2) if vegas_outs_line else None,
             "floor": round(floor, 2),
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
+            "p_dud": p_dud,
             "rolling_cats": rolling_cats,
             "point_decomp": _point_decomp_pitcher(rolling_events, proj) if rolling_events else None,
             "opp_abbr": opp_abbr,
@@ -2058,7 +2108,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-11-v9.41" # A/B verdicts: arsenal OFF (hurt MAE), platoon deviation x2 (4.6σ, monotonic)
+MODEL_REV = "2026-06-11-v9.42" # recency-deviation adj (6-12σ), quantile bands + P(dud), outs-prop
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -2363,6 +2413,19 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             continue
         k_prop_by_name[_norm_pitcher_name(nm)] = float(line)
 
+    # Pitcher outs-prop lines (v9.42) — market-priced expected workload.
+    try:
+        outs_lines_raw, _outs_meta = odds_api.get_pitcher_outs_lines_cached(d.isoformat())
+    except Exception as e:
+        logging.warning("outs-prop lines fetch failed: %s", e)
+        outs_lines_raw = {}
+    outs_prop_by_name: dict[str, float] = {}
+    for nm, info in (outs_lines_raw or {}).items():
+        line = info.get("line") if isinstance(info, dict) else None
+        if line is None or info.get("book_count", 0) < 2:
+            continue
+        outs_prop_by_name[_norm_pitcher_name(nm)] = float(line)
+
     # Batter total-bases props (v9.39) — devig each batter's over/under to
     # P(over), convert line+juice to a market-expected-TB scalar, z-score it
     # across the slate (self-normalizing: "how much pop does the market give
@@ -2501,6 +2564,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_lineup_avg_pg=lineup_avg_pg_by_team.get(info["opp_team_id"]),
             catcher_framing_runs=catcher_framing_by_team.get(info["team_id"]),
             vegas_k_line=k_prop_by_name.get(_norm_pitcher_name(sp_name)),
+            vegas_outs_line=outs_prop_by_name.get(_norm_pitcher_name(sp_name)),
             as_of=d,
         )
 

@@ -5,16 +5,18 @@ import json, os, time, urllib.request, datetime, sys
 from concurrent.futures import ThreadPoolExecutor
 
 BASE = "https://mlb-dfs-doron.fly.dev"
-START = datetime.date(2026, 5, 17)
-END = datetime.date(2026, 6, 10)  # through yesterday — 6/11 is still in progress
+# Overridable for the weekly audit: ROWS_START / ROWS_END / ROWS_OUT env vars.
+START = datetime.date.fromisoformat(os.environ.get("ROWS_START", "2026-05-17"))
+END = datetime.date.fromisoformat(os.environ.get("ROWS_END", "2026-06-10"))
 DATES = []
 d = START
 while d <= END:
     DATES.append(d.isoformat())
     d += datetime.timedelta(days=1)
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "data", "backtest_rows.json")
+OUT = os.environ.get("ROWS_OUT") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "backtest_rows.json")
 
 NUM_FEATS = ["base_pg","pg_l3","pg_l7","pg_l14","games_l3","games_l7","games_l14",
     "sample_games_14d","sp_factor","sp_factor_raw","qoc_factor","park_factor",
@@ -23,7 +25,7 @@ NUM_FEATS = ["base_pg","pg_l3","pg_l7","pg_l14","games_l3","games_l7","games_l14
     "barrel_pct","hardhit_pct","sweet_spot_pct","chain_product","base_per_start",
     "k9_season","ip_per_start","xera","xwoba_against","barrel_pct_allowed",
     "opp_implied_total","k_prop_adj","tto_factor",
-    "tb_prop_z","tb_prop_factor","arsenal_factor"]
+    "tb_prop_z","tb_prop_factor","arsenal_factor","vegas_outs_line","outs_prop_adj","p_dud"]
 CAT_FEATS = ["form_tag", "qoc_tier"]
 
 

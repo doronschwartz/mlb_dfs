@@ -513,6 +513,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.42 — 2026-06-11",
+                "title": "Recency-deviation correction, honest quantile bands, outs-prop, auto-audit",
+                "changes": [
+                    "THE BIG ONE — continuous recency correction: re-bucketing the audit by L3 form RELATIVE TO EACH HITTER'S OWN BASE (every prior audit used absolute L3, which washed this out) exposed the largest remaining miscalibration in the model: bias runs monotonically from -4.27 (9.6σ) for hitters far below their base to +6.59 (8.4σ) for hitters far above it, surviving controls for matchup strength and projection size (6-12σ in every slice). Fix: proj += 0.35 × clamp(L3 − base, ±6). The strength grid improved MAE monotonically on both time halves (-1.5%, the biggest single calibration gain to date); shipped one notch inside the grid edge.",
+                    "Honest uncertainty bands: residuals are skewed, so the ±1σ Gaussian bands were wrong in both directions — mid-range hitters' real p90 is ~+8.8 (not +5.9; ceilings were understated exactly where tournament leverage lives) and studs' real p10 is -12.1 (fat left tail). Floor/ceiling are now empirical p10/p90 fits. New per-player P(dud) = chance of scoring ≤0 (63% for a proj-1 hitter, 5% at proj-14) in components.",
+                    "Pitcher outs-prop: the market's pitcher_outs line prices expected workload — the sharpest signal for IP, the biggest pitcher scoring component and the model's thinnest data (2-3 starts per window). Damped-delta blend like the K-prop (half weight, ±2 pts cap), archived daily for forward validation.",
+                    "Self-running weekly audit (scripts/weekly_audit.sh): rebuilds the trailing 10 days, writes a markdown report with bucket tables (form, magnitude, L3-deviation, and forward-validation tables for every market factor), flags any bucket ≥3σ. The calibration discipline is now a routine, not a session.",
+                ],
+            },
+            {
                 "version": "v9.41 — 2026-06-11",
                 "title": "Same-day factor verdicts via counterfactual inversion",
                 "changes": [
