@@ -103,6 +103,19 @@ _PIT_QOC_TRIM_ELITE = 0.97
 # JL flagged daily projections may over-weight recent form — A/B-tunable here.
 _STREAK_W = 0.85
 
+# v9.39 batter total-bases prop factor. The hitter-side mirror of the pitcher
+# K-prop blend: batter_total_bases is the sharpest per-HITTER market signal
+# available (TB ≈ the 3/5/8/10 hit-scoring core, ~2.7 pts/TB), and it prices
+# pitch-type matchup, recent news, and lineup context the chain can't see.
+# Most books quote the same 1.5 line for everyone and vary the JUICE, so the
+# signal is the devigged P(over) — converted to a market-expected-TB scalar,
+# z-scored ACROSS THE SLATE (self-normalizing: no absolute anchor to tune),
+# clamped and damped to ±5% max. Hitters without a posted prop get 1.0.
+# Cannot be backtested (no historical prop archive) — shipped damped behind
+# this flag; forward-validate via the calibration audit (components stored).
+_BAT_TB_PROP = True
+_BAT_TB_PROP_WEIGHT = 0.02   # factor = 1 + clamp(z, ±2.5) * this → max ±5%
+
 # v9.20 tier-targeted lift for AVERAGE/POOR-QoC startable pitchers (see
 # project_pitcher). A/B-confirmed on the 6-day window (n=157): all-pitcher
 # bias +1.00→+0.72 AND MAE 5.87→5.78; targeted AVERAGE/POOR subset (n=100)
@@ -418,6 +431,7 @@ def project_hitter(
     opp_sp_name: str | None = None,
     is_home: bool | None = None,
     lineup_status: str | None = None,
+    tb_prop: dict | None = None,
     as_of: Date | None = None,
 ) -> Projection:
     last3 = mlb_api.player_stats(pid, group="hitting", season=season, last_n_days=3, as_of=as_of)
@@ -752,7 +766,20 @@ def project_hitter(
     if sb_note:
         notes.append(sb_note)
 
-    chain_product = sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor
+    # Batter TB-prop market factor (v9.39): slate-z-scored devigged P(over)
+    # from the batter_total_bases market — see _BAT_TB_PROP at module top.
+    # Orthogonal to vegas_factor (team-level) — this is the market's PLAYER-
+    # level pricing; damped hard so overlap with park/platoon can't compound.
+    tb_prop_factor = 1.0
+    if _BAT_TB_PROP and tb_prop and tb_prop.get("z") is not None:
+        z = max(-2.5, min(float(tb_prop["z"]), 2.5))
+        tb_prop_factor = 1.0 + z * _BAT_TB_PROP_WEIGHT
+        notes.append(
+            f"TB-prop market x{tb_prop_factor:.3f} (line {tb_prop.get('line')}, "
+            f"P(over) {tb_prop.get('p_over', 0):.0%}, slate-z {z:+.1f})"
+        )
+
+    chain_product = sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor * tb_prop_factor
     proj = base_pg * chain_product
     # Post-matchup HOT/COLD residual correction. Bayesian day-level audit
     # (18 days, n=5,102) revealed two highly-significant biases that the
@@ -929,6 +956,10 @@ def project_hitter(
             "rolling_pa_l14": int(pa_l14) if pa_l14 else 0,
             "iso_factor": round(iso_factor, 3),
             "sb_factor": round(sb_factor, 3),
+            "tb_prop_factor": round(tb_prop_factor, 3),
+            "tb_prop_line": (tb_prop or {}).get("line"),
+            "tb_prop_p_over": round((tb_prop or {}).get("p_over"), 3) if (tb_prop or {}).get("p_over") is not None else None,
+            "tb_prop_z": round((tb_prop or {}).get("z"), 2) if (tb_prop or {}).get("z") is not None else None,
             "hot_cold_factor": round(hot_cold_factor, 3),
             "chain_product": round(chain_product * hot_cold_factor, 4),
             "floor": round(floor, 2),
@@ -2238,6 +2269,47 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             continue
         k_prop_by_name[_norm_pitcher_name(nm)] = float(line)
 
+    # Batter total-bases props (v9.39) — devig each batter's over/under to
+    # P(over), convert line+juice to a market-expected-TB scalar, z-score it
+    # across the slate (self-normalizing: "how much pop does the market give
+    # this guy TODAY vs everyone else"), and hand each hitter their z. See
+    # _BAT_TB_PROP at module top for the sizing rationale.
+    tb_prop_by_name: dict[str, dict] = {}
+    if _BAT_TB_PROP:
+        try:
+            tb_lines_raw, _tb_meta = odds_api.get_batter_total_bases_lines_cached(d.isoformat())
+        except Exception as e:
+            logging.warning("tb-prop lines fetch failed: %s", e)
+            tb_lines_raw = {}
+        def _amer_prob(o: int) -> float:
+            return 100.0 / (o + 100.0) if o > 0 else (-o) / ((-o) + 100.0)
+        scalars: dict[str, dict] = {}
+        for nm, info in (tb_lines_raw or {}).items():
+            if not isinstance(info, dict) or info.get("book_count", 0) < 2:
+                continue  # one-book lines are noise
+            line, oo, uo = info.get("line"), info.get("over_odds"), info.get("under_odds")
+            if line is None or oo is None or uo is None:
+                continue  # need both sides to devig
+            po, pu = _amer_prob(int(oo)), _amer_prob(int(uo))
+            p_over = po / (po + pu)
+            # line + juice → one expected-TB scalar. dP(TB≥line)/dE[TB] ≈ 0.28
+            # for a typical ~1.4 TB/G hitter, so ~3.5 TB per unit of P(over).
+            # Exact slope barely matters — the z-score normalizes it away.
+            market_tb = float(line) + (p_over - 0.5) * 3.5
+            scalars[_norm_pitcher_name(nm)] = {
+                "line": float(line), "p_over": round(p_over, 3), "mtb": market_tb,
+            }
+        if len(scalars) >= 30:  # need a real cross-section to z-score against
+            vals = [v["mtb"] for v in scalars.values()]
+            mu = sum(vals) / len(vals)
+            sd = (sum((x - mu) ** 2 for x in vals) / len(vals)) ** 0.5
+            if sd > 1e-6:
+                for nm, v in scalars.items():
+                    tb_prop_by_name[nm] = {
+                        "line": v["line"], "p_over": v["p_over"],
+                        "z": (v["mtb"] - mu) / sd,
+                    }
+
     # Bullpen quality: season bullpen ERA per team. ~30 API calls cached for the day.
     bullpen_era = _bullpen_era_by_team(season)
 
@@ -2281,6 +2353,7 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_sp_name=m.get("opp_sp_name"),
             is_home=m.get("is_home"),
             lineup_status=(lineups.get(pid) or {}).get("status"),
+            tb_prop=tb_prop_by_name.get(_norm_pitcher_name(meta["name"])),
             as_of=d,
         )
 
