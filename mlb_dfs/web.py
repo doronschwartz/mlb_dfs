@@ -513,6 +513,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.41 — 2026-06-11",
+                "title": "Same-day factor verdicts via counterfactual inversion",
+                "changes": [
+                    "Didn't wait a week to find out if the v9.40 factors work — solved it the same day. The chain stores every factor separately and its post-chain transforms are exactly invertible, so we rebuilt the 25-date dataset locally (3 parallel workers, prod box untouched) under the live model and reconstructed, for all 5,446 hitter outcomes, what each projection would have been WITHOUT each new factor. A true A/B on real results, same day the factors shipped.",
+                    "Personalized platoon: VALIDATED, then doubled. Strongest new-factor signal measured to date — hitters shifted up by their own splits beat the static-platoon baseline by +1.02 pts (4.6σ), and a strength grid improved bias AND MAE monotonically on both time halves. Deviation from the league prior now applied at 2×, clamp widened to ±12%.",
+                    "Arsenal matchup: REMOVED (gated off). Even with the season-cumulative leak working in its favor, applying it worsened MAE and bias; its gradient was 1.1σ noise. Per-pitch-type run values are too unstable at mid-season. The code stays gated for a late-season re-grade when per-type samples double.",
+                    "TB-prop: pending by design — no historical prop archive exists (that's why we built one today; it accrues from now on). Forward validation runs as slates accumulate.",
+                ],
+            },
+            {
                 "version": "v9.40 — 2026-06-11",
                 "title": "Arsenal matchup, personalized platoon splits, ceiling view",
                 "changes": [

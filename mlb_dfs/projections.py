@@ -737,8 +737,15 @@ def project_hitter(
                 personal = 1.0 + (rel["ops"] / ops_overall - 1.0) * 0.7
                 w = rel["pa"] / (rel["pa"] + 250.0)
                 platoon_factor = (1 - w) * static + w * personal
-                platoon_factor = max(0.90, min(platoon_factor, 1.10))
-                detail = f"own split {rel['ops']:.3f} vs overall {ops_overall:.3f}, {rel['pa']} PA w={w:.2f}"
+                # v9.41: deviation DOUBLED. Counterfactual inversion A/B
+                # (5,446 outcomes, 25 dates) — the personalized factor's
+                # bucket gradient was +1.02 pts at 4.6σ (the strongest new-
+                # factor signal we've measured) and a strength grid improved
+                # bias AND MAE monotonically through m=2.5 on BOTH time
+                # halves. Took m=2.0, one notch inside the grid edge.
+                platoon_factor = static + (platoon_factor - static) * 2.0
+                platoon_factor = max(0.88, min(platoon_factor, 1.12))
+                detail = f"own split {rel['ops']:.3f} vs overall {ops_overall:.3f}, {rel['pa']} PA w={w:.2f} x2"
         notes.append(f"vs {opp_throws}HP ({bats}H) x{platoon_factor:.2f} ({detail})")
 
     # Arsenal × hitter pitch-type matchup (v9.40). The opposing SP's pitch MIX
@@ -751,8 +758,16 @@ def project_hitter(
     # weighted rv100 unit, capped ±5%. Season-cumulative leaderboards (same
     # live-use caveat as every other Savant input); forward-validated like
     # the TB-prop via stored components.
+    # v9.41 VERDICT — DISABLED. Counterfactual inversion A/B on 5,446 real
+    # outcomes (25 dates, local rebuild): applying this factor WORSENED MAE
+    # (4.7834→4.7880) and bias (-0.274→-0.305) despite the season-cumulative
+    # leak tailwind; its bucket gradient was only 1.1σ. Per-pitch-type rv/100
+    # is too noisy at mid-season even with n/(n+150) shrinkage. A bias-fix
+    # that hurts accuracy is not a fix. Code + components kept gated so it
+    # can be re-graded late-season when per-type samples have doubled.
+    _ARSENAL_MATCHUP = False
     arsenal_factor = 1.0
-    if opposing_sp_id:
+    if _ARSENAL_MATCHUP and opposing_sp_id:
         try:
             ars = savant.pitcher_arsenal(season).get(opposing_sp_id)
             brv = savant.batter_pitch_rv(season).get(pid)
@@ -2043,7 +2058,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-11-v9.40" # arsenal-vs-hitter pitch-type matchup + personalized platoon splits
+MODEL_REV = "2026-06-11-v9.41" # A/B verdicts: arsenal OFF (hurt MAE), platoon deviation x2 (4.6σ, monotonic)
 
 
 def _proj_disk_path(key: tuple) -> str:
