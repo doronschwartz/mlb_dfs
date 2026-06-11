@@ -513,6 +513,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.39 — 2026-06-11",
+                "title": "Deep structural audit → TB-prop market signal, honest sigma, pitcher spread",
+                "changes": [
+                    "Rebuilt the full calibration dataset under the live model — 25 dates (5/17–6/10), 7,034 player-games — and ran four structural diagnostics that go beyond bias buckets. Results: (1) RANKING is strong — top-decile projected hitters land in the top actual quartile 65% of the time (random = 25%); slate-level Spearman 0.53 hitters / 0.66 pitchers. (2) Hitter spread is now calibrated (recal slope 0.94 on recent dates) — the v9.35–v9.38 work landed; no action. (3) The factor chain survived its second adversarial audit: a joint elasticity regression flagged sp_factor as possibly over-sized, but re-exponentiating it FAILED held-out validation, so weights stay (same verdict as the GBM head-to-head). (4) Three real fixes shipped:",
+                    "NEW — batter total-bases prop factor: the market's per-hitter TB pricing (devigged over/under juice, z-scored across the slate, damped to ±5% max). TB ≈ the 3/5/8/10 hit-scoring core (~2.7 pts/TB), so this is sharp money pricing pitch-type matchup, news, and lineup context the chain can't see. The hitter mirror of the pitcher K-prop edge. No prop posted → neutral.",
+                    "Dynamic sigma: the flat ±5.5/±7.0 floor-ceiling bands were fiction — empirical single-game stdev scales with the projection (hitters: σ 3.4 at proj 0-3 → 9.6 at proj 12+; fit σ≈3.0+0.47·proj; pitchers σ≈5.9+0.13·proj). Floors and ceilings now widen honestly with projection size — stud upside was badly understated.",
+                    "Second pitcher de-compression notch: optimal-recal slope still 1.11 after v9.29 (measured independently on each time half: 1.111/1.106 — rock stable). Grid A/B chose a BIAS-NEUTRAL pivot at the sample mean (11.5, k=1.12): MAE improves on both halves (late 5.807→5.766) with bias unchanged in both.",
+                ],
+            },
+            {
                 "version": "v9.38 — 2026-06-05",
                 "title": "Out-of-sample audit: tighten COLD shrink (confirmed across two windows)",
                 "changes": [

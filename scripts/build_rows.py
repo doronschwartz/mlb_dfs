@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 BASE = "https://mlb-dfs-doron.fly.dev"
 START = datetime.date(2026, 5, 17)
-END = datetime.date(2026, 6, 4)
+END = datetime.date(2026, 6, 10)  # through yesterday — 6/11 is still in progress
 DATES = []
 d = START
 while d <= END:

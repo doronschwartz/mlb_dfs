@@ -887,10 +887,14 @@ def project_hitter(
     # negative-EV play. The streak override above already protects against
     # noise-driven negatives by flooring the L3 input at 0.
 
-    # Confidence interval: hitter single-game stdev empirically ~5.5 pts
-    # (calibration MAE ~4.3 → stdev ≈ MAE × 1.25). Floor/ceiling = ±1 stdev.
-    # Floor for low-projection guys clamped at 0.
-    sigma = 5.5
+    # Confidence interval — DYNAMIC sigma (v9.39). The old flat 5.5 was fiction
+    # at both extremes: a 25-date residual study (n=6,372) shows single-game
+    # stdev scales nearly linearly with the projection itself —
+    #   proj 0-3 → σ 3.4,  5-7 → 6.2,  9-12 → 7.9,  12+ → 9.6
+    # Weighted fit: σ ≈ 2.97 + 0.469·proj. Flat 5.5 overstated scrub risk and
+    # badly understated stud upside (a 14-pt projection's real ceiling band is
+    # ±9.6, not ±5.5). Floor/ceiling = ±1σ; floor clamped at 0.
+    sigma = round(max(2.5, min(3.0 + 0.47 * max(proj, 0.0), 11.0)), 1)
     floor = max(0.0, proj - sigma)
     ceiling = proj + sigma
     pitfalls: list[str] = []
@@ -1291,6 +1295,17 @@ def project_pitcher(
     # shouldn't go negative even though a real bad start can).
     proj = max(1.0, _PIT_SPREAD_PIVOT + (proj - _PIT_SPREAD_PIVOT) * _PIT_SPREAD_K)
 
+    # v9.39: SECOND de-compression notch. 25-date diagnostic (n=662) found the
+    # optimal-linear-recal slope is still 1.11 — measured independently on each
+    # time half it came out 1.111 / 1.106, remarkably stable — i.e. even after
+    # the v9.29 k=1.25 spread, pitcher projections remain ~11% too compressed.
+    # Grid A/B: pivot 11.5 (≈ sample mean, so the transform is BIAS-NEUTRAL —
+    # lower pivots improved MAE but pushed late-window bias negative) with
+    # k=1.12 improves MAE on BOTH halves (early 6.043→6.034, late 5.807→5.766)
+    # with bias unchanged. Kept separate from the v9.29 line because this is
+    # where the A/B was measured (on the final chain output).
+    proj = max(1.0, 11.5 + (proj - 11.5) * 1.12)
+
     # Opener clamp: if this pitcher is averaging <2.5 IP/start, their fantasy
     # ceiling is structurally capped (3 IP max → ~8 pts max even with K-heavy
     # outing). Project no higher than 9 pts even if rolling form says more.
@@ -1298,9 +1313,11 @@ def project_pitcher(
         notes.append(f"opener clamp: capping projection at 9.0 (was {proj:.1f})")
         proj = 9.0
 
-    # Pitcher single-start stdev empirically ~7 pts (single starts are
-    # higher variance — quality starts vs blowups can swing 25 pts).
-    sigma = 7.0
+    # Pitcher single-start stdev — DYNAMIC (v9.39). Same 25-date residual
+    # study (n=662): σ scales with the projection (proj 0-6 → 6.4, 12-15 →
+    # 7.7, 15+ → 8.4; weighted fit σ ≈ 5.94 + 0.126·proj). Flatter slope than
+    # hitters — a bad start craters anyone — but aces still carry wider bands.
+    sigma = round(max(5.5, min(5.9 + 0.13 * max(proj, 0.0), 9.5)), 1)
     floor = max(-5.0, proj - sigma)   # pitchers can score negative on bad starts
     ceiling = proj + sigma
     pitfalls: list[str] = []
@@ -1964,7 +1981,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-05-v9.38" # COLD shrink 0.90->0.81 (confirmed out-of-sample 4.5σ across 2 windows)
+MODEL_REV = "2026-06-11-v9.39" # TB-prop market factor + dynamic sigma + 2nd pitcher de-compression (25-date diagnostics)
 
 
 def _proj_disk_path(key: tuple) -> str:
