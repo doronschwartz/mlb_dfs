@@ -2420,13 +2420,23 @@ function liveProjTooltip(p) {
   </div>`;
 }
 
+let projView = "mean"; // mean | ceiling | floor — ceiling/floor use ±1σ (σ scales with projection, v9.39)
+function _projViewVal(p) {
+  const c = p.components || {};
+  if (projView === "ceiling") return c.ceiling ?? p.projected_points;
+  if (projView === "floor") return c.floor ?? p.projected_points;
+  return p.projected_points;
+}
 function renderProjectionsTable() {
+  const head = projView === "ceiling" ? "Ceiling" : projView === "floor" ? "Floor" : "Pts";
   const rows = projCache.data
+    .map((p) => ({ p, v: _projViewVal(p) }))
+    .sort((a, b) => b.v - a.v)
     .slice(0, 60)
     .map(
-      (p) => `
+      ({ p, v }) => `
       <tr class="${p.role} score-row">
-        <td>${p.projected_points.toFixed(2)}</td>
+        <td>${v.toFixed(2)}${projView !== "mean" ? ` <span class="muted" style="font-size:11px;">(${p.projected_points.toFixed(1)})</span>` : ""}</td>
         <td class="player-cell"><span class="name-trigger">${p.name} ${formBadge((p.components||{}).form_tag)} ${injuryBadge((p.components||{}).injury)}</span>${_oppFromComponents(p)}${projTooltip(p)}</td>
         <td>${p.position ?? "-"}</td>
         <td>${p.role}</td>
@@ -2435,10 +2445,21 @@ function renderProjectionsTable() {
     )
     .join("");
   $("#proj-out").innerHTML = `
+    <div style="margin-bottom:8px;">
+      <label class="muted" style="font-size:12px;">View:
+        <select id="proj-view-sel">
+          <option value="mean" ${projView === "mean" ? "selected" : ""}>Mean (expected)</option>
+          <option value="ceiling" ${projView === "ceiling" ? "selected" : ""}>Ceiling (proj+σ) — tournament upside</option>
+          <option value="floor" ${projView === "floor" ? "selected" : ""}>Floor (proj−σ) — safety</option>
+        </select>
+      </label>
+    </div>
     <table>
-      <thead><tr><th>Pts</th><th>Player</th><th>Pos</th><th>Role</th><th>Notes</th></tr></thead>
+      <thead><tr><th>${head}</th><th>Player</th><th>Pos</th><th>Role</th><th>Notes</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+  const sel = $("#proj-view-sel");
+  if (sel) sel.onchange = () => { projView = sel.value; renderProjectionsTable(); };
 }
 
 // ---------- draft ----------

@@ -513,6 +513,16 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.40 — 2026-06-11",
+                "title": "Arsenal matchup, personalized platoon splits, ceiling view",
+                "changes": [
+                    "Arsenal × hitter pitch-type matchup: the opposing starter's pitch MIX crossed with this hitter's own run value per 100 pitches BY pitch type (both from Savant pitch-arsenal leaderboards). This prices what team-level Vegas totals can't: a breaking-ball-vulnerable hitter facing a 60% slider guy, or a fastball hunter facing a four-seamer. Per-type run values are noisy → shrunk n/(n+150), requires ≥60% of the arsenal covered, capped ±5%.",
+                    "Personalized platoon factor: the flat ±5% league assumption ignored that real platoon splits vary 3× across hitters (some reversed). Now blends the league prior toward the hitter's own season vl/vr OPS ratio with n/(n+250) PA-shrinkage — small splits stay near the prior, established splits move the needle, clamped ±10%.",
+                    "Ceiling/Floor view on the projections tab (both sites): rank by proj+σ for tournament upside or proj−σ for cash-game safety, powered by the v9.39 dynamic sigma (a 14-pt stud's real band is ±9.6, a 2-pt scrub's is ±3.4 — flat bands hid this).",
+                    "Forward-validation harness for all new factors (scripts/validate_new_factors.py): after a week of live slates, decomposes error by TB-prop z, arsenal-matchup, and platoon buckets — each factor must show its bias gradient or it gets removed. New factors can't be backtested (no historical prop archive; season-cumulative leaderboards leak into the past), so they ship damped and prove themselves forward.",
+                ],
+            },
+            {
                 "version": "v9.39 — 2026-06-11",
                 "title": "Deep structural audit → TB-prop market signal, honest sigma, pitcher spread",
                 "changes": [

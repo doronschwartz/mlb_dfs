@@ -296,3 +296,64 @@ def league_averages(season: int) -> dict:
 # player. Probed 11 alternate param names (game_date_gt, since, month, splits,
 # etc.) — none filter. The replacement uses MLB Stats API K%-rate shift from
 # byDateRange (which DOES honor the dates) and lives in projections.py.
+
+
+# -------- pitch-arsenal matchup (v9.40) --------
+# Two leaderboards power the arsenal-vs-hitter matchup factor:
+#   type=pitcher → each pitcher's pitch MIX (usage% per pitch type)
+#   type=batter  → each hitter's run value per 100 pitches BY pitch type
+# Both are season-cumulative (same point-in-time caveat as every other
+# Savant leaderboard we use — fine for live projections, leaks for backtests).
+
+def pitcher_arsenal(season: int) -> dict[int, list[dict]]:
+    """{pitcher_id: [{pitch_type, usage, rv100, pitches}, ...]} sorted by usage."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/pitch-arsenal-stats"
+        f"?type=pitcher&year={season}&min=10&csv=true"
+    )
+    out: dict[int, list[dict]] = {}
+    for r in rows:
+        try:
+            pid = int(r.get("player_id", ""))
+            usage = float(r.get("pitch_usage", ""))
+        except (TypeError, ValueError):
+            continue
+        try:
+            rv100 = float(r.get("run_value_per_100", ""))
+        except (TypeError, ValueError):
+            rv100 = None
+        try:
+            n = int(float(r.get("pitches", "0") or 0))
+        except (TypeError, ValueError):
+            n = 0
+        out.setdefault(pid, []).append({
+            "pitch_type": r.get("pitch_type", ""),
+            "usage": usage, "rv100": rv100, "pitches": n,
+        })
+    for pid in out:
+        out[pid].sort(key=lambda x: -x["usage"])
+    return out
+
+
+def batter_pitch_rv(season: int) -> dict[int, dict[str, dict]]:
+    """{batter_id: {pitch_type: {rv100, pitches}}} — how the hitter performs
+    against each pitch type, in run value per 100 pitches seen."""
+    rows = _csv(
+        f"https://baseballsavant.mlb.com/leaderboard/pitch-arsenal-stats"
+        f"?type=batter&year={season}&min=10&csv=true"
+    )
+    out: dict[int, dict[str, dict]] = {}
+    for r in rows:
+        try:
+            pid = int(r.get("player_id", ""))
+            rv100 = float(r.get("run_value_per_100", ""))
+        except (TypeError, ValueError):
+            continue
+        try:
+            n = int(float(r.get("pitches", "0") or 0))
+        except (TypeError, ValueError):
+            n = 0
+        pt = r.get("pitch_type", "")
+        if pt:
+            out.setdefault(pid, {})[pt] = {"rv100": rv100, "pitches": n}
+    return out

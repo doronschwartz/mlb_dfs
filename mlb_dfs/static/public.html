@@ -73,10 +73,11 @@
     <div class="ctrls">
       <input id="proj-search" placeholder="Search player…" style="width:220px;">
       <select id="proj-role"><option value="all">All</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
+      <select id="proj-view" title="Mean = expected points. Ceiling = proj + 1σ (tournament upside). Floor = proj − 1σ (cash-game safety). σ scales with projection size."><option value="mean">Mean</option><option value="ceiling">Ceiling</option><option value="floor">Floor</option></select>
       <span class="muted" id="proj-meta"></span>
     </div>
     <div class="scroll"><table>
-      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="num">Proj (pts)</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="num" id="proj-val-head">Proj (pts)</th></tr></thead>
       <tbody id="proj-body"><tr><td colspan="4" class="muted">Loading today's slate…</td></tr></tbody>
     </table></div>
     <p class="muted" style="font-size:12px;margin-top:8px;">Projections use our scoring model. For DraftKings/FanDuel exact scoring, treat as relative rankings.</p>
@@ -186,15 +187,23 @@ async function loadProj(){
     renderProj();
   }catch(e){$("#proj-body").innerHTML='<tr><td colspan="4" class="muted">No slate yet today.</td></tr>';}
 }
+function projVal(p,view){
+  const c=p.components||{};
+  if(view==="ceiling") return c.ceiling??p.projected_points;
+  if(view==="floor") return c.floor??p.projected_points;
+  return p.projected_points;
+}
 function renderProj(){
-  const q=na($("#proj-search").value), role=$("#proj-role").value;
-  const rows=projCache.filter(p=>(role==="all"||p.role===role)&&(!q||na(p.name).includes(q))).slice(0,300);
-  $("#proj-body").innerHTML=rows.map((p,i)=>`<tr><td class="muted">${i+1}</td>
+  const q=na($("#proj-search").value), role=$("#proj-role").value, view=$("#proj-view").value;
+  $("#proj-val-head").textContent=view==="ceiling"?"Ceiling (proj+σ)":view==="floor"?"Floor (proj−σ)":"Proj (pts)";
+  const rows=projCache.filter(p=>(role==="all"||p.role===role)&&(!q||na(p.name).includes(q)))
+    .map(p=>({p,v:projVal(p,view)})).sort((a,b)=>b.v-a.v).slice(0,300);
+  $("#proj-body").innerHTML=rows.map(({p,v},i)=>`<tr><td class="muted">${i+1}</td>
     <td>${esc(p.name)}</td><td>${esc(p.position||p.role||"")}</td>
-    <td class="num"><b>${p.projected_points.toFixed(2)}</b></td></tr>`).join("")
+    <td class="num"><b>${v.toFixed(2)}</b>${view!=="mean"?` <span class="muted">(${p.projected_points.toFixed(1)})</span>`:""}</td></tr>`).join("")
     ||'<tr><td colspan="4" class="muted">No matches.</td></tr>';
 }
-$("#proj-search").oninput=renderProj; $("#proj-role").onchange=renderProj;
+$("#proj-search").oninput=renderProj; $("#proj-role").onchange=renderProj; $("#proj-view").onchange=renderProj;
 
 async function loadDyn(){
   try{const d=await(await fetch("/api/dynasty/rankings?limit=500")).json();

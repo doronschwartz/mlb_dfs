@@ -504,3 +504,35 @@ def iter_boxscore_pitchers(box: dict) -> Iterable[tuple[dict, dict]]:
                 person = pdata.get("person") or {}
                 person = {**person, "isStarter": person.get("id") == starter_id}
                 yield person, stats
+
+
+@_disk_cache.cached_disk(86400, namespace="mlb_platoon")
+def player_platoon_splits(pid: int, season: int) -> dict:
+    """Season-to-date platoon splits: {'vl': {'pa', 'ops'}, 'vr': {...}}.
+    Powers the per-player platoon factor (v9.40) — replaces the flat ±5%
+    league-average assumption with the hitter's own splits, PA-shrunk.
+    24h disk cache; season-cumulative (live-use signal, leaks on backtests
+    — same accepted caveat as the Savant leaderboards)."""
+    try:
+        data = _get(
+            f"/people/{pid}/stats",
+            params={"stats": "statSplits", "sitCodes": "vl,vr",
+                    "group": "hitting", "season": season},
+        )
+    except Exception:
+        return {}
+    out: dict[str, dict] = {}
+    for s in data.get("stats", []):
+        for sp in s.get("splits", []):
+            code = (sp.get("split") or {}).get("code")
+            st = sp.get("stat", {})
+            if code not in ("vl", "vr"):
+                continue
+            try:
+                pa = int(st.get("plateAppearances", 0) or 0)
+                ops = float(st.get("ops", "") or 0)
+            except (TypeError, ValueError):
+                continue
+            if pa > 0 and ops > 0:
+                out[code] = {"pa": pa, "ops": ops}
+    return out

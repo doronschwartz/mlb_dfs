@@ -706,17 +706,78 @@ def project_hitter(
             bullpen_factor = bullpen_factor_raw
             notes.append(f"opp bullpen ERA {opp_bullpen_era:.2f} x{bullpen_factor:.2f} (no Vegas)")
 
-    # Handedness platoon factor: opposite-hand matchup is +5% (well-documented
-    # ~30 pt wOBA advantage); same-hand is -5%; switch hitters always opposite.
+    # Handedness platoon factor (v9.40: personalized). The flat ±5% league
+    # assumption ignores that real platoon splits vary 3× across hitters (and
+    # some are REVERSED). Now: start from the league prior (±5% / 1.03 switch),
+    # blend toward the hitter's OWN season vl/vr OPS ratio, weighted by the
+    # relevant split's PA via n/(n+250) shrinkage — true platoon talent
+    # stabilizes slowly, so a 70-PA split only moves ~22% of the way off the
+    # prior. Personal ratio damped 0.7 (OPS ratio ≈ proportional to pts ratio,
+    # kept conservative), result clamped [0.90, 1.10].
     platoon_factor = 1.0
     if bats and opp_throws and bats in ("L", "R", "S") and opp_throws in ("L", "R"):
         if bats == "S":
-            platoon_factor = 1.03   # switch hitters always have platoon advantage
+            static = 1.03   # switch hitters always have platoon advantage
         elif bats != opp_throws:
-            platoon_factor = 1.05   # opposite hand
+            static = 1.05   # opposite hand
         else:
-            platoon_factor = 0.95   # same hand
-        notes.append(f"vs {opp_throws}HP ({bats}H) x{platoon_factor:.2f}")
+            static = 0.95   # same hand
+        platoon_factor = static
+        detail = "league prior"
+        try:
+            splits = mlb_api.player_platoon_splits(pid, season)
+        except Exception:
+            splits = {}
+        key = "vl" if opp_throws == "L" else "vr"
+        rel, other = splits.get(key), splits.get("vl" if key == "vr" else "vr")
+        if rel and other:
+            pa_all = rel["pa"] + other["pa"]
+            ops_overall = (rel["ops"] * rel["pa"] + other["ops"] * other["pa"]) / pa_all
+            if ops_overall > 0.300:
+                personal = 1.0 + (rel["ops"] / ops_overall - 1.0) * 0.7
+                w = rel["pa"] / (rel["pa"] + 250.0)
+                platoon_factor = (1 - w) * static + w * personal
+                platoon_factor = max(0.90, min(platoon_factor, 1.10))
+                detail = f"own split {rel['ops']:.3f} vs overall {ops_overall:.3f}, {rel['pa']} PA w={w:.2f}"
+        notes.append(f"vs {opp_throws}HP ({bats}H) x{platoon_factor:.2f} ({detail})")
+
+    # Arsenal × hitter pitch-type matchup (v9.40). The opposing SP's pitch MIX
+    # crossed with THIS hitter's per-pitch-type run values (both from Savant's
+    # pitch-arsenal-stats leaderboards). This is player-vs-arsenal signal that
+    # team-level Vegas totals don't price: a breaking-ball-vulnerable hitter
+    # facing a 60% slider guy, or an elite fastball hunter facing a four-seam
+    # starter. Per-pitch-type rv/100 is noisy → shrunk n/(n+150) per type,
+    # require ≥60% of the SP's arsenal covered by hitter data, damped 3% per
+    # weighted rv100 unit, capped ±5%. Season-cumulative leaderboards (same
+    # live-use caveat as every other Savant input); forward-validated like
+    # the TB-prop via stored components.
+    arsenal_factor = 1.0
+    if opposing_sp_id:
+        try:
+            ars = savant.pitcher_arsenal(season).get(opposing_sp_id)
+            brv = savant.batter_pitch_rv(season).get(pid)
+        except Exception:
+            ars = brv = None
+        if ars and brv:
+            cov = 0.0
+            wsum = 0.0
+            for ap in ars:
+                pt = ap["pitch_type"]
+                u = (ap["usage"] or 0) / 100.0
+                d = brv.get(pt)
+                if not d or u <= 0:
+                    continue
+                shrink = d["pitches"] / (d["pitches"] + 150.0)
+                wsum += u * d["rv100"] * shrink
+                cov += u
+            if cov >= 0.60:
+                mrv = wsum / cov  # weighted rv/100 vs the covered arsenal share
+                arsenal_factor = 1.0 + max(-0.05, min(mrv * 0.03, 0.05))
+                if abs(arsenal_factor - 1.0) >= 0.005:
+                    notes.append(
+                        f"arsenal matchup x{arsenal_factor:.3f} "
+                        f"(wtd rv100 {mrv:+.2f} vs SP mix, {cov:.0%} covered)"
+                    )
 
     # Rolling K-rate factor — process-skill shift signal (NOT outcome-based).
     # Why K% specifically: pts/G already encodes outcomes (HR/H/BB weighted), so
@@ -779,7 +840,7 @@ def project_hitter(
             f"P(over) {tb_prop.get('p_over', 0):.0%}, slate-z {z:+.1f})"
         )
 
-    chain_product = sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor * tb_prop_factor
+    chain_product = sp_factor * qoc_factor * park_factor * order_factor * vegas_factor * bullpen_factor * platoon_factor * rolling_factor * iso_factor * sb_factor * tb_prop_factor * arsenal_factor
     proj = base_pg * chain_product
     # Post-matchup HOT/COLD residual correction. Bayesian day-level audit
     # (18 days, n=5,102) revealed two highly-significant biases that the
@@ -960,6 +1021,7 @@ def project_hitter(
             "rolling_pa_l14": int(pa_l14) if pa_l14 else 0,
             "iso_factor": round(iso_factor, 3),
             "sb_factor": round(sb_factor, 3),
+            "arsenal_factor": round(arsenal_factor, 3),
             "tb_prop_factor": round(tb_prop_factor, 3),
             "tb_prop_line": (tb_prop or {}).get("line"),
             "tb_prop_p_over": round((tb_prop or {}).get("p_over"), 3) if (tb_prop or {}).get("p_over") is not None else None,
@@ -1981,7 +2043,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-11-v9.39" # TB-prop market factor + dynamic sigma + 2nd pitcher de-compression (25-date diagnostics)
+MODEL_REV = "2026-06-11-v9.40" # arsenal-vs-hitter pitch-type matchup + personalized platoon splits
 
 
 def _proj_disk_path(key: tuple) -> str:
