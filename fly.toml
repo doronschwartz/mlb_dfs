@@ -25,9 +25,9 @@ primary_region = "iad"
   path = "/api/health"
   timeout = "5s"
 
-# 1GB RAM — 512MB triggered OOM kills during concurrent cold-cache projection
-# computes (each project_slate holds ~400 projections + Statcast caches).
-# Observed process RSS spike to 395MB; 1024MB gives ~2.5x headroom.
+# 2GB RAM — 1GB still OOM'd 3x on 2026-06-11 during full-history cold
+# recomputes (25 sequential project_slate calls; the v9.39+ chain also holds
+# Savant arsenal leaderboards in memory). 2GB matches the public app.
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "1gb"
+  memory = "2gb"
