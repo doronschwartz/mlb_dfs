@@ -97,6 +97,37 @@ def save_odds(date_iso: str, pitchers: dict) -> None:
         pass
 
 
+# Permanent prop-line archive (v9.41). cleanup_old_odds deletes each day's
+# saved lines the next morning, which made the prop factors impossible to
+# validate retroactively — there was no history. Every fresh fetch now also
+# writes a copy here, which is NEVER cleaned. Tiny files (~30KB/day); lives
+# on the same volume so it survives deploys. validate_new_factors.py joins
+# these against actuals to grade the TB-prop factor leak-free, date by date.
+ARCHIVE_DIR = os.path.join(os.path.dirname(ODDS_DIR), "odds_archive")
+
+
+def _archive_lines(date_iso: str, suffix: str, payload: dict) -> None:
+    try:
+        os.makedirs(ARCHIVE_DIR, exist_ok=True)
+        path = os.path.join(ARCHIVE_DIR, f"{date_iso}{suffix}.json")
+        if os.path.exists(path):   # first write of the day wins (pre-game lines)
+            return
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"fetched_at": time.time(), "date": date_iso, "lines": payload}, f)
+        os.replace(tmp, path)
+    except Exception:
+        pass  # archival must never break a live fetch
+
+
+def archived_lines(date_iso: str, suffix: str) -> dict | None:
+    try:
+        with open(os.path.join(ARCHIVE_DIR, f"{date_iso}{suffix}.json")) as f:
+            return json.load(f).get("lines")
+    except Exception:
+        return None
+
+
 def cleanup_old_odds(keep_from: str) -> int:
     """Delete saved-odds files for dates strictly before `keep_from`.
     Returns the count removed. Called automatically on every fetch so we
@@ -209,6 +240,7 @@ def get_pitcher_strikeout_lines_cached(date_iso: str, *, force_refresh: bool = F
             return saved["pitchers"], {"cached": True, "fetched_at": saved.get("fetched_at")}
     fresh = get_pitcher_strikeout_lines(date_iso)
     if fresh:
+        _archive_lines(date_iso, "_pitchers", fresh)
         save_odds(date_iso, fresh)
     return fresh, {"cached": False, "fetched_at": time.time() if fresh else None}
 
@@ -229,6 +261,7 @@ def get_batter_total_bases_lines_cached(date_iso: str, *, force_refresh: bool = 
             pass
     fresh = get_batter_total_bases_lines(date_iso)
     if fresh:
+        _archive_lines(date_iso, "_batters", fresh)
         _ensure_odds_dir()
         tmp = f"{path}.tmp"
         with open(tmp, "w") as f:

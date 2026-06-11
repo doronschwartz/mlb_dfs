@@ -56,6 +56,11 @@ def build_date(d):
         r["actual"] = actual[pid]
         r["role"] = p.get("role")
         r["date"] = d
+        # identity + counterfactual-inversion fields (v9.40 factor A/B)
+        r["player_id"] = pid
+        r["name"] = p.get("name")
+        r["bats"] = c.get("bats")
+        r["vs_throws"] = c.get("vs_throws")
         out.append(r)
     print("  %s: %d player-games" % (d, len(out)), flush=True)
     return out
