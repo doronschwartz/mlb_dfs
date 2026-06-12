@@ -3178,6 +3178,9 @@ def affiliates():
         # Stripe Payment Link (create in Stripe dashboard, zero code needed):
         #   flyctl secrets set -a mlb-dfs-public STRIPE_SUPPORT_URL=https://buy.stripe.com/...
         "support_url": os.environ.get("STRIPE_SUPPORT_URL", ""),
+        # Contact channel — inbound feedback/partnership offers need a door.
+        #   flyctl secrets set -a mlb-dfs-public CONTACT_EMAIL=you@example.com
+        "contact_email": os.environ.get("CONTACT_EMAIL", ""),
     }
 
 

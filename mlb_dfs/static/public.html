@@ -333,6 +333,10 @@ async function loadAff(){
       const btn=document.createElement("a");btn.href=a.support_url;btn.target="_blank";
       btn.textContent="☕ Support";btn.style.cssText="background:rgba(52,211,153,.16);color:var(--accent2);border:1px solid var(--accent2);padding:7px 13px;border-radius:8px;font-size:14px;text-decoration:none;font-weight:600;";
       nav.appendChild(btn);}
+    if(a.contact_email){const f=document.createElement("div");
+      f.style.cssText="text-align:center;padding:18px 0 26px;color:var(--muted);font-size:13px;";
+      f.innerHTML=`Feedback, bugs, partnership? <a href="mailto:${esc(a.contact_email)}" style="color:var(--accent);">${esc(a.contact_email)}</a>`;
+      document.body.appendChild(f);}
   }catch(e){}
 }
 // Anonymous pageview beacon (no cookies/IPs) — answers "did the post work?"
