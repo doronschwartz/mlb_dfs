@@ -3170,8 +3170,46 @@ def affiliates():
              "url": os.environ.get("AFFILIATE_DK", "")},
             {"name": "FanDuel", "blurb": "DFS lineups for the night games",
              "url": os.environ.get("AFFILIATE_FD", "")},
+            {"name": "Underdog Fantasy", "blurb": "Best-ball + pick'em — top DFS-adjacent CPA",
+             "url": os.environ.get("AFFILIATE_UNDERDOG", "")},
+            {"name": "PrizePicks", "blurb": "Player-prop pick'em (our projections map 1:1)",
+             "url": os.environ.get("AFFILIATE_PRIZEPICKS", "")},
         ],
+        # Stripe Payment Link (create in Stripe dashboard, zero code needed):
+        #   flyctl secrets set -a mlb-dfs-public STRIPE_SUPPORT_URL=https://buy.stripe.com/...
+        "support_url": os.environ.get("STRIPE_SUPPORT_URL", ""),
     }
+
+
+# -------------------- lightweight analytics (public funnel) --------------------
+# In-memory (no volume on the public app — the warm machine suspends rather
+# than stops, so counters survive day-to-day; they reset on deploy). Enough to
+# answer "did the Reddit post do anything?" without a third-party tracker.
+_PAGEVIEWS: dict[str, dict[str, int]] = {}
+_PAGEVIEWS_BOOT = time.time()
+
+
+@app.post("/api/track")
+def track(payload: dict | None = None):
+    """Anonymous pageview beacon — {page: 'proj'|'dyn'|...}. No IPs, no
+    cookies, no fingerprinting; just daily counters per tab."""
+    from datetime import date as _D
+    page = str((payload or {}).get("page", "home"))[:24]
+    day = _D.today().isoformat()
+    _PAGEVIEWS.setdefault(day, {})
+    _PAGEVIEWS[day][page] = _PAGEVIEWS[day].get(page, 0) + 1
+    return {"ok": True}
+
+
+@app.get("/api/stats")
+def stats(token: str = ""):
+    """Daily pageview counts. Gated by STATS_TOKEN env so the public can't
+    read traffic numbers; if no token is configured the endpoint is open
+    (set one before sharing the site)."""
+    expected = os.environ.get("STATS_TOKEN", "")
+    if expected and token != expected:
+        return {"error": "bad token"}
+    return {"since": _PAGEVIEWS_BOOT, "days": _PAGEVIEWS}
 
 
 # -------------------- helpers --------------------

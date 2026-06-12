@@ -6,6 +6,16 @@
 <!-- BRAND: rename "Diamond Model" everywhere to your chosen name. -->
 <title>Diamond Model — MLB Projections & Dynasty Rankings</title>
 <meta name="description" content="A provably calibrated MLB projection model + data-driven dynasty rankings with live minor-league breakout detection. See the accuracy receipts." />
+<!-- Social share cards — what the link looks like on Reddit/X/Discord -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Diamond Model" />
+<meta property="og:title" content="Diamond Model — MLB projections that grade themselves daily" />
+<meta property="og:description" content="Free MLB DFS projections with full factor-by-factor transparency, honest floor/ceiling bands, P(bust) per player, live Stuff+ leaderboard, and a public accuracy page that grades every projection. No paywall." />
+<meta property="og:url" content="https://mlb-dfs-public.fly.dev/" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Diamond Model — MLB projections that grade themselves daily" />
+<meta name="twitter:description" content="Free MLB DFS projections. Every number explained, every day graded publicly. Ceiling view for GPPs, P(bust) per player, live Stuff+." />
+<link rel="canonical" href="https://mlb-dfs-public.fly.dev/" />
 <style>
   :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c2330;--border:#2a313c;--text:#e6edf3;
     --muted:#8b949e;--accent:#38bdf8;--accent2:#34d399;--bad:#ef4444;}
@@ -319,8 +329,16 @@ async function loadAff(){
   try{const a=await(await fetch("/api/affiliates")).json();const live=(a.links||[]).filter(l=>l.url);
     if(live.length) $("#affiliates").innerHTML=`<h3 style="margin:18px 0 6px;">Where to play</h3>
       <div class="cta-row">${live.map(l=>`<a class="cta" href="${esc(l.url)}" rel="sponsored nofollow" target="_blank"><div class="n">${esc(l.name)}</div><div class="b">${esc(l.blurb)}</div></a>`).join("")}</div>`;
+    if(a.support_url){const nav=document.querySelector("nav");
+      const btn=document.createElement("a");btn.href=a.support_url;btn.target="_blank";
+      btn.textContent="☕ Support";btn.style.cssText="background:rgba(52,211,153,.16);color:var(--accent2);border:1px solid var(--accent2);padding:7px 13px;border-radius:8px;font-size:14px;text-decoration:none;font-weight:600;";
+      nav.appendChild(btn);}
   }catch(e){}
 }
+// Anonymous pageview beacon (no cookies/IPs) — answers "did the post work?"
+function track(page){try{navigator.sendBeacon("/api/track",new Blob([JSON.stringify({page})],{type:"application/json"}));}catch(e){}}
+track("home");
+$$("nav button").forEach(b=>b.addEventListener("click",()=>track(b.dataset.tab||"tab")));
 loadAcc(); loadProj(); loadAff();
 </script>
 </body>
