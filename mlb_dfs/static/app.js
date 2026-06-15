@@ -3292,8 +3292,12 @@ function drawPool() {
   // {normalized_name -> rank} from the internal dynasty Top 500 (loaded once).
   // Lower rank = better. Case- and punctuation-insensitive match.
   const dynasty = state._dynastyMap || null;
+  // Form-tag chips: show players whose form_tag matches ANY active chip (OR).
+  // Empty set = no form filtering. Lets you e.g. surface only HOT+ELITE bats.
+  const formTags = state._poolFormTags || new Set();
   const rows = poolCache.pool.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search)) return false;
+    if (formTags.size && !formTags.has((p.components || {}).form_tag)) return false;
     if (filter === "hitter") return p.role === "hitter";
     if (filter === "pitcher") return p.role === "pitcher";
     if (filter === "IF" || filter === "OF") return (p.position_slots || p.eligible_slots).includes(filter);
@@ -3408,6 +3412,20 @@ function drawPool() {
 $("#pool-search").addEventListener("input", () => poolCache.pool.length && drawPool());
 $("#pool-filter").addEventListener("change", () => poolCache.pool.length && drawPool());
 $("#pool-sort")?.addEventListener("change", () => poolCache.pool.length && drawPool());
+
+// Form-tag filter chips (HOT/ELITE/STEADY/COLD) — multi-select OR.
+state._poolFormTags = state._poolFormTags || new Set();
+document.querySelectorAll("#pool-form-chips .form-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const tag = chip.dataset.tag;
+    if (state._poolFormTags.has(tag)) { state._poolFormTags.delete(tag); chip.classList.remove("active"); }
+    else { state._poolFormTags.add(tag); chip.classList.add("active"); }
+    const hint = $("#pool-form-hint");
+    if (hint) hint.textContent = state._poolFormTags.size
+      ? `showing ${[...state._poolFormTags].join(" / ")} only` : "";
+    if (poolCache.pool.length) drawPool();
+  });
+});
 
 // Load the internal dynasty Top 500 list once at startup. Tolerates failure —
 // dynasty sort just falls back to projection order when the list isn't loaded.

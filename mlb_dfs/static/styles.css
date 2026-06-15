@@ -110,6 +110,17 @@ tr.pitcher td:first-child { color: var(--warn); }
   display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center;
 }
 .setup-row input { flex: 1; min-width: 240px; }
+#pool-form-chips { margin-top: -4px; margin-bottom: 12px; }
+.form-chip {
+  background: var(--panel, #161b22); border: 1px solid var(--border, #2a313c);
+  color: var(--muted, #8b949e); padding: 4px 10px; border-radius: 999px;
+  cursor: pointer; font-size: 13px; line-height: 1; transition: all .12s;
+}
+.form-chip:hover { border-color: var(--accent, #38bdf8); color: var(--text, #e6edf3); }
+.form-chip.active {
+  background: var(--accent, #38bdf8); color: #06121c; border-color: var(--accent, #38bdf8);
+  font-weight: 700;
+}
 #draft-setup, #draft-load-row { margin-bottom: 18px; }
 #draft-setup h3, #draft-load-row h3 { margin: 0 0 8px; font-size: 14px; }
 
