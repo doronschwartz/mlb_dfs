@@ -3266,6 +3266,7 @@ async function renderPool() {
       nonSpFree: !!data.non_sp_free,
       hitterFreeDrafter: data.hitter_free_drafter || null,
     };
+    populateTeamFilter();
     drawPool();
   } catch (e) {
     $("#pool-out").innerHTML = `<div class="muted" style="padding:12px;">${e.message}</div>`;
@@ -3295,8 +3296,10 @@ function drawPool() {
   // Form-tag chips: show players whose form_tag matches ANY active chip (OR).
   // Empty set = no form filtering. Lets you e.g. surface only HOT+ELITE bats.
   const formTags = state._poolFormTags || new Set();
+  const teamSel = $("#pool-team")?.value || "all";
   const rows = poolCache.pool.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search)) return false;
+    if (teamSel !== "all" && p.team_abbr !== teamSel) return false;
     if (formTags.size && !formTags.has((p.components || {}).form_tag)) return false;
     if (filter === "hitter") return p.role === "hitter";
     if (filter === "pitcher") return p.role === "pitcher";
@@ -3409,8 +3412,25 @@ function drawPool() {
   });
 }
 
+// Fill the team dropdown with only the teams playing today (distinct in the
+// pool), sorted by full name. Preserves the current selection across reloads.
+function populateTeamFilter() {
+  const sel = $("#pool-team");
+  if (!sel) return;
+  const prev = sel.value;
+  const seen = new Map(); // abbr -> full name
+  for (const p of poolCache.pool) {
+    if (p.team_abbr && !seen.has(p.team_abbr)) seen.set(p.team_abbr, p.team_name || p.team_abbr);
+  }
+  const teams = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  sel.innerHTML = `<option value="all">All teams</option>` +
+    teams.map(([abbr, name]) => `<option value="${abbr}">${name} (${abbr})</option>`).join("");
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev; // keep selection
+}
+
 $("#pool-search").addEventListener("input", () => poolCache.pool.length && drawPool());
 $("#pool-filter").addEventListener("change", () => poolCache.pool.length && drawPool());
+$("#pool-team")?.addEventListener("change", () => poolCache.pool.length && drawPool());
 $("#pool-sort")?.addEventListener("change", () => poolCache.pool.length && drawPool());
 
 // Form-tag filter chips (HOT/ELITE/STEADY/COLD) — multi-select OR.

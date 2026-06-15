@@ -2885,6 +2885,8 @@ def get_pool(draft_id: str):
             "position": p.position,
             "role": p.role,
             "team_id": p.team_id,
+            "team_abbr": projections._TEAM_ABBR.get(p.team_id or 0, ""),
+            "team_name": projections._TEAM_FULLNAME.get(p.team_id or 0, ""),
             "projected_points": p.projected_points,
             "eligible_slots": eligible,
             "position_slots": position_slots,
