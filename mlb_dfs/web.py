@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.43 — 2026-06-16",
+                "title": "Recency correction ratcheted (fresh out-of-sample audit)",
+                "changes": [
+                    "First calibration check with v9.42 fully deployed: a 13-date audit (6/03–6/15, n=3,333 hitters) with the back half entirely out-of-sample. Overall calibration is excellent (hitter bias −0.04, pitcher −0.45) and form/QoC/magnitude axes are all clean (<3σ). The one persistent signal: the recency correction's coefficient (0.35) was set conservatively last week and still under-corrects — the moderately-cold bucket (L3 a bit below a hitter's base) sat at −0.71 (5.2σ) on n=951, low-variance. A symmetric strength A/B improved MAE monotonically on BOTH time halves through 0.55 (held-out half 4.615→4.586) with overall bias unchanged; an asymmetric cold-only version drifted bias positive, so symmetric won. Ratcheted 0.35→0.50 — conservative, re-audited weekly. The extreme tails (huge L3 swings, ~1.5% of hitters, very high variance) still carry residual but are correctly left alone — chasing their mean would inflate MAE.",
+                ],
+            },
+            {
                 "version": "v9.42 — 2026-06-11",
                 "title": "Recency-deviation correction, honest quantile bands, outs-prop, auto-audit",
                 "changes": [

@@ -953,17 +953,23 @@ def project_hitter(
     # controls for matchup strength AND projection magnitude (6-12σ in every
     # slice). The chain still under-weights how much recent form carries.
     # Additive (not multiplicative — the effect is in DEVIATION units):
-    # proj += c·clamp(L3−base, ±6). Grid: MAE improves monotonically on both
-    # time halves through c=0.45 (4.365→4.302 / 4.380→4.299); shipped c=0.35,
-    # one notch inside. Sits AFTER the step-function shrinks (marginal effect
-    # validated on top of them) and BEFORE lineup-out zeroing.
+    # proj += c·clamp(L3−base, ±6). Sits AFTER the step-function shrinks
+    # (marginal effect validated on top of them) and BEFORE lineup-out zeroing.
+    # v9.42 shipped c=0.35 (one notch inside a grid that went to 0.45).
+    # v9.43: a fresh 13-date audit (6/03–6/15, n=3,198, back half fully OOS
+    # post-deploy) showed c=0.35 UNDER-corrects — L3<base still -0.71 (5.2σ,
+    # n=951, low-variance) and L3>base +0.66. Symmetric ratchet A/B improved
+    # MAE monotonically on BOTH time halves through 0.55 (late/OOS 4.615→4.586)
+    # with overall bias staying ±0.05; an asymmetric cold-only variant matched
+    # MAE but drifted bias positive, so symmetric won. Bumped to 0.50 —
+    # conservative (didn't chase to 0.55), re-audit next week.
     l3_dev_adj = 0.0
     if pg_3 is not None and games_3 >= 2:
         l3_dev = max(-6.0, min(pg_3 - base_pg, 6.0))
         if abs(l3_dev) > 0.1:
-            l3_dev_adj = 0.35 * l3_dev
+            l3_dev_adj = 0.50 * l3_dev
             proj += l3_dev_adj
-            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.42)")
+            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.43)")
 
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
@@ -2108,7 +2114,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-11-v9.42" # recency-deviation adj (6-12σ), quantile bands + P(dud), outs-prop
+MODEL_REV = "2026-06-16-v9.43" # recency coeff 0.35->0.50 (fresh OOS audit: L3<base 5.2σ under-corrected)
 
 
 def _proj_disk_path(key: tuple) -> str:
