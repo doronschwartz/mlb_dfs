@@ -2088,6 +2088,12 @@ def _point_decomp_pitcher(events: dict, proj_points: float) -> dict | None:
 # Projections are based on rolling stat windows that only meaningfully change
 # after games complete overnight, so we hold them for 6h.
 _PROJ_CACHE: dict[tuple, tuple[float, list]] = {}
+# Parallel map of the probable-SP fingerprint each in-memory entry was built
+# under. Without this, a warm in-memory hit skips the fingerprint check that
+# the disk-load path does — so a probable pitcher posted AFTER the slate warms
+# (e.g. MLB lists Cease as TOR's starter mid-morning) wouldn't appear until the
+# 6h TTL expired. Bug found 2026-06-16 (Cease missing while his opp SP showed).
+_PROJ_CACHE_FP: dict[tuple, str] = {}
 _PROJ_TTL_SEC = 6 * 3600
 
 # Per-key lock to prevent cache stampedes — when N concurrent refresh requests
@@ -2185,7 +2191,16 @@ def project_slate_cached(
         live_fp = _schedule_sp_fingerprint(d)
         cached = _PROJ_CACHE.get(key)
         if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC:
-            full = cached[1]
+            # Bust the in-memory entry too when the probable-SP fingerprint
+            # changed since it was built (matches the disk-load check below).
+            cached_fp = _PROJ_CACHE_FP.get(key)
+            if live_fp and cached_fp and cached_fp != live_fp:
+                logging.info(
+                    "in-memory projection cache for %s busted: probable-SP fingerprint changed",
+                    d.isoformat(),
+                )
+            else:
+                full = cached[1]
         if full is None:
             path = _proj_disk_path(key)
             try:
@@ -2208,6 +2223,7 @@ def project_slate_cached(
                         else:
                             full = [_proj_from_dict(x) for x in raw.get("projections", [])]
                             _PROJ_CACHE[key] = (os.path.getmtime(path), full)
+                            _PROJ_CACHE_FP[key] = raw.get("sched_fp") or live_fp
             except Exception:
                 full = None
     if full is None:
@@ -2225,7 +2241,9 @@ def project_slate_cached(
                 full = cached[1]
             else:
                 full = project_slate(d, team_filter=None)
+                fp = _schedule_sp_fingerprint(d)
                 _PROJ_CACHE[key] = (now, full)
+                _PROJ_CACHE_FP[key] = fp
                 try:
                     from .disk_cache import CACHE_DIR
                     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -2233,7 +2251,7 @@ def project_slate_cached(
                     tmp = path + ".tmp"
                     payload = {
                         "model_rev": MODEL_REV,
-                        "sched_fp": _schedule_sp_fingerprint(d),
+                        "sched_fp": fp,
                         "projections": [_proj_to_dict(p) for p in full],
                     }
                     with open(tmp, "w") as f:
