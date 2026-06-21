@@ -971,6 +971,18 @@ def project_hitter(
             proj += l3_dev_adj
             notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.43)")
 
+    # v9.44: post-recency re-compression. v9.43's stronger recency adj pushes
+    # hot-recent (high-proj) players up and cold-recent down, which re-widened
+    # the magnitude spread the v9.35 compression had closed — an 11-date OOS
+    # audit (6/10-6/20) shows studs (proj 10+) over-projected -1.33 (3.1σ) and
+    # scrubs (proj 0-4) under +0.32 (3.2σ), both tails, mechanically caused.
+    # A gentle pivot compression applied HERE (after recency, where the A/B was
+    # measured) closes both: k=0.95 halves each bias with MAE flat to 0.04σ
+    # (4.529→4.534, within the ±0.14 MAE noise floor). Same condition v9.35
+    # shipped under — NOT the hot-recent trap (that had an MAE gradient; this
+    # is flat). One conservative notch; re-audit weekly.
+    proj = 5.6 + (proj - 5.6) * 0.95
+
     # If MLB has confirmed this hitter is OUT of today's posted lineup,
     # zero out the projection (with a tiny tail in case the API is wrong).
     # Without this, scratched stars showed full projections in the pool —
@@ -2120,7 +2132,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-16-v9.43" # recency coeff 0.35->0.50 (fresh OOS audit: L3<base 5.2σ under-corrected)
+MODEL_REV = "2026-06-21-v9.44" # post-recency re-compression k0.95 (v9.43 re-spread studs/scrubs ~3σ)
 
 
 def _proj_disk_path(key: tuple) -> str:

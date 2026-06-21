@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.44 — 2026-06-21",
+                "title": "Re-compress magnitude spread that v9.43 re-opened",
+                "changes": [
+                    "v9.43's stronger recency correction (validated — it closed the L3<base bucket from 5.2σ to 3.0σ, out-of-sample) had a mechanical side-effect: pushing hot-recent players up and cold-recent down re-widened the projection spread that the v9.35 compression had closed. An 11-date OOS audit (6/10-6/20, n=2,837) caught it — studs (proj 10+) over-projected -1.33 (3.1σ) and scrubs (proj 0-4) under +0.32 (3.2σ), both tails. Fix: a gentle post-recency pivot compression (k=0.95) that halves each bias with overall MAE flat to within 0.04σ of the noise floor — the same near-zero-MAE-cost condition v9.35 originally shipped compression under, and explicitly NOT the hot-recent trap (that had a real MAE gradient; this is flat). One conservative notch, re-audited weekly. Everything else is clean: form, QoC, and the L3 axis all sub-3σ; pitchers calibrated.",
+                ],
+            },
+            {
                 "version": "v9.43 — 2026-06-16",
                 "title": "Recency correction ratcheted (fresh out-of-sample audit)",
                 "changes": [
