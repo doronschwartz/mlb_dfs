@@ -6,6 +6,12 @@ primary_region = "iad"
 [env]
   PORT = "8080"
   MLB_DFS_DRAFT_DIR = "/data/drafts"
+  # Persist odds + the prop-line archive on the /data volume. Without this they
+  # defaulted to the ephemeral app dir and were WIPED on every deploy — silently
+  # erasing the prop archive the TB-prop/outs-prop forward-validation depends on
+  # (found 2026-06-21). ARCHIVE_DIR derives as <dirname(ODDS_DIR)>/odds_archive
+  # → /data/odds_archive, now durable.
+  MLB_DFS_ODDS_DIR = "/data/odds"
 
 [[mounts]]
   source = "drafts"
