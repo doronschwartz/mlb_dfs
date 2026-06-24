@@ -102,6 +102,12 @@ _PIT_QOC_TRIM_ELITE = 0.97
 # Streak-override recency weight (HOT/COLD hitters): base = w*L3 + (1-w)*weighted.
 # JL flagged daily projections may over-weight recent form — A/B-tunable here.
 _STREAK_W = 0.85
+# v9.46: regress the L3 streak toward long-term true talent (season rate),
+# sample-size-weighted, before the streak blend. 0 = off (legacy: trust L3 at
+# full). >0 = Bayesian-style shrinkage — a 2-game heater the season doesn't
+# support (Eaton: L3 20.5 vs season ~6) regresses hard; a genuine hot bat
+# (L3 ≈ true talent) barely moves. Env-tunable (STREAK_REG_K) for the A/B.
+_STREAK_REG_K = float(os.environ.get("STREAK_REG_K", "1.0"))  # A/B-chosen (K=2 over-regressed)
 
 # v9.39 batter total-bases prop factor. The hitter-side mirror of the pitcher
 # K-prop blend: batter_total_bases is the sharpest per-HITTER market signal
@@ -495,13 +501,27 @@ def project_hitter(
     # blend without override.
     if pg_3 is not None and games_3 >= 2 and form_tag in ("HOT", "COLD"):
         pg_3_safe = max(pg_3, 0.0)  # K-heavy 3 games don't predict negative true talent
-        # 0.85 weight after iterative audits on the bug-fixed pipeline:
-        #   v5 0.70 → HOT +1.83 / COLD -1.31 (still under/over)
-        #   v6 0.80 → HOT +1.31 / COLD -1.10 (still moving same direction)
-        # Each +0.10 weight closes ~28% / 16% of residual. v7 at 0.85 should
-        # bring HOT into ±0.7 range — getting close to single-day noise floor.
-        streak_base = _STREAK_W * pg_3_safe + (1 - _STREAK_W) * base_pg
-        notes.append(f"streak override ({form_tag}): {_STREAK_W}*L3 + {round(1-_STREAK_W,2)}*weighted → {streak_base:.2f}")
+        # v9.46 spike-regression toward true talent. The old override trusted
+        # L3 at full weight — anti-regression, which let a 2-game explosion the
+        # season doesn't support (Eaton: L3 20.5 vs season ~6) set the baseline.
+        # Now: regress the L3 toward a long-term anchor (season rate, then L14,
+        # then the weighted base), with trust scaled by (a) sample size —
+        # 2-game streaks count less than 3 — and (b) how far L3 overshoots the
+        # anchor (a spike >1.5× true talent is mostly noise and regresses hard).
+        # A genuine hot bat (L3 ≈ true talent) is untouched; only the unsupported
+        # flukes collapse toward who the player actually is. K env-tunable (A/B).
+        pg_3_eff = pg_3_safe
+        if _STREAK_REG_K > 0:
+            anchor = pg_season if pg_season is not None else (
+                pg_14 if pg_14 is not None else base_pg)
+            sample_trust = min(1.0, games_3 / 3.0)
+            excess = pg_3_safe - anchor
+            damp = 1.0
+            if excess > 0 and anchor > 0:
+                damp = 1.0 / (1.0 + _STREAK_REG_K * max(0.0, pg_3_safe / anchor - 1.5))
+            pg_3_eff = anchor + excess * sample_trust * damp
+        streak_base = _STREAK_W * pg_3_eff + (1 - _STREAK_W) * base_pg
+        notes.append(f"streak override ({form_tag}): {_STREAK_W}*L3eff({pg_3_eff:.1f}) + {round(1-_STREAK_W,2)}*weighted → {streak_base:.2f}")
         base_pg = streak_base
 
     # Opposing SP adjustment: ERA + WHIP + K/9. K/9 added in v9.3 because K is the
@@ -680,14 +700,22 @@ def project_hitter(
     # weather, umpire, etc. Falls back to SP-only factor when no odds posted.
     vegas_factor = 1.0
     sp_factor_raw = sp_factor   # preserve audit trail for tooltip even when Vegas overrides
+    park_factor_raw = park_factor
     sp_absorbed_by_vegas = False
+    park_absorbed_by_vegas = False
     if implied_team_total and implied_team_total > 0:
         vegas_factor = (implied_team_total / 4.5) ** 0.55
         vegas_factor = max(0.82, min(vegas_factor, 1.22))
         notes.append(f"Vegas implied {implied_team_total:.1f} R x{vegas_factor:.2f} (matchup signal)")
         sp_factor = 1.0   # Vegas supersedes — don't double-count
         sp_absorbed_by_vegas = True
-    # If no Vegas, sp_factor stays as computed above and is the matchup signal.
+        # v9.46 (JL's stacking catch): the Vegas team total already prices the
+        # park's RUN environment, so multiplying park on top double-counts it.
+        # Keep only ~the player-specific HR/handedness residual (the part the
+        # team-level total can't capture); drop the rest toward neutral.
+        park_factor = 1.0 + (park_factor - 1.0) * 0.35
+        park_absorbed_by_vegas = True
+    # If no Vegas, sp_factor + park stay as computed and ARE the matchup signal.
 
     # Opposing bullpen factor (whole-staff ERA proxy — pen drives ~35% of innings).
     # ONLY applied to the chain when Vegas is unavailable — Vegas implied
@@ -2137,7 +2165,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-24-v9.45" # recency 0.50->0.55 (joint grid: see-saw decoupled by compression, MAE monotone)
+MODEL_REV = "2026-06-24-v9.46" # streak regresses to true talent (K=1, fixes fluke tail) + drop park double-count w/ Vegas
 
 
 def _proj_disk_path(key: tuple) -> str:

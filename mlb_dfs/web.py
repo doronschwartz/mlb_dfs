@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.46 — 2026-06-24",
+                "title": "Regress hot-streak flukes to true talent + stop park double-counting",
+                "changes": [
+                    "A league-mate flagged a fringe hitter (Nate Eaton) projected for 34 — a 2-HR game as an AVERAGE outcome, which is nobody's average. Two real structural flaws, both fixed. (1) The streak override trusted the last-3-game rate at full weight — anti-regression — so a 2-game heater the season doesn't support set the baseline (Eaton: L3 20.5 vs season ~6 → base 18.5). It now regresses the L3 toward long-term true talent (season rate), with trust scaled by sample size AND how far the spike overshoots: a genuine hot bat (L3 ≈ true talent) is untouched, but unsupported flukes collapse toward who the player actually is (Eaton base 18.5→8.4). 3-way A/B picked the strength from data — the chosen setting fixes the fluke group's over-projection (+3.8→+1.5), nails the genuinely-hot group dead-on (+0.1), improves overall MAE (4.286→4.275) and bias (−0.16→+0.05), kills every absurd projection (6 over 25 → zero; max 31→22), and leaves the entire body of the model untouched. A stronger setting over-regressed the real hot bats, so the data said stop there. (2) The Vegas team total already prices a park's run environment, but the model was ALSO multiplying the park factor on top — a double-count. Park is now dropped to just its player-specific HR/handedness residual when a Vegas line exists. Net: stronger pull to the mean exactly where the model was broken (the tails), with the calibrated body and real smash spots preserved.",
+                ],
+            },
+            {
                 "version": "v9.45 — 2026-06-24",
                 "title": "Joint recency×compression optimization settles the see-saw",
                 "changes": [
