@@ -2692,6 +2692,11 @@ async function renderDraft(prefetchedData) {
   // Match the poll's myTurn definition exactly — otherwise the poll detects
   // a phantom flip every 4s and re-renders, which looks like flashing.
   state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
+  // The REAL snake turn (genuinely on the clock) — distinct from the jump
+  // states. Only a real turn unlocks every position; an SP/non-SP jump must
+  // stay restricted to that slot type (see drawPool lockFor). Without this,
+  // being the lone-SP-needer unlocked ALL players, not just SP.
+  state._isRealTurn = isMyTurn(data.on_the_clock);
   renderIdentityBar(data);
   // Enable the Undo button only when the most recent pick belongs to the
   // current user — protects the rest of the league from accidentally undoing
@@ -3277,7 +3282,11 @@ function drawPool() {
   const search = ($("#pool-search").value || "").toLowerCase().trim();
   const filter = $("#pool-filter").value;
   const sortMode = $("#pool-sort")?.value || "proj";
-  const myTurn = state._myTurnAtLastRender;
+  // Only a REAL on-the-clock turn unlocks every slot. The jump states
+  // (spOnly / nonSpOpen) must stay restricted to their slot type below —
+  // using the jump-inclusive _myTurnAtLastRender here let the lone SP-needer
+  // pick ANY player instead of just SP (bug, 2026-06-24).
+  const myTurn = state._isRealTurn;
   const spOnly = canJumpForSP();
   const nonSpOpen = canJumpForNonSP();
   // Two OOO unlock modes:
