@@ -955,6 +955,11 @@ def project_hitter(
     # Additive (not multiplicative — the effect is in DEVIATION units):
     # proj += c·clamp(L3−base, ±6). Sits AFTER the step-function shrinks
     # (marginal effect validated on top of them) and BEFORE lineup-out zeroing.
+    # v9.45: joint (recency × compression) grid settled the "see-saw" — with
+    # the k=0.95 compression below in place, raising the recency coeff DECOUPLES
+    # from the magnitude buckets (studs stay flat, the compression absorbs the
+    # widening), so MAE drops monotonically on both time halves as c rises while
+    # L3<base closes. Nudged 0.50→0.55 (one notch toward the grid optimum ~0.60).
     # v9.42 shipped c=0.35 (one notch inside a grid that went to 0.45).
     # v9.43: a fresh 13-date audit (6/03–6/15, n=3,198, back half fully OOS
     # post-deploy) showed c=0.35 UNDER-corrects — L3<base still -0.71 (5.2σ,
@@ -967,9 +972,9 @@ def project_hitter(
     if pg_3 is not None and games_3 >= 2:
         l3_dev = max(-6.0, min(pg_3 - base_pg, 6.0))
         if abs(l3_dev) > 0.1:
-            l3_dev_adj = 0.50 * l3_dev
+            l3_dev_adj = 0.55 * l3_dev
             proj += l3_dev_adj
-            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.43)")
+            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.45)")
 
     # v9.44: post-recency re-compression. v9.43's stronger recency adj pushes
     # hot-recent (high-proj) players up and cold-recent down, which re-widened
@@ -2132,7 +2137,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-21-v9.44" # post-recency re-compression k0.95 (v9.43 re-spread studs/scrubs ~3σ)
+MODEL_REV = "2026-06-24-v9.45" # recency 0.50->0.55 (joint grid: see-saw decoupled by compression, MAE monotone)
 
 
 def _proj_disk_path(key: tuple) -> str:

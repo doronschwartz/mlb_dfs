@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.45 — 2026-06-24",
+                "title": "Joint recency×compression optimization settles the see-saw",
+                "changes": [
+                    "For three updates the recency and magnitude fixes had ping-ponged — strengthen recency (v9.43) and the magnitude spread re-opened; re-compress (v9.44) and the recency bucket re-opened. A joint 2-parameter grid (recency coeff × compression k) over the 6/14-6/23 window, time-split, resolved it: the two levers AREN'T fundamentally coupled — with the k=0.95 compression holding the stud bucket flat, raising the recency coefficient closes the cold-recency bucket (L3<base) with overall MAE dropping monotonically on BOTH time halves (all 4.342→4.331, OOS 4.216→4.204). Nudged the recency coefficient 0.50→0.55 (one conservative notch toward the grid optimum near 0.60). v9.44's magnitude fix held out-of-sample (scrubs now 1.2σ, studs 2.6σ). Model overall: hitter bias -0.11, MAE 4.34 — healthiest reading of the season. The extreme L3 tails (±4 deviation, ~2% of hitters, very high variance) remain over-shrunk but are correctly left alone — chasing their mean inflates MAE.",
+                ],
+            },
+            {
                 "version": "v9.44 — 2026-06-21",
                 "title": "Re-compress magnitude spread that v9.43 re-opened",
                 "changes": [
