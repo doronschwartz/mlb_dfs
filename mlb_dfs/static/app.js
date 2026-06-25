@@ -54,6 +54,12 @@ function canJumpForSP() {
 // non-SP-needer and can grab my remaining hitter/UTIL/BN picks freely.
 function canJumpForNonSP() {
   if (!state.identity) return false;
+  // Non-SP free-for-all: when the snake is only waiting on the lone SP-needer's
+  // pitchers, ANY other drafter may finish their open non-SP slots in any order
+  // (was gated to next_ooo_drafter, blocking others — Bienstock couldn't take
+  // his last hitter 2026-06-25). The lone SP-needer is excluded (they owe only
+  // SP); the per-user pickable-slot filter in drawPool keeps it to open slots.
+  if (state._nonSpFree && state.identity !== state._spJumpDrafter) return true;
   if (state._nextOooDrafter && state._nextOooDrafter === state.identity) return true;
   if (state._hitterFreeDrafter && state._hitterFreeDrafter === state.identity) return true;
   return false;
@@ -2761,7 +2767,15 @@ async function renderDraft(prefetchedData) {
   const orderHtml = order.map((d) => {
     let cls = "";
     let label = d;
+    const rosterLen = data.rosters[d]?.length || 0;
     if (d === hitterFree) {
+      cls = "on-clock";
+      label = `${d} <span style="font-size:10px;opacity:0.85;">↑ hitters anytime</span>`;
+    } else if (data.non_sp_free && d !== spAnytime && rosterLen < SLOT_TEMPLATE.length) {
+      // Free-for-all: snake is only waiting on the lone SP-needer's pitchers,
+      // so EVERY other drafter with an open slot can finish in any order (not
+      // just the one rotating next_ooo). Fixes the lone "↑ next" + others
+      // struck-through-as-done display that blocked Bienstock 2026-06-25.
       cls = "on-clock";
       label = `${d} <span style="font-size:10px;opacity:0.85;">↑ hitters anytime</span>`;
     } else if (d === oooNext) {

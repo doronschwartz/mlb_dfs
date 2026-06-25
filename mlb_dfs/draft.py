@@ -170,6 +170,16 @@ class Draft:
             return False
         if slot == "SP":
             return self.can_pick_sp_out_of_order(drafter)
+        # Non-SP free-for-all: when the snake is only waiting on the lone
+        # SP-needer's pitchers, EVERY other drafter may finish their open
+        # non-SP slots in ANY order (the documented intent of
+        # non_sp_free_for_all). This was previously gated to a single rotating
+        # next_ooo_drafter, which blocked the others mid-finish — Bienstock
+        # couldn't take his last BN on 2026-06-25 because it was "Meech's turn".
+        # `slot in remaining_slots(drafter)` naturally excludes the lone
+        # SP-needer (they have only SP open) and any already-filled slot.
+        if self.non_sp_free_for_all() and slot in self.remaining_slots(drafter):
+            return True
         if self.next_ooo_drafter() == drafter:
             return True
         return self.hitter_free_drafter() == drafter
