@@ -96,11 +96,14 @@ class Draft:
         return True
 
     def next_ooo_drafter(self) -> str | None:
-        """When the snake is held up by a lone SP-needer, return the drafter
-        whose snake position is next AND who still has a non-SP slot open.
-        Rotates through drafters in snake order — each OOO pick advances the
-        offset so a drafter with multiple open slots doesn't lock the queue.
-        Returns None when not in free-for-all or no eligible drafter."""
+        """When the snake is held up by a lone SP-needer (who fills their SPs in
+        parallel, anytime), return the next NON-SP-needer in true snake order —
+        the one drafter who can pick "ahead" right now. They stay next until
+        their non-SP slots are full, then it moves to the following drafter
+        (Bien finishes his hitters, then Meech). NOT a free-for-all — strict
+        snake order, just with the SP-needer's turns skipped.
+
+        Returns None when not in that state or nobody is eligible."""
         if not self.non_sp_free_for_all():
             return None
         # Identify the lone SP-needer (whose SPs we're waiting on).
@@ -109,27 +112,23 @@ class Draft:
             if sum(1 for p in self.picks if p.drafter == d and p.slot == "SP") < SLOTS.count("SP"):
                 lone_sp = d
                 break
-        # Snake position (in-order picks only — OOO picks don't advance it).
+        # Walk the snake FORWARD from the current position (in-order picks only —
+        # OOO picks don't advance it), using the correct snake direction PER
+        # ROUND. Skip the lone SP-needer and anyone with no open non-SP slot;
+        # return the first eligible drafter. The old code used a single-round
+        # offset that ignored the round reversal and named the wrong drafter
+        # (snake order JL,JL,Stock,Meech across the round flip → it returned
+        # Meech when Stock was actually next; Bienstock blocked 2026-06-25).
+        D = len(self.drafters)
         n_in = sum(1 for p in self.picks if not getattr(p, "out_of_order", False))
-        n_ooo = sum(1 for p in self.picks if getattr(p, "out_of_order", False))
-        round_idx = n_in // len(self.drafters)
-        idx_in_round = n_in % len(self.drafters)
-        order = self.drafters if round_idx % 2 == 0 else list(reversed(self.drafters))
-        # Start one slot AFTER the lone SP-needer's natural turn, then advance
-        # by the count of OOO picks already taken — this rotates through
-        # drafters in snake order rather than stalling on whoever has the
-        # most open slots.
-        base = (idx_in_round + 1 + n_ooo) % len(self.drafters)
-        for skip in range(len(self.drafters)):
-            d = order[(base + skip) % len(self.drafters)]
+        for pos in range(n_in, D * PICKS_PER_DRAFTER):
+            r, i = divmod(pos, D)
+            order = self.drafters if r % 2 == 0 else list(reversed(self.drafters))
+            d = order[i]
             if d == lone_sp:
                 continue
-            taken_slots = [p.slot for p in self.picks if p.drafter == d]
-            for s in SLOTS:
-                if s == "SP":
-                    continue
-                if taken_slots.count(s) < SLOTS.count(s):
-                    return d
+            if any(s != "SP" for s in self.remaining_slots(d)):
+                return d
         return None
 
     def hitter_free_drafter(self) -> str | None:
