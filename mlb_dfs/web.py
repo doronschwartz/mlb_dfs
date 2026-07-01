@@ -3190,6 +3190,25 @@ def stuff_live_endpoint(window: str = "season", min_pitches: int = 150, limit: i
             "status": "ready"}
 
 
+@app.get("/api/prop_archive/{date_iso}")
+def prop_archive(date_iso: str, market: str = "batters"):
+    """Archived prop lines for a past date, straight from the permanent
+    /data/odds_archive volume store. markets: batters | pitchers | outs.
+    Powers the leak-free FORWARD validation of the prop factors — recomputing
+    a past slate can't retrieve historical lines, but the archive kept them."""
+    if market not in ("batters", "pitchers", "outs"):
+        raise HTTPException(400, "market must be batters|pitchers|outs")
+    lines = odds_api.archived_lines(date_iso, "_" + market)
+    import os as _os
+    try:
+        available = sorted({f.split("_")[0] for f in _os.listdir(odds_api.ARCHIVE_DIR)
+                            if f.endswith(".json")})
+    except Exception:
+        available = []
+    return {"date": date_iso, "market": market, "lines": lines or {},
+            "archived_dates": available}
+
+
 @app.get("/api/affiliates")
 def affiliates():
     return {
