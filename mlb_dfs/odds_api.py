@@ -220,9 +220,16 @@ def get_team_totals(date_iso: str) -> dict[str, float]:
         home_total = total / 2 - run_line / 2
         away_total = total / 2 + run_line / 2
         if away:
-            out[away] = round(away_total, 2)
+            # Sanity guard (v9.47.1): a real MLB implied team total lives in
+            # ~[2.5, 8.5]. Corrupt book lines slip through the median (seen
+            # live: "New York Mets: 1.0") and would crater every hitter on
+            # that team via vegas_factor. Better no market signal than a
+            # corrupt one — drop out-of-range values.
+            if 2.0 <= away_total <= 9.0:
+                out[away] = round(away_total, 2)
         if home:
-            out[home] = round(home_total, 2)
+            if 2.0 <= home_total <= 9.0:
+                out[home] = round(home_total, 2)
     return out
 
 
