@@ -1000,9 +1000,9 @@ def project_hitter(
     if pg_3 is not None and games_3 >= 2:
         l3_dev = max(-6.0, min(pg_3 - base_pg, 6.0))
         if abs(l3_dev) > 0.1:
-            l3_dev_adj = 0.55 * l3_dev
+            l3_dev_adj = 0.60 * l3_dev
             proj += l3_dev_adj
-            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.45)")
+            notes.append(f"recency deviation adj {l3_dev_adj:+.2f} (L3 {pg_3:.1f} vs base {base_pg:.1f}, v9.47)")
 
     # v9.44: post-recency re-compression. v9.43's stronger recency adj pushes
     # hot-recent (high-proj) players up and cold-recent down, which re-widened
@@ -1428,9 +1428,16 @@ def project_pitcher(
         proj *= hot_cold_factor
         notes.append(f"COLD post-matchup shrink x{_COLD_PITCHER_SHRINK} (recurring over-projection)")
     elif form_tag == "HOT":
-        hot_cold_factor = 1.05
+        # v9.47: 1.05 -> 1.35. HOT pitchers were massively under-projected —
+        # +4.01 (4.1σ, n=40) in the 6/22 server audit and +5.61 (5.9σ, n=42)
+        # in the 6/11-6/29 local rebuild, independent replication. Grid A/B:
+        # MAE improves monotonically to 1.35 (overall 6.567→6.390, HOT bias
+        # +5.61→+0.35, HOT MAE 7.14→5.05); 1.45 overshoots bias negative with
+        # flat MAE — 1.35 is one notch inside the edge. Mirrors the hitter-HOT
+        # arc: streaking arms carry far more signal than a 1.05 nod implies.
+        hot_cold_factor = 1.35
         proj *= hot_cold_factor
-        notes.append("HOT post-matchup boost x1.05")
+        notes.append("HOT post-matchup boost x1.35 (v9.47)")
     elif form_tag == "ELITE":
         # Same rationale as hitter ELITE — always-on pitchers (consistent
         # L7/L14/season AND ps_l14 ≥ 18 pts/start) under-projected. Small
@@ -2165,7 +2172,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-24-v9.46" # streak regresses to true talent (K=1, fixes fluke tail) + drop park double-count w/ Vegas
+MODEL_REV = "2026-06-30-v9.47" # pitcher HOT 1.05->1.35 (5.9σ, replicated) + recency 0.55->0.60
 
 
 def _proj_disk_path(key: tuple) -> str:

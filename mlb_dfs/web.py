@@ -513,6 +513,13 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.47 — 2026-06-30",
+                "title": "Full-system review: HOT pitchers +29%, recency notch, 10k-draft test soak",
+                "changes": [
+                    "System-wide review with long tests. Model: a 19-date local rebuild (n=5,356) confirmed the healthiest state yet — studs perfectly calibrated (-0.05, 0.1σ), the 2× personalized platoon fully validated at scale (all buckets <1.2σ, n≈900 each). Two A/B-validated ratchets shipped: (1) HOT pitchers were hugely under-projected (+5.61 at 5.9σ, independently replicated at +4.01/4.1σ in the weekly audit) — the post-matchup boost was a token ×1.05; grid A/B picked ×1.35 (HOT bias +5.61→+0.35, HOT MAE 7.14→5.05, overall pitcher MAE 6.567→6.390). Streaking arms carry real signal, same lesson as hitters. (2) Recency coefficient 0.55→0.60 — third consecutive grid showing monotone MAE improvement on both time halves. Draft engine: after three user-found bugs in one week, it now has a property-based simulation suite — 10,000 randomized drafts driven through every pick path (snake, SP-jump, out-of-order, illegal attempts) against an independent snake-order oracle: 10,003 tests pass, and each past bug is pinned as a regression test. Also new: /api/prop_archive endpoint serving the permanent prop-line store, unlocking the first leak-free forward validation of the TB-prop and outs-prop market factors.",
+                ],
+            },
+            {
                 "version": "v9.46 — 2026-06-24",
                 "title": "Regress hot-streak flukes to true talent + stop park double-counting",
                 "changes": [
