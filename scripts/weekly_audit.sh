@@ -32,7 +32,13 @@ def num(x):
     try:
         v = float(x); return v if np.isfinite(v) else None
     except Exception: return None
-L = ["# Weekly calibration audit — %s..%s\n" % (start, end)]
+import urllib.request, unicodedata, math
+def _rev():
+    try:
+        return json.load(urllib.request.urlopen("https://mlb-dfs-doron.fly.dev/api/changelog", timeout=20)).get("current","?")
+    except Exception:
+        return "?"
+L = ["# Weekly calibration audit — %s..%s — MODEL_REV %s\n" % (start, end, _rev())]
 for role in ("hitter", "pitcher"):
     sub = [(num(r["chain_proj"]), num(r["actual"]), r) for r in rows if r["role"] == role]
     sub = [(p, a, r) for p, a, r in sub if p is not None and a is not None]
@@ -57,6 +63,16 @@ for role in ("hitter", "pitcher"):
             L.append("\n→ **bucket ≥3σ — investigate / consider a ratchet**")
     bucket("by form tag", lambda p, a, r: r.get("cat_form_tag") or "-")
     bucket("by magnitude", lambda p, a, r: "0-4" if p < 4 else "4-7" if p < 7 else "7-10" if p < 10 else "10+")
+    # --- rank quality + band coverage (tracked weekly since v9.48) ---
+    P = np.array([p for p, a, r in sub]); A = np.array([a for p, a, r in sub])
+    rp = np.argsort(np.argsort(P)); ra = np.argsort(np.argsort(A))
+    rho = float(np.corrcoef(rp, ra)[0, 1]) if len(P) > 10 else 0
+    if role == "hitter":
+        flo = np.maximum(-3.0, P - (2.60 + 0.712 * np.maximum(P, 0))); cei = P + 4.88 + 0.459 * np.maximum(P, 0)
+    else:
+        flo = np.maximum(-8.0, P - (6.5 + 0.25 * np.maximum(P, 0))); cei = P + 9.1 + 0.046 * np.maximum(P, 0)
+    inside = float(np.mean((A >= flo) & (A <= cei)))
+    L.append("\n**Rank & bands:** Spearman %.3f · band coverage %.0f%% (target ~80%%)\n" % (rho, 100 * inside))
     if role == "hitter":
         def l3dev(p, a, r):
             l3, b3 = num(r.get("pg_l3")), num(r.get("base_pg"))
@@ -77,6 +93,58 @@ for role in ("hitter", "pitcher"):
             adj = num(r.get("outs_prop_adj"))
             return "no line" if adj is None else ("adj<0" if adj < -0.3 else "adj>0" if adj > 0.3 else "~0")
         bucket("outs-prop forward validation", outsb)
+# --- market-factor grading from the permanent prop archive (v9.48) ---
+def norm(n):
+    d2 = unicodedata.normalize("NFD", n or "")
+    a2 = "".join(c for c in d2 if not unicodedata.combining(c)).lower().replace(".", "").replace("'", "")
+    return " ".join(t for t in a2.split() if t not in ("jr", "sr", "ii", "iii", "iv"))
+def fetch(u):
+    try:
+        return json.load(urllib.request.urlopen(u, timeout=60))
+    except Exception:
+        return None
+def amer(o):
+    return 100.0 / (o + 100.0) if o > 0 else (-o) / ((-o) + 100.0)
+tb_rows = []
+dates_all = sorted({r["date"] for r in rows})
+for dd in dates_all:
+    arch = fetch("https://mlb-dfs-doron.fly.dev/api/prop_archive/%s?market=batters" % dd)
+    lines = (arch or {}).get("lines") or {}
+    if len(lines) < 20:
+        continue
+    scal = {}
+    for nm, info in lines.items():
+        if not isinstance(info, dict) or info.get("book_count", 0) < 2:
+            continue
+        ln, oo, uo = info.get("line"), info.get("over_odds"), info.get("under_odds")
+        if ln is None or oo is None or uo is None:
+            continue
+        po, pu = amer(int(oo)), amer(int(uo))
+        scal[norm(nm)] = float(ln) + (po / (po + pu) - 0.5) * 3.5
+    if len(scal) < 30:
+        continue
+    vals = list(scal.values()); mu = sum(vals) / len(vals)
+    sd = (sum((x - mu) ** 2 for x in vals) / len(vals)) ** 0.5 or 1.0
+    for r in rows:
+        if r["date"] != dd or r["role"] != "hitter":
+            continue
+        z = scal.get(norm(r.get("name") or ""))
+        if z is None:
+            continue
+        p, a = num(r["chain_proj"]), num(r["actual"])
+        if p is None or a is None:
+            continue
+        tb_rows.append(((z - mu) / sd, a - p))
+L.append("\n## TB-prop archive grading (n=%d prop-covered hitter-games)\n" % len(tb_rows))
+if len(tb_rows) >= 60:
+    L.append("| market-z bucket | n | resid bias |\n|---|---|---|")
+    for lo, hi, lab in ((-9, -0.8, "z<-0.8"), (-0.8, 0.8, "mid"), (0.8, 9, "z>+0.8")):
+        b = [r2 for z2, r2 in tb_rows if lo <= z2 < hi]
+        if len(b) >= 15:
+            L.append("| %s | %d | %+.2f |" % (lab, len(b), sum(b) / len(b)))
+    L.append("\n→ positive gradient (high-z outperforming) = the TB factor is under-weighted; flat = market adds nothing beyond the chain.")
+else:
+    L.append("_Not enough archived prop days in this window yet — accrues daily (quota permitting)._")
 open(report, "w").write("\n".join(L) + "\n")
 print("report written:", report)
 EOF

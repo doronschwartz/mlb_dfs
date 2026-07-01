@@ -42,6 +42,17 @@ _TTL_SEC = 600  # 10 min
 # 2026-05-18 did.
 _LAST_ERROR: dict[str, tuple[float, str]] = {}
 
+# Credit telemetry (v9.48): the-odds-api returns x-requests-remaining/-used on
+# every response. We burned through the free tier's 500/month on ~June 13 and
+# ran WITHOUT market data for 17 days, silently — because nothing read these
+# headers. Now every _get records them for /api/diag/odds + the daily health
+# check to alert on.
+_CREDITS: dict = {"remaining": None, "used": None, "at": None}
+
+
+def credits() -> dict:
+    return dict(_CREDITS)
+
 
 def last_errors() -> dict:
     return {k: {"at": v[0], "err": v[1]} for k, v in _LAST_ERROR.items()}
@@ -166,6 +177,13 @@ def _get(path: str, params: dict | None = None):
     if cached and now - cached[0] < _TTL_SEC:
         return cached[1]
     r = requests.get(f"{BASE}{path}", params=p, timeout=12)
+    try:
+        if r.headers.get("x-requests-remaining") is not None:
+            _CREDITS["remaining"] = float(r.headers["x-requests-remaining"])
+            _CREDITS["used"] = float(r.headers.get("x-requests-used") or 0)
+            _CREDITS["at"] = time.time()
+    except Exception:
+        pass
     r.raise_for_status()
     data = r.json()
     _CACHE[cache_key] = (now, data)

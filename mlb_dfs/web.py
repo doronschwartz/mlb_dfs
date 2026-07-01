@@ -1212,6 +1212,10 @@ def diag_odds(date: str | None = None):
         "configured": odds_api.is_configured(),
         "date": d,
         "last_errors": odds_api.last_errors(),
+        # Quota telemetry (v9.48) — free tier is 500/month; our full market
+        # set burns ~45/day, so this hits ZERO around the 12th of each month
+        # unless the plan is upgraded. The daily health check alerts on it.
+        "credits": odds_api.credits(),
     }
     # Live re-fetch team_totals so the user sees the actual current state, not
     # cached. This burns 1 odds-api credit per hit but is the whole point of

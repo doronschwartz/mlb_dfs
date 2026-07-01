@@ -1021,9 +1021,32 @@ def project_hitter(
     # Without this, scratched stars showed full projections in the pool —
     # misleading for users browsing rankings, and the "actual=0 vs proj=12"
     # contributed to MAE inflation in calibration when scratches happened.
+    pending_start_share = None
     if lineup_status == "out":
         proj *= 0.05
         notes.append("MLB lineup OUT — projection zeroed")
+    elif lineup_status != "in":
+        # v9.48 P(plays): before the lineup posts, a bench/platoon bat used to
+        # carry his FULL per-game projection — the pool sorted part-timers as
+        # if guaranteed to start, and drafts made in the morning paid for it.
+        # Expected value = P(start) × E(points | start). P(start) proxied by
+        # 14-day appearance share (games / ~12.5 team games), nudged down for
+        # weak-side platoon bats vs today's hand. Regulars (share ≥ ~0.9) are
+        # untouched; a 5-games-in-14 bench bat drops to ~40% until confirmed.
+        # Applies ONLY in the pending state — flips to full the moment the
+        # lineup posts him "in" (and calibration backtests join on players who
+        # played, whose historical status is "in", so audits are unaffected).
+        share = min(1.0, (games_14 / 12.5) if games_14 else 0.4)
+        if (bats and opp_throws and bats in ("L", "R") and bats == opp_throws
+                and share < 0.85):
+            share *= 0.8  # weak-side platoon bat vs same hand — sits more often
+        pending_start_share = round(max(0.15, share), 2)
+        if pending_start_share < 0.97:
+            proj *= pending_start_share
+            notes.append(
+                f"lineup pending — P(start)≈{pending_start_share:.0%} from 14d "
+                f"appearance share, projection is EV until lineup posts (v9.48)"
+            )
     # NB: a COLD post-matchup x0.78 shrink lived here briefly, motivated by
     # 3 days of negative bias on COLD. Removed after a 9-day audit (n=788)
     # showed COLD is actually UNDER-projected by +1.80 on average (7.8σ) —
@@ -1122,6 +1145,7 @@ def project_hitter(
             "ceiling": round(ceiling, 2),
             "sigma": sigma,
             "p_dud": p_dud,
+            "pending_start_share": pending_start_share,
             "l3_dev_adj": round(l3_dev_adj, 2) if l3_dev_adj else None,
             "rolling_cats": rolling_cats,
             "point_decomp": _point_decomp_hitter(rolling_events, proj) if rolling_events else None,
