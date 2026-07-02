@@ -513,6 +513,15 @@ def get_changelog():
         "current": projections.MODEL_REV,
         "entries": [
             {
+                "version": "v9.48 — 2026-07-02",
+                "title": "P(plays) for pending lineups, self-watching ops, external benchmark — and an honestly shelved experiment",
+                "changes": [
+                    "Pre-lineup projections are now expected value: P(start) × E(points|start), from 14-day appearance share with a platoon-side nudge — a bench bat shows ~40% of his per-game rate until the lineup confirms him, then snaps to full. Kills the morning trap of part-timers sorted like locked-in starters.",
+                    "The system now watches itself: odds-API credit telemetry (the June quota blackout ran 17 days undetected — never again), a daily 10:00 health check (credits/market-data/archive/app) that fires a desktop alert, sanity guards on ingested market lines (a corrupt 'Mets 1.0' implied total was caught live), and daily DraftKings salary snapshots. First DK benchmark result (7/01, n=156): our Spearman 0.547 vs DK-salary 0.280, MAE 4.61 vs 5.45 — one day, not a claim yet, but the machinery now grades us against the market every day.",
+                    "Experiment log — rolling-xwOBA form factor: built the leak-free per-date Statcast pipeline (daily per-batter xwOBA aggregates), wired a 14d-vs-60d form ratio into the chain, and the A/B killed it: on affected rows MAE worsened (5.010→5.047) and the direction check pointed backwards — hot-contact-quality hitters were ALREADY over-projected by the existing recency stack, so stacking it double-counts recent form. Shelved (default off); the data pipeline stays warm nightly, and the right future test is substituting it for the points-based recency signals, not adding. Publishing the misses is the point of this page.",
+                ],
+            },
+            {
                 "version": "v9.47 — 2026-06-30",
                 "title": "Full-system review: HOT pitchers +29%, recency notch, 10k-draft test soak",
                 "changes": [
@@ -1226,6 +1235,10 @@ def diag_odds(date: str | None = None):
         state["team_totals_sample"] = dict(list(tt.items())[:3])
     except Exception as e:
         state["team_totals_error"] = str(e)
+    # Re-read AFTER our own fetch — telemetry is in-memory and resets on
+    # machine restart, so reading it first showed None until some other
+    # caller happened to hit the odds API.
+    state["credits"] = odds_api.credits()
     # Saved k-prop file on disk
     saved = odds_api.saved_odds(d)
     state["saved_kprops_count"] = len(saved.get("pitchers", {})) if saved else 0
@@ -3199,6 +3212,18 @@ def stuff_live_endpoint(window: str = "season", min_pitches: int = 150, limit: i
     pitchers = [p for p in res["pitchers"] if p["total_pitches"] >= min_pitches][:limit]
     return {**{k: v for k, v in res.items() if k != "pitchers"}, "pitchers": pitchers,
             "status": "ready"}
+
+
+@app.get("/api/admin/xwoba_warm")
+def xwoba_warm(days: int = 3):
+    """Warm the rolling-xwOBA daily aggregate cache for the trailing `days`
+    completed dates (one ~10s Statcast pull per cold date, then cached on the
+    volume forever). Hit nightly by daily_health with days=3; use larger
+    values in chunks for a first backfill. Capped to keep requests bounded."""
+    from . import rolling_xwoba
+    days = max(1, min(int(days), 15))
+    n = rolling_xwoba.warm(Date.today(), days=days)
+    return {"warmed_days": days, "dates_with_data": n}
 
 
 @app.get("/api/prop_archive/{date_iso}")

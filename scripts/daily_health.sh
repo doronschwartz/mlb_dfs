@@ -41,6 +41,9 @@ for APP in mlb-dfs-doron mlb-dfs-public; do
   [[ "$OK" == "200" ]] || FAILS+=("$APP /api/health returned $OK")
 done
 
+# Warm the server's rolling-xwOBA dailies (yesterday + stragglers). ~30s.
+curl -s -m 120 "https://mlb-dfs-doron.fly.dev/api/admin/xwoba_warm?days=3" >> "$LOG" 2>&1; echo >> "$LOG"
+
 # DK salary snapshot (external benchmark — critique #22). Quiet, idempotent.
 cd "$REPO" && source .venv/bin/activate 2>/dev/null && python scripts/dk_snapshot.py >> "$LOG" 2>&1
 

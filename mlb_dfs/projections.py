@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Iterable
 
-from . import injuries, mlb_api, odds_api, savant, weather as weather_mod
+from . import injuries, mlb_api, odds_api, rolling_xwoba, savant, weather as weather_mod
 from .scoring import HITTER_POINTS, PITCHER_POINTS
 
 # Team ID → abbr (small static map; MLB IDs are stable)
@@ -102,6 +102,17 @@ _PIT_QOC_TRIM_ELITE = 0.97
 # Streak-override recency weight (HOT/COLD hitters): base = w*L3 + (1-w)*weighted.
 # JL flagged daily projections may over-weight recent form — A/B-tunable here.
 _STREAK_W = 0.85
+# Rolling xwOBA form factor — BUILT, A/B'D, AND SHELVED (2026-07-02).
+# 14d-vs-60d event-level xwOBA ratio (leak-free per-date Statcast pulls; see
+# rolling_xwoba.py). The on/off A/B (10 dates, n=2,777 paired) KILLED it as an
+# additive factor: MAE worsened on affected rows (5.010→5.047) and the
+# direction check pointed backwards — hot-xwOBA hitters were ALREADY
+# over-projected by the chain's existing recency stack (streak override +
+# HOT/COLD + recency-deviation adj), so stacking contact-quality form on top
+# double-counts recency past the calibrated edge. The DATA pipeline stays
+# (nightly warm, cheap): the correct future experiment is SUBSTITUTING
+# xwOBA-form for the points-based L3 signals, not adding to them.
+_XWOBA_FORM = os.environ.get("XWOBA_FORM", "0") == "1"
 # v9.46: regress the L3 streak toward long-term true talent (season rate),
 # sample-size-weighted, before the streak blend. 0 = off (legacy: trust L3 at
 # full). >0 = Bayesian-style shrinkage — a 2-game heater the season doesn't
@@ -842,18 +853,35 @@ def project_hitter(
     # damped ^0.45 to keep early-season swings tame, capped ±8%. Min 30 PA
     # in last14 for stability (Caminero/Witt had ~55, typical regular).
     rolling_factor = 1.0
+    rolling_src = None
+    if _XWOBA_FORM:
+        try:
+            _ratio, _xd = rolling_xwoba.form_ratio(pid, as_of or Date.today())
+        except Exception:
+            _ratio, _xd = None, {}
+        if _ratio is not None:
+            # damp ^0.6, cap ±8% (same envelope the K% proxy used)
+            rolling_factor = max(0.92, min(_ratio ** 0.6, 1.08))
+            rolling_src = "xwoba"
+            notes.append(
+                f"rolling xwOBA {_xd['xw14']:.3f} (14d, {_xd['pa14']} PA) vs "
+                f"{_xd['xw60']:.3f} (60d) x{rolling_factor:.2f}"
+            )
     pa_l14 = _safe_float(last14.get("plateAppearances")) if last14 else 0
     pa_s = _safe_float(seasn.get("plateAppearances")) if seasn else 0
     k_l14 = _safe_float(last14.get("strikeOuts")) if last14 else 0
     k_s = _safe_float(seasn.get("strikeOuts")) if seasn else 0
     rolling_k_pct = (k_l14 / pa_l14) if pa_l14 >= 30 else None
     season_k_pct = (k_s / pa_s) if pa_s >= 50 else None
-    if rolling_k_pct is not None and season_k_pct is not None and season_k_pct > 0.05:
+    if (rolling_src is None and rolling_k_pct is not None
+            and season_k_pct is not None and season_k_pct > 0.05):
+        # K%-shift proxy — fallback when the xwOBA dailies aren't cached yet.
         contact_rolling = 1.0 - rolling_k_pct
         contact_season = 1.0 - season_k_pct
         ratio = contact_rolling / contact_season
         rolling_factor = ratio ** 0.45
         rolling_factor = max(0.92, min(rolling_factor, 1.08))
+        rolling_src = "k_pct"
         notes.append(
             f"rolling K% {rolling_k_pct:.1%} vs szn {season_k_pct:.1%} x{rolling_factor:.2f}"
         )
@@ -1129,6 +1157,7 @@ def project_hitter(
             "bats": bats,
             "vs_throws": opp_throws,
             "rolling_factor": round(rolling_factor, 3),
+            "rolling_src": rolling_src,
             "rolling_k_pct": round(rolling_k_pct, 4) if rolling_k_pct is not None else None,
             "season_k_pct": round(season_k_pct, 4) if season_k_pct is not None else None,
             "rolling_pa_l14": int(pa_l14) if pa_l14 else 0,
@@ -1302,6 +1331,7 @@ def project_pitcher(
     # GOOD for pitcher). Damped ^0.45, capped ±8%. Min 30 BF in last14 for
     # stability (≈1 typical start of K-rate sample).
     rolling_factor = 1.0
+    rolling_src = None  # pitchers use the K%-shift signal only (for now)
     bf_l14 = _safe_float(last14.get("battersFaced")) if last14 else 0
     bf_s = _safe_float(seasn.get("battersFaced")) if seasn else 0
     k_l14 = _safe_float(last14.get("strikeOuts")) if last14 else 0
@@ -1312,6 +1342,7 @@ def project_pitcher(
         ratio = rolling_k_pct / season_k_pct
         rolling_factor = ratio ** 0.45
         rolling_factor = max(0.92, min(rolling_factor, 1.08))
+        rolling_src = "k_pct"
         notes.append(
             f"rolling K% {rolling_k_pct:.1%} vs szn {season_k_pct:.1%} x{rolling_factor:.2f}"
         )
@@ -1574,6 +1605,7 @@ def project_pitcher(
             "opp_implied_total": opp_implied_total,
             "throws": throws,
             "rolling_factor": round(rolling_factor, 3),
+            "rolling_src": rolling_src,
             "rolling_k_pct": round(rolling_k_pct, 4) if rolling_k_pct is not None else None,
             "season_k_pct": round(season_k_pct, 4) if season_k_pct is not None else None,
             "rolling_bf_l14": int(bf_l14) if bf_l14 else 0,
@@ -2196,7 +2228,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-06-30-v9.47" # pitcher HOT 1.05->1.35 (5.9σ, replicated) + recency 0.55->0.60
+MODEL_REV = "2026-07-02-v9.48" # P(plays) pending-EV multiplier + market guards; xwOBA form built+shelved (A/B killed)
 
 
 def _proj_disk_path(key: tuple) -> str:
