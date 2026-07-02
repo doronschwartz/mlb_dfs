@@ -2240,7 +2240,7 @@ function projTooltip(p) {
     } else {
       rows.push(factorRow2Always("Opp bullpen", c.bullpen_factor, c.opp_bullpen_era ? `${c.opp_bullpen_era.toFixed(2)} ERA` : "", "league-avg pen"));
     }
-    rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", c.rolling_pa_l14 ? `min 30 PA — have ${c.rolling_pa_l14}` : "no recent PAs"));
+    rows.push(factorRow2Always("Rolling K-rate", c.rolling_factor, (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% vs szn ${(c.season_k_pct*100).toFixed(1)}%` : "", (c.rolling_k_pct != null && c.season_k_pct != null) ? `${(c.rolling_k_pct*100).toFixed(1)}% ≈ szn ${(c.season_k_pct*100).toFixed(1)}% (neutral)` : (c.rolling_pa_l14 ? `min 30 PA — have ${c.rolling_pa_l14}` : "no recent PAs")));
     rows.push(factorRow2Always("ISO form (v9.3)", c.iso_factor, "", "no power surge/slump"));
     rows.push(factorRow2Always("SB threat (v9.3)", c.sb_factor, "", "not an SB threat"));
     const hcRow = hotColdRow();
@@ -2348,7 +2348,7 @@ function projTooltip(p) {
     <div class="bk-title">${p.name} ${formB} ${tierBadge} <span class="muted" style="font-weight:400;font-size:11px;">— projection breakdown</span></div>
     <div class="bk-rows">${rows.join("")}</div>
     <div class="bk-grand"><span>Projection</span><span>${(p.projected_points ?? p.projected ?? 0).toFixed(2)} pts</span></div>
-    ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (±1σ)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
+    ${(c.floor != null && c.ceiling != null) ? `<div class="bk-row" style="margin-top:2px;"><span class="bk-label">Range (p10–p90)</span><span class="bk-total muted">${c.floor.toFixed(1)} → ${c.ceiling.toFixed(1)}</span></div>` : ""}
     ${decompHtml}
     ${catsHtml}
     ${pitfalls ? `<div class="bk-rows" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">${pitfalls}</div>` : ""}
@@ -2420,7 +2420,7 @@ function liveProjTooltip(p) {
   </div>`;
 }
 
-let projView = "mean"; // mean | ceiling | floor — ceiling/floor use ±1σ (σ scales with projection, v9.39)
+let projView = "mean"; // mean | ceiling | floor — empirical p10/p90 bands (v9.42)
 function _projViewVal(p) {
   const c = p.components || {};
   if (projView === "ceiling") return c.ceiling ?? p.projected_points;
