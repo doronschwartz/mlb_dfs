@@ -54,6 +54,28 @@ def credits() -> dict:
     return dict(_CREDITS)
 
 
+# Auto-lean budget ladder (v9.48.2). At ~117 credits/day full-market burn the
+# free tier (500/mo) dies in ~4 days; rather than a silent all-markets
+# blackout (June 13-30 all over again), shed the least-valuable markets first:
+#   tier 0 = team totals (highest value per credit — always allowed)
+#   tier 1 = batter TB props     (skipped when remaining < 120)
+#   tier 2 = pitcher K props     (skipped when remaining < 200)
+#   tier 3 = pitcher outs props  (skipped when remaining < 280)
+# Unknown remaining (fresh boot, no call yet) → allow; the first response
+# populates telemetry. Structural fix remains the paid tier.
+def _budget_allows(tier: int) -> bool:
+    rem = _CREDITS.get("remaining")
+    if rem is None:
+        return True
+    if rem < 120:
+        return tier <= 0
+    if rem < 200:
+        return tier <= 1
+    if rem < 280:
+        return tier <= 2
+    return True
+
+
 def last_errors() -> dict:
     return {k: {"at": v[0], "err": v[1]} for k, v in _LAST_ERROR.items()}
 
@@ -264,6 +286,10 @@ def get_pitcher_strikeout_lines_cached(date_iso: str, *, force_refresh: bool = F
         if saved and saved.get("pitchers"):
             _archive_lines(date_iso, "_pitchers", saved["pitchers"])  # backfill archive
             return saved["pitchers"], {"cached": True, "fetched_at": saved.get("fetched_at")}
+    if not _budget_allows(2):
+        import logging
+        logging.warning("odds budget lean: skipping K props (credits %s)", _CREDITS.get("remaining"))
+        return {}, {"cached": False, "fetched_at": None, "lean_skipped": True}
     fresh = get_pitcher_strikeout_lines(date_iso)
     if fresh:
         _archive_lines(date_iso, "_pitchers", fresh)
@@ -286,6 +312,10 @@ def get_batter_total_bases_lines_cached(date_iso: str, *, force_refresh: bool = 
                 return saved["batters"], {"cached": True, "fetched_at": saved.get("fetched_at")}
         except Exception:
             pass
+    if not _budget_allows(1):
+        import logging
+        logging.warning("odds budget lean: skipping TB props (credits %s)", _CREDITS.get("remaining"))
+        return {}, {"cached": False, "fetched_at": None, "lean_skipped": True}
     fresh = get_batter_total_bases_lines(date_iso)
     if fresh:
         _archive_lines(date_iso, "_batters", fresh)
@@ -316,6 +346,10 @@ def get_pitcher_outs_lines_cached(date_iso: str, *, force_refresh: bool = False)
                 return saved["outs"], {"cached": True, "fetched_at": saved.get("fetched_at")}
         except Exception:
             pass
+    if not _budget_allows(3):
+        import logging
+        logging.warning("odds budget lean: skipping outs props (credits %s)", _CREDITS.get("remaining"))
+        return {}, {"cached": False, "fetched_at": None, "lean_skipped": True}
     fresh = _get_player_prop_lines(date_iso, "pitcher_outs")
     if fresh:
         _archive_lines(date_iso, "_outs", fresh)

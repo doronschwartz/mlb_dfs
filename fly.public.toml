@@ -32,11 +32,16 @@ primary_region = "iad"
   min_machines_running = 1
 
 [[http_service.checks]]
-  grace_period = "10s"
+  # Tolerant: the first cold slate compute of the day pegs CPU and a 5s
+  # timeout marked the app dead right as the league woke (2026-07-03
+  # 07:51/08:32 → intermittent user failures). 15s timeout + longer grace
+  # rides out compute spikes; daily_health also pre-warms the slate at
+  # 05:00 ET so the morning cold hit mostly no longer exists.
+  grace_period = "30s"
   interval = "30s"
   method = "GET"
   path = "/api/health"
-  timeout = "5s"
+  timeout = "15s"
 
 [[vm]]
   size = "shared-cpu-1x"

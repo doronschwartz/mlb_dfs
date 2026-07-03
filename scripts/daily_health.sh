@@ -22,10 +22,14 @@ DIAG=$(curl -s -m 30 "https://mlb-dfs-doron.fly.dev/api/diag/odds" 2>/dev/null)
 CREDITS=$(echo "$DIAG" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('credits',{}).get('remaining','none'))" 2>/dev/null || echo "parse-fail")
 TOTALS=$(echo "$DIAG" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('team_totals_count',0))" 2>/dev/null || echo 0)
 
-if [[ "$CREDITS" == "none" || "$CREDITS" == "parse-fail" ]]; then
-  note "credits unknown (no fetch yet today or diag down)"
-elif (( ${CREDITS%.*} < 60 )); then
-  FAILS+=("odds-api credits low: $CREDITS remaining — market data dies soon (free tier: upgrade or lean mode)")
+if [[ "$CREDITS" =~ ^[0-9.]+$ ]]; then
+  if (( ${CREDITS%.*} < 60 )); then
+    FAILS+=("odds-api credits low: $CREDITS remaining — market data dies soon (free tier: upgrade or lean mode)")
+  fi
+else
+  # 'None' (no fetch yet today), 'parse-fail', or anything non-numeric —
+  # never let this reach arithmetic under set -u (crashed 2026-07-03).
+  note "credits unknown ($CREDITS)"
 fi
 if (( TOTALS < 5 )); then
   FAILS+=("only $TOTALS Vegas team totals for $TODAY — market data likely absent (quota/key?)")
@@ -40,6 +44,12 @@ for APP in mlb-dfs-doron mlb-dfs-public; do
   OK=$(curl -s -m 20 "https://$APP.fly.dev/api/health" -o /dev/null -w "%{http_code}" 2>/dev/null)
   [[ "$OK" == "200" ]] || FAILS+=("$APP /api/health returned $OK")
 done
+
+# Pre-warm today's slate (cold compute pegs the box and fails Fly health
+# checks right when the league wakes — seen 2026-07-03 07:51/08:32). This
+# runs at 10:00 London = 05:00 ET, well before anyone drafts.
+curl -s -m 400 "https://mlb-dfs-doron.fly.dev/api/projections?date=$TODAY" -o /dev/null 2>&1
+note "slate pre-warmed for $TODAY"
 
 # Warm the server's rolling-xwOBA dailies (yesterday + stragglers). ~30s.
 curl -s -m 120 "https://mlb-dfs-doron.fly.dev/api/admin/xwoba_warm?days=3" >> "$LOG" 2>&1; echo >> "$LOG"
