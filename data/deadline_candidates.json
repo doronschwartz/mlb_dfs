@@ -1,96 +1,2464 @@
 {
-  "as_of": "2026-07-04",
-  "deadline": "2026-08-03",
-  "deadline_note": "Commissioner's Office set the 2026 deadline for August 3, 6 p.m. ET (window is July 28-Aug 3 under current rules).",
-  "sources": [
-    "https://www.mlbtraderumors.com/2026/06/top-35-trade-candidates-for-the-2026-deadline.html",
-    "https://www.espn.com/mlb/story/_/id/49082474/ranking-mlb-trade-deadline-candidates-top-100-skubal-chapman-peralta-arraez",
-    "https://www.cbssports.com/mlb/news/2026-mlb-trade-deadline-buyers-sellers-guide-one-month-away/",
-    "https://www.foxsports.com/stories/mlb/2026-mlb-trade-deadline-primer-tarik-skubal",
-    "https://www.si.com/mlb/trade-candidate-rankings-2026-deadline-predictions",
-    "https://www.mlb.com/news/when-is-the-mlb-trade-deadline-2026-date-time-candidates-storylines",
-    "https://bbwaa.com/25-nl-cy/",
-    "https://www.mlb.com/news/2025-all-star-game-rosters"
-  ],
-  "candidates": [
-    {"name": "Tarik Skubal", "position": "SP", "team": "DET", "tier": "high", "rumored_teams": ["LAD", "NYY", "ATL", "MIL", "TOR", "TB", "CHC", "PHI", "SD", "BAL"], "context": "Two-time AL Cy Young winner and pending free agent; ESPN pegs 85% trade odds as Tigers fall out of race after his elbow surgery return.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Aroldis Chapman", "position": "RP", "team": "BOS", "tier": "high", "rumored_teams": ["SEA", "PIT", "LAD", "TB", "PHI", "ARI", "MIN", "CWS", "CHC", "CLE"], "context": "Rejuvenated 38-year-old closer (sub-1.00 ERA); Red Sox expected to sell high — ESPN gives 90% trade odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Freddy Peralta", "position": "SP", "team": "NYM", "tier": "high", "rumored_teams": ["CHC", "SD", "NYY", "LAD", "TB", "CWS", "CLE", "STL"], "context": "Impending free agent on last-place Mets; no extension talks and 90% trade odds despite a 4.8 ERA.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Luis Arraez", "position": "2B", "team": "SF", "tier": "high", "rumored_teams": ["TB", "TEX", "SD", "MIN", "NYY", "LAD", "TOR", "WSH"], "context": "Rental batting champion chasing a fourth title; selling Giants near-certain to move him (90% per ESPN).", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Ryan Jeffers", "position": "C", "team": "MIN", "tier": "high", "rumored_teams": ["NYY", "TB", "TEX", "ARI", "SD", "PIT", "BOS"], "context": "Best rental catcher on the market, back from a hamate fracture; ESPN 85% trade odds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Gleyber Torres", "position": "2B", "team": "DET", "tier": "high", "rumored_teams": ["TEX", "SD", "TB", "BOS", "LAD", "TOR", "ARI", "CLE"], "context": "Reinvented leadoff man on a selling Tigers club; 80% trade odds, oblique strain slightly clouds market.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Taylor Ward", "position": "LF", "team": "BAL", "tier": "high", "rumored_teams": ["SD", "CLE", "PHI", "ARI", "HOU", "TB", "TEX", "ATL"], "context": "Rental corner bat with a career-high .389 OBP; widely reported as very likely to be dealt.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Casey Mize", "position": "SP", "team": "DET", "tier": "high", "rumored_teams": ["ATL", "CHC", "SD", "MIL", "ATH", "TB"], "context": "2.95-ERA rental and the second-best rental starter available behind teammate Skubal; 60% trade odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Joe Ryan", "position": "SP", "team": "MIN", "tier": "high", "rumored_teams": ["CHC", "SD", "ATH", "ARI", "ATL", "TOR", "STL", "PHI", "CWS"], "context": "Top-20 starter (3.18 ERA) controlled through 2027; teams queueing up offers to Minnesota, 55% odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Seth Lugo", "position": "SP", "team": "KC", "tier": "high", "rumored_teams": ["STL", "ARI", "CWS", "ATL", "ATH", "SD", "NYY", "CHC", "TOR", "MIA"], "context": "Steady mid-rotation arm on selling Royals; signed through 2027 but ESPN gives 65% trade odds.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Robbie Ray", "position": "SP", "team": "SF", "tier": "high", "rumored_teams": [], "context": "Former Cy Young winner and rental on a selling Giants club; SF likely eats salary to boost return.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Kenley Jansen", "position": "RP", "team": "DET", "tier": "high", "rumored_teams": [], "context": "Veteran closer on a selling Tigers team; disappointing 4.00 ERA but obvious rental-type piece.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Antonio Senzatela", "position": "RP", "team": "COL", "tier": "high", "rumored_teams": [], "context": "Converted reliever with a 2.13 ERA and new cutter/velo spike; Rockies always sell and he is coveted.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Kyle Finnegan", "position": "RP", "team": "DET", "tier": "high", "rumored_teams": [], "context": "Rental late-inning reliever on a selling Tigers club; on multiple others-to-watch lists.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "A.J. Minter", "position": "RP", "team": "NYM", "tier": "high", "rumored_teams": [], "context": "Rental lefty reliever on a selling Mets team; strong demand reported for left-handed relief.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Brooks Raley", "position": "RP", "team": "NYM", "tier": "high", "rumored_teams": [], "context": "Second rental lefty the Mets are expected to move alongside Minter.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Nathaniel Lowe", "position": "1B", "team": "CIN", "tier": "high", "rumored_teams": [], "context": "Rental bat found on a minor-league deal, .256/.350/.477; easy flip for the selling Reds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Eugenio Suarez", "position": "3B", "team": "CIN", "tier": "high", "rumored_teams": [], "context": "Rental power bat on a selling Reds club; named a rental candidate by CBS and ranked by ESPN.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Brady Singer", "position": "SP", "team": "CIN", "tier": "high", "rumored_teams": [], "context": "Impending free agent with a career-worst ERA but a 1.64 June; classic seller rental.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Tyler Stephenson", "position": "C", "team": "CIN", "tier": "high", "rumored_teams": [], "context": "Rental catcher listed among the selling Reds' movable veterans by CBS.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Starling Marte", "position": "OF", "team": "KC", "tier": "high", "rumored_teams": [], "context": "Righty-hitting rental outfielder on selling Royals; contenders seeking OF platoon help.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Lane Thomas", "position": "OF", "team": "KC", "tier": "high", "rumored_teams": [], "context": "Righty rental outfielder the selling Royals are expected to shop alongside Marte.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Kris Bubic", "position": "SP", "team": "KC", "tier": "high", "rumored_teams": [], "context": "Rental lefty starter on selling Royals; 4.11 ERA with walk spike after elbow/shoulder scares.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Pete Fairbanks", "position": "RP", "team": "MIA", "tier": "high", "rumored_teams": [], "context": "Rental closer CBS names as Miami's most obvious deadline chip even with the Marlins surging.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Michael Wacha", "position": "SP", "team": "KC", "tier": "medium", "rumored_teams": ["STL", "ATH", "TOR", "CWS", "ATL", "NYY", "SD", "ARI", "CHC"], "context": "Quality-start leader signed through 2027; Royals selling but may keep him — 50% odds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Sonny Gray", "position": "SP", "team": "BOS", "tier": "medium", "rumored_teams": ["ATL", "SD", "CHC", "MIL", "CWS", "BAL"], "context": "Pitching like a top-rotation arm (2.95 ERA) but full no-trade clause and option structure complicate a deal.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Sandy Alcantara", "position": "SP", "team": "MIA", "tier": "medium", "rumored_teams": ["CHC", "ARI", "SD", "TOR", "CWS", "CLE", "ATH", "TB", "ATL", "MIL"], "context": "Innings-eating former Cy Young winner with a 2027 club option; 40% odds with Marlins surging.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Willson Contreras", "position": "1B", "team": "BOS", "tier": "medium", "rumored_teams": ["ARI", "TOR", "CLE", "TEX", "MIA", "PIT", "SD", "NYM"], "context": "Raking (.280/.375/.520, 16 HR) with Cardinals covering salary, but full no-trade clause; SI predicts traded.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Christian Walker", "position": "1B", "team": "HOU", "tier": "medium", "rumored_teams": ["CLE", "MIA", "NYM", "ARI", "TOR", "TEX", "PIT"], "context": "30-homer-caliber bounce-back; struggling Astros listening on veterans — 45% odds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Isaac Paredes", "position": "3B", "team": "HOU", "tier": "medium", "rumored_teams": ["MIL", "NYY", "MIA", "PHI", "PIT", "CLE", "BOS"], "context": "Astros listening as they retool; would be the fifth trade of his career.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Jeff Hoffman", "position": "RP", "team": "TOR", "tier": "medium", "rumored_teams": [], "context": "All-Star closer with elite strikeout rates but a 4.84 ERA; Jays could reshuffle the $11M/yr deal.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Trevor Rogers", "position": "SP", "team": "BAL", "tier": "medium", "rumored_teams": [], "context": "Impending free agent with a 2.22 June ERA, but Baltimore trending toward buying muddies his status.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Dustin May", "position": "SP", "team": "STL", "tier": "medium", "rumored_teams": [], "context": "Rental and the Cardinals' best recent starter; St. Louis is still on the contention fence.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Lars Nootbaar", "position": "LF", "team": "STL", "tier": "medium", "rumored_teams": [], "context": "Controlled through 2027 and hot since returning from heel surgery; moves only if Cards pivot to selling.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "CJ Abrams", "position": "SS", "team": "WSH", "tier": "medium", "rumored_teams": ["ATL", "TB", "NYY", "TOR"], "context": "Career year (.287/.370/.533) with control through 2028; Nats would need to be overwhelmed — 15% odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Reid Detmers", "position": "SP", "team": "LAA", "tier": "medium", "rumored_teams": ["CHC", "SD", "STL", "CWS", "TB", "ATL"], "context": "Among FanGraphs WAR leaders with control through 2028, but owner Moreno reportedly resisting trades.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Jose Soriano", "position": "SP", "team": "LAA", "tier": "medium", "rumored_teams": ["TB", "STL", "CWS", "ATL", "ARI"], "context": "Hard-throwing, cheaply controlled arm who would net multiple top prospects if Moreno relents.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Jarren Duran", "position": "OF", "team": "BOS", "tier": "medium", "rumored_teams": ["SD", "ARI", "CLE", "HOU", "PHI", "MIA", "TB", "TEX", "SEA"], "context": "Change-of-scenery candidate hitting a career-worst .199 amid Boston's outfield logjam; 25% odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Matt Chapman", "position": "3B", "team": "SF", "tier": "medium", "rumored_teams": ["PHI", "NYY", "PIT", "MIA", "STL", "CIN", "NYM"], "context": "Giants open to offers on long-term money; no-trade clause and contract through 2030 are hurdles, but SI predicts a deal.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Hunter Goodman", "position": "C", "team": "COL", "tier": "medium", "rumored_teams": ["NYY", "BOS", "TEX"], "context": "Leads catchers in homers and is controlled through 2029; Rockies would demand a massive return.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Jung Hoo Lee", "position": "CF", "team": "SF", "tier": "medium", "rumored_teams": [], "context": "Hitting .333 in a thin outfield market, but his post-2027 opt-out deters some suitors.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Luis Castillo", "position": "SP", "team": "SEA", "tier": "medium", "rumored_teams": [], "context": "Mariners have six healthy starters for five spots; 5.22 ERA with under-the-hood improvement.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Clay Holmes", "position": "SP", "team": "NYM", "tier": "medium", "rumored_teams": [], "context": "Converted starter rehabbing a broken fibula with a 2027 player option; Mets can trade him while he rehabs.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Mickey Moniak", "position": "OF", "team": "COL", "tier": "medium", "rumored_teams": [], "context": "Platoon corner bat (.273/.314/.539 over two years) though Coors inflates the line; controlled through 2027.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Jake McCarthy", "position": "CF", "team": "COL", "tier": "medium", "rumored_teams": [], "context": "Cheap defensive outfielder controlled through 2028 on a perennial seller.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Trevor Larnach", "position": "LF", "team": "MIN", "tier": "medium", "rumored_teams": [], "context": "Patient lefty platoon bat (.276/.374/.419) heating up in June; Twins retooling around the edges.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Foster Griffin", "position": "SP", "team": "WSH", "tier": "medium", "rumored_teams": [], "context": "NPB returnee with a 3.15 ERA and elite K/BB; Nats' direction and salary quirks complicate it.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Justin Verlander", "position": "SP", "team": "DET", "tier": "medium", "rumored_teams": [], "context": "Veteran rental on a selling Tigers club; on ESPN's top-100 candidate board.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Jack Flaherty", "position": "SP", "team": "DET", "tier": "medium", "rumored_teams": [], "context": "Selling Tigers could deal him for the second straight deadline cycle; option structure in play.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Luis Robert Jr.", "position": "CF", "team": "NYM", "tier": "medium", "rumored_teams": [], "context": "Perennial deadline name now on a selling Mets roster; talent-over-production gamble for buyers.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "David Peterson", "position": "SP", "team": "NYM", "tier": "medium", "rumored_teams": [], "context": "Controlled All-Star lefty; Mets listening on nearly everyone amid a lost season.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Mark Vientos", "position": "3B", "team": "NYM", "tier": "medium", "rumored_teams": [], "context": "Young corner bat on the Mets' others-to-watch list as New York retools.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Taylor Rogers", "position": "RP", "team": "MIN", "tier": "medium", "rumored_teams": [], "context": "Veteran lefty reliever the Twins can flip as they thread buyer/seller status.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Josh Bell", "position": "DH", "team": "MIN", "tier": "medium", "rumored_teams": [], "context": "Veteran switch-hitting rental bat on ESPN's candidate board.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Willi Castro", "position": "UT", "team": "COL", "tier": "medium", "rumored_teams": [], "context": "Two-time All-Star utilityman on a selling Rockies club; fits every contender's bench.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Michael Lorenzen", "position": "SP", "team": "COL", "tier": "medium", "rumored_teams": [], "context": "Veteran swingman rental on the selling Rockies.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Tomoyuki Sugano", "position": "SP", "team": "COL", "tier": "medium", "rumored_teams": [], "context": "Strike-throwing veteran on the selling Rockies; back-end rotation rental for a contender.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Andrew Kittredge", "position": "RP", "team": "BAL", "tier": "medium", "rumored_teams": [], "context": "Veteran setup rental; moves if the Orioles' buy-lean flips back to selling.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Chris Bassitt", "position": "SP", "team": "BAL", "tier": "medium", "rumored_teams": [], "context": "Veteran innings rental on Baltimore's others-to-watch list.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Ryan Mountcastle", "position": "1B", "team": "BAL", "tier": "medium", "rumored_teams": [], "context": "Blocked Orioles first baseman who surfaces in talks every deadline.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Kirby Yates", "position": "RP", "team": "LAA", "tier": "medium", "rumored_teams": [], "context": "Veteran rental reliever on a rebuilding Angels club.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Jo Adell", "position": "RF", "team": "LAA", "tier": "medium", "rumored_teams": ["PHI", "SD", "MIL", "MIA", "TB", "ARI", "CLE"], "context": "Talented but streaky power bat; Angels rebuild logic says trade him, Moreno says otherwise — 20% odds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Jorge Soler", "position": "DH", "team": "LAA", "tier": "medium", "rumored_teams": [], "context": "Veteran power rental on the Angels' movable-contract list.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Matt Shaw", "position": "3B", "team": "CHC", "tier": "medium", "rumored_teams": ["BOS", "NYY", "TB", "KC", "MIL", "TOR", "SF", "MIA", "PHI"], "context": "Five years of control but squeezed off third base in Chicago; prime trade chip for a Cubs upgrade — 40% odds.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "JoJo Romero", "position": "RP", "team": "STL", "tier": "medium", "rumored_teams": [], "context": "Rental lefty reliever the Cardinals will move if they sell (or even if they soft-buy).", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Riley O'Brien", "position": "RP", "team": "STL", "tier": "medium", "rumored_teams": [], "context": "Breakout Cardinals closer drawing calls; ESPN ranks him a top-30 candidate.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "JJ Bleday", "position": "OF", "team": "CIN", "tier": "medium", "rumored_teams": ["HOU", "SD", "PHI", "ARI", "CLE", "TEX"], "context": "Breakout offensive season on a selling Reds club; controlled beyond 2026 so the price is higher.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Byron Buxton", "position": "CF", "team": "MIN", "tier": "long-shot", "rumored_teams": ["PHI", "SD", "ARI", "ATL", "TB", "STL", "NYY", "TEX", "TOR"], "context": "Star two-way center fielder, but he holds a full no-trade clause and Minnesota isn't fully selling — 30% odds.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Jeremy Pena", "position": "SS", "team": "HOU", "tier": "long-shot", "rumored_teams": ["ATL", "TB", "NYY", "TOR", "BOS"], "context": "Astros reportedly open to listening on their All-Star shortstop ahead of free agency — 35% odds but a blockbuster price.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Steven Kwan", "position": "LF", "team": "CLE", "tier": "long-shot", "rumored_teams": [], "context": "Guardians always listen on their elite contact outfielder; controlled through 2027, huge ask.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Adley Rutschman", "position": "C", "team": "BAL", "tier": "long-shot", "rumored_teams": [], "context": "Orioles fielded winter calls; a deadline sell-high on the former franchise catcher would stun but is on watch lists.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Rafael Devers", "position": "DH", "team": "SF", "tier": "long-shot", "rumored_teams": [], "context": "Giants reportedly open to moving big long-term money, but the contract makes a deal unlikely.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Willy Adames", "position": "SS", "team": "SF", "tier": "long-shot", "rumored_teams": [], "context": "Selling Giants would love relief from the mega-deal; contract makes him hard to move.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Mike Trout", "position": "OF", "team": "LAA", "tier": "long-shot", "rumored_teams": [], "context": "CBS floats him as the ultimate Angels domino, but his full no-trade clause and contract make it a fantasy.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Kevin Gausman", "position": "SP", "team": "TOR", "tier": "long-shot", "rumored_teams": [], "context": "MLB.com reports he could be made available only if the Blue Jays slide in July.", "has_allstar": true, "has_top3_voting": true},
-    {"name": "Seiya Suzuki", "position": "OF", "team": "CHC", "tier": "long-shot", "rumored_teams": ["TB", "SEA", "MIA", "SD", "PHI", "NYY", "ARI", "STL"], "context": "Cubs exploring creative roster moves with their rental outfielder, but only 15% odds while contending.", "has_allstar": false, "has_top3_voting": false},
-    {"name": "Camilo Doval", "position": "RP", "team": "NYY", "tier": "long-shot", "rumored_teams": [], "context": "On ESPN's watch list as a Yankees bullpen-surplus flip candidate despite New York buying.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Josh Hader", "position": "RP", "team": "HOU", "tier": "long-shot", "rumored_teams": [], "context": "Rivals covet him if the struggling Astros pivot to selling; big contract and Houston's pride are obstacles.", "has_allstar": true, "has_top3_voting": false},
-    {"name": "Trevor Story", "position": "SS", "team": "BOS", "tier": "long-shot", "rumored_teams": [], "context": "On ESPN's board as a contract Boston would happily offload; opt-out structure and salary limit the market.", "has_allstar": true, "has_top3_voting": false}
-  ]
+ "as_of": "2026-07-05",
+ "deadline": "2026-08-03",
+ "deadline_note": "2026 deadline is Aug 3, 6pm ET (movable window July 28-Aug 3)",
+ "sources": [
+  "https://www.mlbtraderumors.com/2026/06/top-35-trade-candidates-for-the-2026-deadline.html",
+  "https://www.espn.com/mlb/story/_/id/49082474/ranking-mlb-trade-deadline-candidates-top-100-skubal-chapman-peralta-arraez",
+  "https://www.cbssports.com/mlb/news/2026-mlb-trade-deadline-buyers-sellers-guide-one-month-away/",
+  "https://www.foxsports.com/stories/mlb/2026-mlb-trade-deadline-primer-tarik-skubal",
+  "https://www.si.com/mlb/trade-candidate-rankings-2026-deadline-predictions",
+  "https://www.mlb.com/news/when-is-the-mlb-trade-deadline-2026-date-time-candidates-storylines",
+  "https://bbwaa.com/25-nl-cy/",
+  "https://www.mlb.com/news/2025-all-star-game-rosters"
+ ],
+ "candidates": [
+  {
+   "name": "Tarik Skubal",
+   "position": "SP",
+   "team": "DET",
+   "tier": "high",
+   "rumored_teams": [
+    "LAD",
+    "NYY",
+    "ATL",
+    "MIL",
+    "TOR",
+    "TB",
+    "CHC",
+    "PHI",
+    "SD",
+    "BAL"
+   ],
+   "context": "Two-time AL Cy Young winner and pending free agent; ESPN pegs 85% trade odds as Tigers fall out of race after his elbow surgery return.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Aroldis Chapman",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "high",
+   "rumored_teams": [
+    "SEA",
+    "PIT",
+    "LAD",
+    "TB",
+    "PHI",
+    "ARI",
+    "MIN",
+    "CWS",
+    "CHC",
+    "CLE"
+   ],
+   "context": "Rejuvenated 38-year-old closer (sub-1.00 ERA); Red Sox expected to sell high \u2014 ESPN gives 90% trade odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Freddy Peralta",
+   "position": "SP",
+   "team": "NYM",
+   "tier": "high",
+   "rumored_teams": [
+    "CHC",
+    "SD",
+    "NYY",
+    "LAD",
+    "TB",
+    "CWS",
+    "CLE",
+    "STL"
+   ],
+   "context": "Impending free agent on last-place Mets; no extension talks and 90% trade odds despite a 4.8 ERA.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luis Arraez",
+   "position": "2B",
+   "team": "SF",
+   "tier": "high",
+   "rumored_teams": [
+    "TB",
+    "TEX",
+    "SD",
+    "MIN",
+    "NYY",
+    "LAD",
+    "TOR",
+    "WSH"
+   ],
+   "context": "Rental batting champion chasing a fourth title; selling Giants near-certain to move him (90% per ESPN).",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryan Jeffers",
+   "position": "C",
+   "team": "MIN",
+   "tier": "high",
+   "rumored_teams": [
+    "NYY",
+    "TB",
+    "TEX",
+    "ARI",
+    "SD",
+    "PIT",
+    "BOS"
+   ],
+   "context": "Best rental catcher on the market, back from a hamate fracture; ESPN 85% trade odds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Gleyber Torres",
+   "position": "2B",
+   "team": "DET",
+   "tier": "high",
+   "rumored_teams": [
+    "TEX",
+    "SD",
+    "TB",
+    "BOS",
+    "LAD",
+    "TOR",
+    "ARI",
+    "CLE"
+   ],
+   "context": "Reinvented leadoff man on a selling Tigers club; 80% trade odds, oblique strain slightly clouds market.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Taylor Ward",
+   "position": "LF",
+   "team": "BAL",
+   "tier": "high",
+   "rumored_teams": [
+    "SD",
+    "CLE",
+    "PHI",
+    "ARI",
+    "HOU",
+    "TB",
+    "TEX",
+    "ATL"
+   ],
+   "context": "Rental corner bat with a career-high .389 OBP; widely reported as very likely to be dealt.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Casey Mize",
+   "position": "SP",
+   "team": "DET",
+   "tier": "high",
+   "rumored_teams": [
+    "ATL",
+    "CHC",
+    "SD",
+    "MIL",
+    "ATH",
+    "TB"
+   ],
+   "context": "2.95-ERA rental and the second-best rental starter available behind teammate Skubal; 60% trade odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Joe Ryan",
+   "position": "SP",
+   "team": "MIN",
+   "tier": "high",
+   "rumored_teams": [
+    "CHC",
+    "SD",
+    "ATH",
+    "ARI",
+    "ATL",
+    "TOR",
+    "STL",
+    "PHI",
+    "CWS"
+   ],
+   "context": "Top-20 starter (3.18 ERA) controlled through 2027; teams queueing up offers to Minnesota, 55% odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Seth Lugo",
+   "position": "SP",
+   "team": "KC",
+   "tier": "high",
+   "rumored_teams": [
+    "STL",
+    "ARI",
+    "CWS",
+    "ATL",
+    "ATH",
+    "SD",
+    "NYY",
+    "CHC",
+    "TOR",
+    "MIA"
+   ],
+   "context": "Steady mid-rotation arm on selling Royals; signed through 2027 but ESPN gives 65% trade odds.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Robbie Ray",
+   "position": "SP",
+   "team": "SF",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Former Cy Young winner and rental on a selling Giants club; SF likely eats salary to boost return.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Kenley Jansen",
+   "position": "RP",
+   "team": "DET",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Veteran closer on a selling Tigers team; disappointing 4.00 ERA but obvious rental-type piece.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Antonio Senzatela",
+   "position": "RP",
+   "team": "COL",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Converted reliever with a 2.13 ERA and new cutter/velo spike; Rockies always sell and he is coveted.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kyle Finnegan",
+   "position": "RP",
+   "team": "DET",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental late-inning reliever on a selling Tigers club; on multiple others-to-watch lists.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "A.J. Minter",
+   "position": "RP",
+   "team": "NYM",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental lefty reliever on a selling Mets team; strong demand reported for left-handed relief.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brooks Raley",
+   "position": "RP",
+   "team": "NYM",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Second rental lefty the Mets are expected to move alongside Minter.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Nathaniel Lowe",
+   "position": "1B",
+   "team": "CIN",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental bat found on a minor-league deal, .256/.350/.477; easy flip for the selling Reds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Eugenio Suarez",
+   "position": "3B",
+   "team": "CIN",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental power bat on a selling Reds club; named a rental candidate by CBS and ranked by ESPN.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brady Singer",
+   "position": "SP",
+   "team": "CIN",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Impending free agent with a career-worst ERA but a 1.64 June; classic seller rental.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tyler Stephenson",
+   "position": "C",
+   "team": "CIN",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental catcher listed among the selling Reds' movable veterans by CBS.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Starling Marte",
+   "position": "OF",
+   "team": "KC",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Righty-hitting rental outfielder on selling Royals; contenders seeking OF platoon help.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Lane Thomas",
+   "position": "OF",
+   "team": "KC",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Righty rental outfielder the selling Royals are expected to shop alongside Marte.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kris Bubic",
+   "position": "SP",
+   "team": "KC",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental lefty starter on selling Royals; 4.11 ERA with walk spike after elbow/shoulder scares.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Pete Fairbanks",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "high",
+   "rumored_teams": [],
+   "context": "Rental closer CBS names as Miami's most obvious deadline chip even with the Marlins surging.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Michael Wacha",
+   "position": "SP",
+   "team": "KC",
+   "tier": "medium",
+   "rumored_teams": [
+    "STL",
+    "ATH",
+    "TOR",
+    "CWS",
+    "ATL",
+    "NYY",
+    "SD",
+    "ARI",
+    "CHC"
+   ],
+   "context": "Quality-start leader signed through 2027; Royals selling but may keep him \u2014 50% odds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Sonny Gray",
+   "position": "SP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [
+    "ATL",
+    "SD",
+    "CHC",
+    "MIL",
+    "CWS",
+    "BAL"
+   ],
+   "context": "Pitching like a top-rotation arm (2.95 ERA) but full no-trade clause and option structure complicate a deal.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Sandy Alcantara",
+   "position": "SP",
+   "team": "MIA",
+   "tier": "medium",
+   "rumored_teams": [
+    "CHC",
+    "ARI",
+    "SD",
+    "TOR",
+    "CWS",
+    "CLE",
+    "ATH",
+    "TB",
+    "ATL",
+    "MIL"
+   ],
+   "context": "Innings-eating former Cy Young winner with a 2027 club option; 40% odds with Marlins surging.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Willson Contreras",
+   "position": "1B",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [
+    "ARI",
+    "TOR",
+    "CLE",
+    "TEX",
+    "MIA",
+    "PIT",
+    "SD",
+    "NYM"
+   ],
+   "context": "Raking (.280/.375/.520, 16 HR) with Cardinals covering salary, but full no-trade clause; SI predicts traded.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Christian Walker",
+   "position": "1B",
+   "team": "HOU",
+   "tier": "medium",
+   "rumored_teams": [
+    "CLE",
+    "MIA",
+    "NYM",
+    "ARI",
+    "TOR",
+    "TEX",
+    "PIT"
+   ],
+   "context": "30-homer-caliber bounce-back; struggling Astros listening on veterans \u2014 45% odds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Isaac Paredes",
+   "position": "3B",
+   "team": "HOU",
+   "tier": "medium",
+   "rumored_teams": [
+    "MIL",
+    "NYY",
+    "MIA",
+    "PHI",
+    "PIT",
+    "CLE",
+    "BOS"
+   ],
+   "context": "Astros listening as they retool; would be the fifth trade of his career.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jeff Hoffman",
+   "position": "RP",
+   "team": "TOR",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "All-Star closer with elite strikeout rates but a 4.84 ERA; Jays could reshuffle the $11M/yr deal.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Trevor Rogers",
+   "position": "SP",
+   "team": "BAL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Impending free agent with a 2.22 June ERA, but Baltimore trending toward buying muddies his status.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Dustin May",
+   "position": "SP",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental and the Cardinals' best recent starter; St. Louis is still on the contention fence.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Lars Nootbaar",
+   "position": "LF",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Controlled through 2027 and hot since returning from heel surgery; moves only if Cards pivot to selling.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "CJ Abrams",
+   "position": "SS",
+   "team": "WSH",
+   "tier": "medium",
+   "rumored_teams": [
+    "ATL",
+    "TB",
+    "NYY",
+    "TOR"
+   ],
+   "context": "Career year (.287/.370/.533) with control through 2028; Nats would need to be overwhelmed \u2014 15% odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Reid Detmers",
+   "position": "SP",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [
+    "CHC",
+    "SD",
+    "STL",
+    "CWS",
+    "TB",
+    "ATL"
+   ],
+   "context": "Among FanGraphs WAR leaders with control through 2028, but owner Moreno reportedly resisting trades.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jose Soriano",
+   "position": "SP",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [
+    "TB",
+    "STL",
+    "CWS",
+    "ATL",
+    "ARI"
+   ],
+   "context": "Hard-throwing, cheaply controlled arm who would net multiple top prospects if Moreno relents.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jarren Duran",
+   "position": "OF",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [
+    "SD",
+    "ARI",
+    "CLE",
+    "HOU",
+    "PHI",
+    "MIA",
+    "TB",
+    "TEX",
+    "SEA"
+   ],
+   "context": "Change-of-scenery candidate hitting a career-worst .199 amid Boston's outfield logjam; 25% odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Matt Chapman",
+   "position": "3B",
+   "team": "SF",
+   "tier": "medium",
+   "rumored_teams": [
+    "PHI",
+    "NYY",
+    "PIT",
+    "MIA",
+    "STL",
+    "CIN",
+    "NYM"
+   ],
+   "context": "Giants open to offers on long-term money; no-trade clause and contract through 2030 are hurdles, but SI predicts a deal.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Hunter Goodman",
+   "position": "C",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [
+    "NYY",
+    "BOS",
+    "TEX"
+   ],
+   "context": "Leads catchers in homers and is controlled through 2029; Rockies would demand a massive return.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jung Hoo Lee",
+   "position": "CF",
+   "team": "SF",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Hitting .333 in a thin outfield market, but his post-2027 opt-out deters some suitors.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luis Castillo",
+   "position": "SP",
+   "team": "SEA",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Mariners have six healthy starters for five spots; 5.22 ERA with under-the-hood improvement.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Clay Holmes",
+   "position": "SP",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Converted starter rehabbing a broken fibula with a 2027 player option; Mets can trade him while he rehabs.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mickey Moniak",
+   "position": "OF",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Platoon corner bat (.273/.314/.539 over two years) though Coors inflates the line; controlled through 2027.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jake McCarthy",
+   "position": "CF",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Cheap defensive outfielder controlled through 2028 on a perennial seller.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Trevor Larnach",
+   "position": "LF",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Patient lefty platoon bat (.276/.374/.419) heating up in June; Twins retooling around the edges.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Foster Griffin",
+   "position": "SP",
+   "team": "WSH",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "NPB returnee with a 3.15 ERA and elite K/BB; Nats' direction and salary quirks complicate it.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Justin Verlander",
+   "position": "SP",
+   "team": "DET",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran rental on a selling Tigers club; on ESPN's top-100 candidate board.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Jack Flaherty",
+   "position": "SP",
+   "team": "DET",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Selling Tigers could deal him for the second straight deadline cycle; option structure in play.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luis Robert Jr.",
+   "position": "CF",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Perennial deadline name now on a selling Mets roster; talent-over-production gamble for buyers.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "David Peterson",
+   "position": "SP",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Controlled All-Star lefty; Mets listening on nearly everyone amid a lost season.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mark Vientos",
+   "position": "3B",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Young corner bat on the Mets' others-to-watch list as New York retools.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Taylor Rogers",
+   "position": "RP",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran lefty reliever the Twins can flip as they thread buyer/seller status.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Josh Bell",
+   "position": "DH",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran switch-hitting rental bat on ESPN's candidate board.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Willi Castro",
+   "position": "UT",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Two-time All-Star utilityman on a selling Rockies club; fits every contender's bench.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Michael Lorenzen",
+   "position": "SP",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran swingman rental on the selling Rockies.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tomoyuki Sugano",
+   "position": "SP",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Strike-throwing veteran on the selling Rockies; back-end rotation rental for a contender.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Andrew Kittredge",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran setup rental; moves if the Orioles' buy-lean flips back to selling.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Chris Bassitt",
+   "position": "SP",
+   "team": "BAL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran innings rental on Baltimore's others-to-watch list.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryan Mountcastle",
+   "position": "1B",
+   "team": "BAL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Blocked Orioles first baseman who surfaces in talks every deadline.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kirby Yates",
+   "position": "RP",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran rental reliever on a rebuilding Angels club.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jo Adell",
+   "position": "RF",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [
+    "PHI",
+    "SD",
+    "MIL",
+    "MIA",
+    "TB",
+    "ARI",
+    "CLE"
+   ],
+   "context": "Talented but streaky power bat; Angels rebuild logic says trade him, Moreno says otherwise \u2014 20% odds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jorge Soler",
+   "position": "DH",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran power rental on the Angels' movable-contract list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Matt Shaw",
+   "position": "3B",
+   "team": "CHC",
+   "tier": "medium",
+   "rumored_teams": [
+    "BOS",
+    "NYY",
+    "TB",
+    "KC",
+    "MIL",
+    "TOR",
+    "SF",
+    "MIA",
+    "PHI"
+   ],
+   "context": "Five years of control but squeezed off third base in Chicago; prime trade chip for a Cubs upgrade \u2014 40% odds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "JoJo Romero",
+   "position": "RP",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental lefty reliever the Cardinals will move if they sell (or even if they soft-buy).",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Riley O'Brien",
+   "position": "RP",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Breakout Cardinals closer drawing calls; ESPN ranks him a top-30 candidate.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "JJ Bleday",
+   "position": "OF",
+   "team": "CIN",
+   "tier": "medium",
+   "rumored_teams": [
+    "HOU",
+    "SD",
+    "PHI",
+    "ARI",
+    "CLE",
+    "TEX"
+   ],
+   "context": "Breakout offensive season on a selling Reds club; controlled beyond 2026 so the price is higher.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Byron Buxton",
+   "position": "CF",
+   "team": "MIN",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "PHI",
+    "SD",
+    "ARI",
+    "ATL",
+    "TB",
+    "STL",
+    "NYY",
+    "TEX",
+    "TOR"
+   ],
+   "context": "Star two-way center fielder, but he holds a full no-trade clause and Minnesota isn't fully selling \u2014 30% odds.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jeremy Pena",
+   "position": "SS",
+   "team": "HOU",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "ATL",
+    "TB",
+    "NYY",
+    "TOR",
+    "BOS"
+   ],
+   "context": "Astros reportedly open to listening on their All-Star shortstop ahead of free agency \u2014 35% odds but a blockbuster price.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Steven Kwan",
+   "position": "LF",
+   "team": "CLE",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Guardians always listen on their elite contact outfielder; controlled through 2027, huge ask.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Adley Rutschman",
+   "position": "C",
+   "team": "BAL",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Orioles fielded winter calls; a deadline sell-high on the former franchise catcher would stun but is on watch lists.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Rafael Devers",
+   "position": "DH",
+   "team": "SF",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Giants reportedly open to moving big long-term money, but the contract makes a deal unlikely.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Willy Adames",
+   "position": "SS",
+   "team": "SF",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Selling Giants would love relief from the mega-deal; contract makes him hard to move.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mike Trout",
+   "position": "OF",
+   "team": "LAA",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "CBS floats him as the ultimate Angels domino, but his full no-trade clause and contract make it a fantasy.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Kevin Gausman",
+   "position": "SP",
+   "team": "TOR",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "MLB.com reports he could be made available only if the Blue Jays slide in July.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Seiya Suzuki",
+   "position": "OF",
+   "team": "CHC",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "TB",
+    "SEA",
+    "MIA",
+    "SD",
+    "PHI",
+    "NYY",
+    "ARI",
+    "STL"
+   ],
+   "context": "Cubs exploring creative roster moves with their rental outfielder, but only 15% odds while contending.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Camilo Doval",
+   "position": "RP",
+   "team": "NYY",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "On ESPN's watch list as a Yankees bullpen-surplus flip candidate despite New York buying.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Josh Hader",
+   "position": "RP",
+   "team": "HOU",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Rivals covet him if the struggling Astros pivot to selling; big contract and Houston's pride are obstacles.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Trevor Story",
+   "position": "SS",
+   "team": "BOS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "On ESPN's board as a contract Boston would happily offload; opt-out structure and salary limit the market.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Spencer Torkelson",
+   "position": "1B",
+   "team": "DET",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Former No. 1 overall pick on Tigers others-to-watch lists as Detroit shops veterans.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Will Vest",
+   "position": "RP",
+   "team": "DET",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Late-inning arm on ESPN/MLBTR Tigers watch lists as Detroit pivots to selling.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Zach McKinstry",
+   "position": "UT",
+   "team": "DET",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "2025 All-Star super-utilityman; ESPN top-100 candidate on a selling club.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jake Rogers",
+   "position": "C",
+   "team": "DET",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Glove-first backup catcher on ESPN's top-100 candidate board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Drew Anderson",
+   "position": "RP",
+   "team": "DET",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Middle-relief arm on ESPN's top-100 candidate board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brayan Bello",
+   "position": "SP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Named on Red Sox others-to-watch lists as Boston weighs selling high on arms.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Garrett Whitlock",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "ESPN ranks him a top-30 candidate as a coveted multi-inning reliever.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Patrick Sandoval",
+   "position": "SP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rehabbed lefty on ESPN's board; Boston rotation surplus makes him movable.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Isiah Kiner-Falefa",
+   "position": "SS",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran utility infielder on multiple Red Sox movable lists.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Connor Wong",
+   "position": "C",
+   "team": "BOS",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Backup catcher on MLBTR's Red Sox others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Masataka Yoshida",
+   "position": "DH",
+   "team": "BOS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Salary-relief candidate; Boston roster crunch makes them motivated.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Greg Weissert",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Middle reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Danny Coulombe",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran lefty specialist; rental-type reliever contenders call about.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Bailey Ober",
+   "position": "SP",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "On MLBTR's Twins others-to-watch list as Minnesota threads buy/sell.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kody Clemens",
+   "position": "2B",
+   "team": "MIN",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Lefty bench bat on the Twins' others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Victor Caratini",
+   "position": "C",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran rental catcher (ESPN No. 77) behind Jeffers on the depth chart.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Anthony Banda",
+   "position": "RP",
+   "team": "MIN",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran lefty reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Zach Neto",
+   "position": "SS",
+   "team": "LAA",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Young shortstop rivals covet; Angels have shown no appetite to move him.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Sam Bachman",
+   "position": "RP",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Former first-rounder on ESPN's board as a change-of-scenery arm.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Chase Silseth",
+   "position": "SP",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Depth starter on ESPN's top-100 candidate board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryan Zeferjahn",
+   "position": "RP",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Power reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Bo Bichette",
+   "position": "3B",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental with an opt-out, hot since May; full no-trade clause limits the market per MLBTR.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tyrone Taylor",
+   "position": "CF",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental fourth outfielder the selling Mets are expected to move.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brett Baty",
+   "position": "3B",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Blocked young infielder on MLBTR's Mets others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luke Weaver",
+   "position": "RP",
+   "team": "NYM",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran reliever on the Mets' others-to-watch list as New York sells.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "MJ Melendez",
+   "position": "LF",
+   "team": "NYM",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Change-of-scenery bat on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Marcus Semien",
+   "position": "2B",
+   "team": "NYM",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Underperforming veteran on a big deal; MLBTR notes little interest without salary relief.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Salvador Perez",
+   "position": "C",
+   "team": "NYM",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Aging franchise catcher underperforming on his deal; MLBTR sees limited market.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tyler Mahle",
+   "position": "SP",
+   "team": "SF",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Underperforming Giants starter named movable in MLBTR's deadline outlook.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Heliot Ramos",
+   "position": "LF",
+   "team": "SF",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Young All-Star outfielder on the Giants' others-to-watch list; big return required.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Casey Schmitt",
+   "position": "3B",
+   "team": "SF",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Infield depth piece on the Giants' others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "JT Brubaker",
+   "position": "RP",
+   "team": "SF",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran swingman on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Caleb Kilian",
+   "position": "RP",
+   "team": "SF",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Depth arm on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Logan Webb",
+   "position": "SP",
+   "team": "SF",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Posey says no plans to trade the Giants' one truly desirable chip, but rivals will call.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Keaton Winn",
+   "position": "RP",
+   "team": "SF",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Depth arm mentioned in Giants outlook; recent elbow strain (no structural damage).",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Pierce Johnson",
+   "position": "RP",
+   "team": "CIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Impending-FA reliever in the selling Reds' rental pool per MLBTR outlook.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Caleb Ferguson",
+   "position": "RP",
+   "team": "CIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental lefty reliever on the selling Reds.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brock Burke",
+   "position": "RP",
+   "team": "CIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rental lefty in Cincinnati's deadline pool per MLBTR.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Nick Lodolo",
+   "position": "SP",
+   "team": "CIN",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Controlled lefty on the Reds' others-to-watch list; would take a real haul.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Daniel Lynch IV",
+   "position": "RP",
+   "team": "KC",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Effective lefty on the selling Royals; ESPN top-40 candidate.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Matt Strahm",
+   "position": "RP",
+   "team": "KC",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran lefty rental reliever on ESPN's candidate board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "John Schreiber",
+   "position": "RP",
+   "team": "KC",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Middle reliever swept up in Royals sell-off coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Alex Lange",
+   "position": "RP",
+   "team": "KC",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Bounce-back reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryan Feltner",
+   "position": "RP",
+   "team": "COL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Rockies arm on both MLBTR and ESPN candidate lists.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jimmy Herget",
+   "position": "RP",
+   "team": "COL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran reliever on the Rockies' others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jaden Hill",
+   "position": "RP",
+   "team": "COL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Power relief arm on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Juan Mejia",
+   "position": "RP",
+   "team": "COL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "ESPN top-100 relief candidate on MLB's worst team.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brennan Bernardino",
+   "position": "RP",
+   "team": "COL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Lefty depth reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryne Stanek",
+   "position": "RP",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran rental reliever (ESPN No. 71) if the Cardinals sell.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Nolan Gorman",
+   "position": "3B",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Change-of-scenery candidate optioned for a mechanical overhaul (MLBTR No. 32).",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Justin Bruihl",
+   "position": "RP",
+   "team": "STL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Lefty depth arm on ESPN's board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "George Soriano",
+   "position": "RP",
+   "team": "STL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Middle reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Anthony Bender",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Late-inning arm on Marlins others-to-watch lists even as Miami surges.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Max Meyer",
+   "position": "SP",
+   "team": "MIA",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Controlled young starter rivals ask about; Marlins in no rush.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "John King",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Ground-ball lefty on ESPN's and MLBTR's watch lists.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Calvin Faucher",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Bullpen arm on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Lake Bachar",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "ESPN top-40 relief surprise on the Marlins.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Michael Petersen",
+   "position": "RP",
+   "team": "MIA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Depth reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Colton Cowser",
+   "position": "CF",
+   "team": "BAL",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Young outfielder on Baltimore's others-to-watch list; O's trending buyer.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Yennier Cano",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Former All-Star setup man on the Orioles' watch list.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Rico Garcia",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Journeyman reliever on ESPN's top-100 board.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kyle Higashioka",
+   "position": "C",
+   "team": "TEX",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran backup catcher on Rangers others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Josh Smith",
+   "position": "3B",
+   "team": "TEX",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Utility infielder on Rangers others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luis Garcia Jr.",
+   "position": "2B",
+   "team": "WSH",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Controlled young infielder on Nationals watch list; big ask.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jacob Young",
+   "position": "CF",
+   "team": "WSH",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Elite defensive center fielder on Nationals watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Zack Littell",
+   "position": "SP",
+   "team": "WSH",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Innings-eater (ESPN No. 84) on a fringe Nationals club.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Bryan Abreu",
+   "position": "RP",
+   "team": "HOU",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "High-leverage arm rivals covet if the struggling Astros pivot to selling.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Steven Okert",
+   "position": "RP",
+   "team": "HOU",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Lefty reliever on Astros others-to-watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jeffrey Springs",
+   "position": "SP",
+   "team": "ATH",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran lefty the A's have made available per MLBTR watch list.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jason Adam",
+   "position": "RP",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "CBS notes the Padres could move relievers in their annual payroll shuffle.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Adrian Morejon",
+   "position": "RP",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Padres bullpen piece flagged as movable in a payroll shuffle.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jeremiah Estrada",
+   "position": "RP",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "CBS flags him as a possible Padres bullpen trade piece.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Yuki Matsui",
+   "position": "RP",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "CBS lists him among Padres relievers who could move.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brandon Lowe",
+   "position": "2B",
+   "team": "PIT",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Veteran power bat on Pirates watch list despite Pittsburgh buying.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Gregory Soto",
+   "position": "RP",
+   "team": "PIT",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Two-time All-Star lefty rental reliever.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ty France",
+   "position": "1B",
+   "team": "SD",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Named a Padres trade candidate as San Diego shuffles the roster for deadline flexibility.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Miguel Andujar",
+   "position": "LF",
+   "team": "SD",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Bench bat listed among Padres pieces that should be trade candidates in deadline coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Gavin Sheets",
+   "position": "DH",
+   "team": "SD",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Lefty bat named a Padres trade candidate as the club chases upgrades.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Wandy Peralta",
+   "position": "RP",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Declining veteran lefty under contract through 2027; salary-relief candidate in Padres coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Javier B\u00e1ez",
+   "position": "SS",
+   "team": "DET",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "On 60-day IL with ankle injury; $24M/yr through 2027 tabbed among MLB's worst contracts and cited as an expendable salary-dump piece if Detroit sells, but injury blocks a deal.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Matt Vierling",
+   "position": "OF",
+   "team": "DET",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran bench/OF piece on an expiring $3.25M arbitration deal for a club shopping its impending free agents; thin direct coverage beyond roster-sweep logic.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tyler Holton",
+   "position": "RP",
+   "team": "DET",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Arbitration-eligible lefty reliever in a Tigers bullpen already featuring shopped arms (Finnegan, Jansen, Vest); controllable arm contenders would ask about in a teardown.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Beau Brieske",
+   "position": "RP",
+   "team": "DET",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "One-year $1.16M reliever providing bullpen continuity; plausible secondary piece if Detroit conducts a full sell-off around Skubal.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Justin Slaten",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Listed in Boston's 'possibly traded' tier in multiple 2026 sell rankings; 6.16 ERA but career-high 28.7% K rate and cheap pre-arb control keep interest alive.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Wilyer Abreu",
+   "position": "RF",
+   "team": "BOS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Appears in 2026 Red Sox sell rankings but tagged 'unlikely' \u2014 two-time Gold Glover Boston would rather keep amid its outfield logjam.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Romy Gonzalez",
+   "position": "UT",
+   "team": "BOS",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Multi-year-control utility infielder just reinstated from the 60-day IL; back-end roster piece cited in deadline guide coverage rather than active rumors.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tayron Guerrero",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "35-year-old flamethrower with a 33.9% strikeout rate named a 'take what you get' depth piece in Just Baseball's 2026 Red Sox deadline guide.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jovani Moran",
+   "position": "RP",
+   "team": "BOS",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Lefty with strong peripherals but 2024 Tommy John history; listed among low-likelihood Boston relief trade pieces in 2026 guide coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Connelly Early",
+   "position": "SP",
+   "team": "BOS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Young lefty in Boston's 'have to listen' tier per Just Baseball's 2026 deadline guide, competing with other rookie arms for rotation spots.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Payton Tolle",
+   "position": "SP",
+   "team": "BOS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "High-ceiling rookie lefty flagged as a conditional trade chip in 2026 deadline guide coverage, though stamina questions cap immediate value.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Yoendrys G\u00f3mez",
+   "position": "RP",
+   "team": "MIN",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Cash-considerations pickup turned Twins closer, placed in the 'definitely traded' tier of 2026 sell rankings if Minnesota moves veterans.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Royce Lewis",
+   "position": "3B",
+   "team": "MIN",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Named a change-of-scenery candidate in the 'possibly traded' tier of 2026 Twins sell coverage after continued injury/performance frustration.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Matt Wallner",
+   "position": "OF",
+   "team": "MIN",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "MLB.com noted Twins could move Wallner (or Larnach) to bolster pitching given upper-minors OF depth; raking at St. Paul (.288/.358/.598), also an internal call-up option.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Carlos Est\u00e9vez",
+   "position": "RP",
+   "team": "KC",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Impending free-agent closer KC could dangle per industry buzz, but 2026 injuries and diminished velocity have sapped most of his trade value.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jonathan India",
+   "position": "2B",
+   "team": "KC",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Impending free agent who'd have been one of KC's best chips, but he's on the IL and reports say injuries have gutted his value; also floated in contender-style swap buzz.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Maikel Garcia",
+   "position": "3B",
+   "team": "KC",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Industry buzz says Royals would dangle him only in a contender-to-contender swap for a power outfielder; freshly extended (5yr/$57.5M) and currently on the IL.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Lucas Erceg",
+   "position": "RP",
+   "team": "KC",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "'Probably traded' tier in 2026 Royals sell rankings; slumping with declining K/BB and lost the closer role but still sits 97+, controllable through 2028.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kyle Isbel",
+   "position": "CF",
+   "team": "KC",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Glove-first outfielder in the 'unlikely traded' tier of 2026 sell rankings; plantar fasciitis and limited bat cap his appeal despite 2027 control.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Vinnie Pasquantino",
+   "position": "1B",
+   "team": "KC",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Listed 'unlikely' in 2026 Royals sell coverage \u2014 recovering from hamate surgery with declining power, so KC won't sell low despite control through 2028.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Yoan Moncada",
+   "position": "3B",
+   "team": "LAA",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "$4M one-year rental off to a dismal start (.083 avg early); Angels beat coverage says nobody would be shocked if he's gone by the deadline, health permitting.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Brent Suter",
+   "position": "RP",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Veteran lefty on an expiring deal listed among the Angels' tradeable rentals in 2026 deadline-plans coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jose Siri",
+   "position": "CF",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Speed/defense outfielder on an expiring contract named among Angels rentals who could be moved in 2026 deadline coverage.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Travis d'Arnaud",
+   "position": "C",
+   "team": "LAA",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Veteran catcher listed among Angels' movable rentals 'if healthy' in 2026 deadline coverage; health is the operative caveat.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Adam Frazier",
+   "position": "2B",
+   "team": "LAA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Utility veteran on an expiring deal listed among Angels rentals who could go 'if healthy' in 2026 deadline-plans coverage.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ryan Helsley",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Closer Monkey July 2026 AL primer tags him a SELL candidate w/ $14M 2027 player option; prime rental if O's sell but second elbow IL stint (June 30) clouds market.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tyler Wells",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Birds Watcher bullpen fire-sale piece: controllable reliever having a decent season, larger prospect return required.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Keegan Akin",
+   "position": "RP",
+   "team": "BAL",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Birds Watcher fire-sale piece: easily tradeable for minimal return in a bullpen refresh.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Alec Burleson",
+   "position": "OF",
+   "team": "STL",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Redbird Rants groups him with O'Brien, Romero, May, Stanek, Nootbaar as most-cited Cardinals to move for prospects.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Masyn Winn",
+   "position": "SS",
+   "team": "STL",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Local sportswriter floated the 24-yo SS as a 'bone-chilling but sensible' chip amid .242/84 OPS+ season; elite defense considered untouchable by fans.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Derek Hill",
+   "position": "OF",
+   "team": "MIA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Marlins deadline coverage: controllable depth OF Miami could move while trading from strength.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "AJ Blubaugh",
+   "position": "RP",
+   "team": "HOU",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "NYY"
+   ],
+   "context": "The Athletic (Rome): MLB-high 56.1 IP swingman at 3.36 ERA is a popular ask in Astros talks; Houston buying, only moves as price for a LH bat.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jonah Heim",
+   "position": "C",
+   "team": "ATH",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Athlon names the catcher (DHing since Rooker's knee surgery) a trade candidate as A's tilt toward selling.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Carlos Cortes",
+   "position": "RF",
+   "team": "ATH",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Named alongside Heim in Athlon's post-Rooker outlook as a likely A's trade candidate.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mark Leiter Jr.",
+   "position": "RP",
+   "team": "ATH",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Closer Monkey AL primer flags him; currently injured, limiting activity.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mitch Keller",
+   "position": "SP",
+   "team": "PIT",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Last Word on Sports: Pirates may move on from his $16.5-20M/yr deal, but Pittsburgh currently plans to BUY relievers.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Bryan Reynolds",
+   "position": "OF",
+   "team": "PIT",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Perennially discussed; 2026 beat reporting says he won't be traded given bounce-back production + contract through 2030.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Nathan Eovaldi",
+   "position": "SP",
+   "team": "TEX",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "SI five-Rangers-to-trade-if-Texas-falters list ($24M in 2027, sterling postseason record); first-place Rangers positioned as buyers.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jacob deGrom",
+   "position": "SP",
+   "team": "TEX",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Could command 3-5 prospects with MLB-best K/BB and $37M owed 2027 \u2014 only if the AL West leaders collapse.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Joc Pederson",
+   "position": "DH",
+   "team": "TEX",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "SI + Nolan Writin' sell candidate ($21.25M expiring) whose improved form makes him moveable if Texas fades.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Corey Seager",
+   "position": "SS",
+   "team": "TEX",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "BOS"
+   ],
+   "context": "SI's 'nuclear option' \u2014 $31.5M/yr through 2030; Red Sox expressed offseason interest but their record makes it unlikely now.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Davis Schneider",
+   "position": "OF",
+   "team": "TOR",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Blue Jays Nation deadline preview: surplus piece with poor results and a blocked path as buying Toronto shops for a RH OF bat.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Tommy Nance",
+   "position": "RP",
+   "team": "TOR",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Out of options and struggling \u2014 odd man out as the buying Jays add bullpen help.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Cedric Mullins",
+   "position": "CF",
+   "team": "TB",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "MLBTR Rays outlook: 2026 rentals like Mullins probably dangled even as Tampa buys elsewhere in its usual churn.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Steven Matz",
+   "position": "SP",
+   "team": "TB",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Struggling veteran on an expiring deal, listed among rentals likely dangled before Aug 3.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Garrett Cleavinger",
+   "position": "RP",
+   "team": "TB",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "MLBTR: $2.4M lefty with one arb year left could be swapped for OF help if Rays trust Booser in the role.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Gavin Lux",
+   "position": "2B",
+   "team": "TB",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Among dangle-able Rays rentals, but ankle/shoulder injuries wiped his season; rehab targeting the All-Star break.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jake Fraley",
+   "position": "OF",
+   "team": "TB",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Dangle-able expiring-control OF, though on the IL post-hernia procedure, limiting value.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Nick Martinez",
+   "position": "SP",
+   "team": "TB",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "On the Rays' expiring-control dangle list, though MLBTR deems a midseason deal unlikely to return much.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jake Burger",
+   "position": "1B",
+   "team": "TEX",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Change-of-scenery coverage: 63 HR in 2023-24 but just 10 homers and a .705 OPS this season in Texas.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Munetaka Murakami",
+   "position": "1B",
+   "team": "CWS",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "B/R: White Sox slugger would require a 'gargantuan offer' to be moved at the deadline.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Luis Severino",
+   "position": "SP",
+   "team": "ATH",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN's Skubal blockbuster proposals have the A's shipping Severino as the MLB piece, with his player option flagged as a consideration.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Lawrence Butler",
+   "position": "OF",
+   "team": "ATH",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN labels him a change-of-scenery candidate and includes him in a hypothetical A's package for Skubal.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Spencer Jones",
+   "position": "OF",
+   "team": "NYY",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN's proposed Yankees package for Skubal is headlined by the slugging Jones (plus Lagrange or Elmer Rodriguez), though a Yankees source called their chances 'none.'",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Kevin Alcantara",
+   "position": "OF",
+   "team": "CHC",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN's Cubs-for-Skubal construct includes Alcantara, who has 15 homers in 41 Triple-A games as blocked outfield surplus.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Jaxon Wiggins",
+   "position": "SP",
+   "team": "CHC",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "SI and ESPN both name the Cubs' No. 4 prospect as a moveable high-upside arm, sidelined since April with elbow inflammation.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Zyhir Hope",
+   "position": "OF",
+   "team": "LAD",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN's Dodgers-for-Skubal proposal centers the top-50 prospect, a 21-year-old on pace for 30 homers.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Emmet Sheehan",
+   "position": "SP",
+   "team": "LAD",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "ESPN's proposed Dodgers package uses Sheehan as the MLB-ready starter, part of LA's 'wholly unique' pitching-and-outfield surplus.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ethan Salas",
+   "position": "C",
+   "team": "SD",
+   "tier": "deep",
+   "rumored_teams": [
+    "DET"
+   ],
+   "context": "SI lists the 20-year-old elite defensive catcher among top prospects who could be dealt, and ESPN includes him in a Padres Skubal package.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Gage Wood",
+   "position": "SP",
+   "team": "PHI",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "SI: Phillies' 2025 first-rounder with an upper-90s fastball called a likely candidate for deadline trade discussions.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Felnin Celesten",
+   "position": "SS",
+   "team": "SEA",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "SI: 20-year-old switch-hitting shortstop potentially expendable for Seattle with Colt Emerson entrenched at the position.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  }
+ ]
 }
