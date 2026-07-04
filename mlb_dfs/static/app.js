@@ -191,6 +191,9 @@ $$("nav button").forEach((b) => {
         state.currentDraftId = null;
       }
     }
+    if (b.dataset.tab === "deadline") {
+      loadDeadline();
+    }
     if (b.dataset.tab === "hof") {
       loadHallOfFame().catch(() => {});
     }
@@ -4822,3 +4825,100 @@ $("#sched-apply").addEventListener("click", async () => {
   }
 });
 refresh();
+
+
+// ---------- Trade-Deadline Draft ----------
+const MLB_TEAMS = ["ATH","ATL","AZ","BAL","BOS","CHC","CIN","CLE","COL","CWS","DET","HOU","KC","LAA","LAD","MIA","MIL","MIN","NYM","NYY","PHI","PIT","SD","SEA","SF","STL","TB","TEX","TOR","WSH"];
+let dlPool = [];
+let dlState = null;
+
+async function loadDeadline() {
+  try {
+    const [dr, pool] = await Promise.all([
+      api("/api/deadline/draft"),
+      api("/api/deadline/candidates"),
+    ]);
+    dlState = dr;
+    dlPool = pool.candidates || [];
+    $("#dl-pool-meta").textContent = pool.as_of
+      ? `— ${dlPool.length} candidates · research as of ${pool.as_of}`
+      : "— candidate list not loaded yet";
+    $("#dl-setup").style.display = dr.exists ? "none" : "flex";
+    renderDeadlineBoard();
+    renderDeadlinePool();
+  } catch (e) {
+    $("#dl-board").innerHTML = `<div class="muted">${e.message}</div>`;
+  }
+}
+
+function renderDeadlineBoard() {
+  const dr = dlState;
+  if (!dr || !dr.exists) {
+    $("#dl-board").innerHTML = `<div class="muted" style="padding:8px 0;">No deadline draft yet — enter drafters above and start.</div>`;
+    return;
+  }
+  const totals = Object.entries(dr.totals || {}).sort((a, b) => b[1] - a[1]);
+  const board = totals.map(([d, pts], i) =>
+    `<div class="m" style="display:inline-block;margin-right:14px;"><b>${i + 1}. ${d}</b> — ${pts.toFixed(1)} pts</div>`).join("");
+  const otc = dr.on_the_clock;
+  const rows = (dr.picks || []).map((p) => {
+    const status = p.traded
+      ? `✅ traded → ${p.traded_to || "?"} ${p.hit_team ? "🎯" : ""} <b>+${p.points.toFixed(1)}</b>`
+      : `⏳`;
+    const badges = `${p.has_allstar ? "⭐" : ""}${p.has_top3_voting ? "🏅" : ""}`;
+    return `<tr><td>${p.pick_number}</td><td>${p.drafter}</td>
+      <td>${p.player_name} ${badges} <span class="muted">(${p.position || "?"} · ${p.team || "?"})</span></td>
+      <td>→ ${p.predicted_team}</td><td>${status}</td></tr>`;
+  }).join("");
+  $("#dl-board").innerHTML = `
+    <div class="accuracy-strip" style="margin:10px 0;">${board}
+      <div class="m muted">deadline ${dr.deadline} · ${dr.trades_seen} MLB trades seen since ${dr.created}</div></div>
+    ${otc ? `<p><b>${otc}</b> is on the clock (round ${Math.floor((dr.picks || []).length / dr.drafters.length) + 1}/${dr.rounds})</p>` : "<p><b>Draft complete</b> — scores update as trades happen.</p>"}
+    <table><thead><tr><th>#</th><th>Drafter</th><th>Player</th><th>Predicted</th><th>Status</th></tr></thead>
+    <tbody>${rows || ""}</tbody></table>`;
+}
+
+function renderDeadlinePool() {
+  const q = ($("#dl-search").value || "").toLowerCase();
+  const tier = $("#dl-tier").value;
+  const otc = dlState && dlState.exists ? dlState.on_the_clock : null;
+  const rows = dlPool
+    .filter((c) => (tier === "all" || c.tier === tier) && (!q || c.name.toLowerCase().includes(q)))
+    .map((c) => {
+      const badges = `${c.has_allstar ? "⭐" : ""}${c.has_top3_voting ? "🏅" : ""}`;
+      const rumored = (c.rumored_teams || []).join(", ");
+      const opts = MLB_TEAMS.map((t) => `<option value="${t}" ${(c.rumored_teams || [])[0] === t ? "selected" : ""}>${t}</option>`).join("");
+      const pickCtl = otc
+        ? `<select class="dl-team" data-name="${escapeAttr(c.name)}">${opts}</select>
+           <button class="btn-pick dl-pick" data-name="${escapeAttr(c.name)}">Pick</button>`
+        : "";
+      return `<tr class="${c.tier === "high" ? "hitter" : ""}">
+        <td><b>${c.name}</b> ${badges}</td><td>${c.position || ""}</td><td>${c.team || ""}</td>
+        <td><span class="bench-tag">${c.tier || "?"}</span></td>
+        <td class="muted" style="font-size:12px;">${rumored}</td>
+        <td class="notes" style="font-size:11px;max-width:340px;">${c.context || ""}</td>
+        <td>${pickCtl}</td></tr>`;
+    }).join("");
+  $("#dl-pool").innerHTML = `<table><thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Tier</th><th>Rumored to</th><th>Context</th><th>${otc ? `Pick for ${otc}` : ""}</th></tr></thead><tbody>${rows || "<tr><td colspan=7 class=muted>No candidates match.</td></tr>"}</tbody></table>`;
+  $("#dl-pool").querySelectorAll(".dl-pick").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const name = b.dataset.name;
+      const sel = $("#dl-pool").querySelector(`.dl-team[data-name="${CSS.escape(name)}"]`);
+      try {
+        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({ drafter: dlState.on_the_clock, player_name: name, predicted_team: sel.value }) });
+        await loadDeadline();
+      } catch (e) { alert(e.message); }
+    });
+  });
+}
+
+$("#dl-create")?.addEventListener("click", async () => {
+  const names = ($("#dl-drafters").value || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (names.length < 2) return alert("need at least 2 drafters");
+  try {
+    await api("/api/deadline/draft", { method: "POST", body: JSON.stringify({ drafters: names, rounds: parseInt($("#dl-rounds").value, 10) }) });
+    await loadDeadline();
+  } catch (e) { alert(e.message); }
+});
+$("#dl-search")?.addEventListener("input", () => dlPool.length && renderDeadlinePool());
+$("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());

@@ -20,6 +20,7 @@
       <button data-tab="kprops">K Props</button>
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
+      <button data-tab="deadline">🔁 Deadline</button>
       <button data-tab="ask">🎯 Ask Algo</button>
       <button data-tab="hof">🏆 Hall of Fame</button>
       <button data-tab="dynasty">👑 Dynasty</button>
@@ -268,6 +269,29 @@
         </div>
       </div>
       <div id="lineup-out"></div>
+    </section>
+
+
+    <section id="tab-deadline" class="tab">
+      <h2>Trade-Deadline Draft</h2>
+      <p class="muted" style="font-size:13px;max-width:760px;">
+        Snake-draft players you think get <b>traded by July 31</b>, each with a predicted destination.
+        Scoring (auto-detected from MLB transactions): <b>+1</b> traded · <b>+1</b> destination correct ·
+        <b>+0.5</b> ever an All-Star · <b>+0.5</b> ever top-3 in MVP/CY voting.
+        <i>Bonuses pay only when the player is actually traded.</i>
+      </p>
+      <div id="dl-setup" class="setup-row" style="display:none;">
+        <input id="dl-drafters" placeholder="Drafter names, comma-separated (Stock,JL,Meech)" />
+        <select id="dl-rounds"><option value="4">4 rounds</option><option value="6" selected>6 rounds</option><option value="8">8 rounds</option></select>
+        <button id="dl-create" class="btn-pick">Start deadline draft</button>
+      </div>
+      <div id="dl-board"></div>
+      <h3 style="margin-top:18px;">Candidate pool <span class="muted" id="dl-pool-meta" style="font-weight:400;font-size:12px;"></span></h3>
+      <div class="setup-row">
+        <input id="dl-search" placeholder="Search candidates…" style="width:220px;" />
+        <select id="dl-tier"><option value="all">All tiers</option><option value="high">High</option><option value="medium">Medium</option><option value="long-shot">Long-shot</option></select>
+      </div>
+      <div id="dl-pool"></div>
     </section>
 
     <section id="tab-insights" class="tab">

@@ -3300,6 +3300,81 @@ def stats(token: str = ""):
     return {"since": _PAGEVIEWS_BOOT, "days": _PAGEVIEWS}
 
 
+
+
+# -------------------- Trade-Deadline Draft --------------------
+
+class DeadlineCreateRequest(BaseModel):
+    drafters: list[str]
+    rounds: int = 6
+
+
+class DeadlinePickRequest(BaseModel):
+    drafter: str
+    player_name: str
+    predicted_team: str
+
+
+@app.get("/api/deadline/candidates")
+def deadline_candidates():
+    from . import deadline
+    data = deadline.load_candidates()
+    dr = deadline.load_draft()
+    picked = {deadline.norm(p["player_name"]) for p in (dr or {}).get("picks", [])}
+    cands = [c for c in data.get("candidates", [])
+             if deadline.norm(c.get("name", "")) not in picked]
+    return {"as_of": data.get("as_of"), "sources": data.get("sources", []),
+            "candidates": cands, "picked_count": len(picked)}
+
+
+@app.get("/api/deadline/draft")
+def deadline_get():
+    from . import deadline
+    dr = deadline.load_draft()
+    if not dr:
+        return {"exists": False}
+    sc = deadline.score(dr)
+    return {"exists": True, "created": dr["created"], "deadline": dr["deadline"],
+            "drafters": dr["drafters"], "rounds": dr["rounds"],
+            "on_the_clock": deadline.on_the_clock(dr), **sc}
+
+
+@app.post("/api/deadline/draft")
+def deadline_create(req: DeadlineCreateRequest):
+    from . import deadline
+    existing = deadline.load_draft()
+    if existing and existing.get("picks"):
+        raise HTTPException(400, f"a deadline draft with {len(existing['picks'])} picks exists — undo them or delete data/deadline_draft.json first")
+    dr = deadline.new_draft([d.strip() for d in req.drafters if d.strip()], rounds=req.rounds)
+    return {"ok": True, "drafters": dr["drafters"], "rounds": dr["rounds"]}
+
+
+@app.post("/api/deadline/pick")
+def deadline_pick(req: DeadlinePickRequest):
+    from . import deadline
+    dr = deadline.load_draft()
+    if not dr:
+        raise HTTPException(400, "no deadline draft — create one first")
+    try:
+        pick = deadline.make_pick(dr, req.drafter, req.player_name, req.predicted_team)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "pick": pick, "on_the_clock": deadline.on_the_clock(dr)}
+
+
+@app.post("/api/deadline/undo")
+def deadline_undo(req: DeadlinePickRequest):
+    from . import deadline
+    dr = deadline.load_draft()
+    if not dr:
+        raise HTTPException(400, "no deadline draft")
+    try:
+        last = deadline.undo_pick(dr, req.drafter)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "undone": last}
+
+
 # -------------------- helpers --------------------
 
 
