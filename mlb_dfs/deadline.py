@@ -68,7 +68,7 @@ def save_draft(dr: dict) -> None:
     os.replace(tmp, DRAFT_PATH)
 
 
-def new_draft(drafters: list[str], rounds: int = 6, deadline: str = "2026-07-31") -> dict:
+def new_draft(drafters: list[str], rounds: int = 6, deadline: str = "2026-08-03") -> dict:
     if len(drafters) < 2:
         raise ValueError("need at least 2 drafters")
     dr = {
