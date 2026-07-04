@@ -28,10 +28,25 @@ DATA_DIR = os.environ.get(
     os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "drafts"),
 )
 DRAFT_PATH = os.path.join(os.path.dirname(DATA_DIR), "deadline_draft.json")
-CANDIDATES_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "deadline_candidates.json",
-)
+# Candidates live NEXT TO the drafts dir — the persistent /data volume in
+# prod (survives deploys, updatable via POST /api/deadline/candidates without
+# a redeploy), the repo's data/ locally. The Docker image doesn't ship data/.
+CANDIDATES_PATH = os.path.join(os.path.dirname(DATA_DIR), "deadline_candidates.json")
+
+
+def save_candidates(payload: dict) -> int:
+    cands = payload.get("candidates")
+    if not isinstance(cands, list) or len(cands) < 5:
+        raise ValueError("payload must contain a candidates list (5+)")
+    for c in cands[:10]:
+        if not c.get("name") or c.get("tier") not in ("high", "medium", "long-shot", "deep"):
+            raise ValueError(f"malformed candidate: {c}")
+    os.makedirs(os.path.dirname(CANDIDATES_PATH), exist_ok=True)
+    tmp = CANDIDATES_PATH + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f)
+    os.replace(tmp, CANDIDATES_PATH)
+    return len(cands)
 
 _TX_CACHE: dict = {"at": 0.0, "trades": []}
 _TX_TTL = 900  # 15 min

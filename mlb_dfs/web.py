@@ -3327,6 +3327,17 @@ def deadline_candidates():
             "candidates": cands, "picked_count": len(picked)}
 
 
+@app.post("/api/deadline/candidates")
+def deadline_candidates_upload(payload: dict):
+    """Upload/replace the candidate pool (volume-persisted; no redeploy)."""
+    from . import deadline
+    try:
+        n = deadline.save_candidates(payload)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "count": n}
+
+
 @app.get("/api/deadline/draft")
 def deadline_get():
     from . import deadline
