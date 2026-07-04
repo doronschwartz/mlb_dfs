@@ -4861,6 +4861,24 @@ function renderDeadlineBoard() {
   const board = totals.map(([d, pts], i) =>
     `<div class="m" style="display:inline-block;margin-right:14px;"><b>${i + 1}. ${d}</b> — ${pts.toFixed(1)} pts</div>`).join("");
   const otc = dr.on_the_clock;
+  // Snake-order strip, same component as the daily draft: this round's
+  // order with the on-clock drafter highlighted and already-picked (this
+  // round) drafters struck through.
+  const nD = dr.drafters.length;
+  const nPicks = (dr.picks || []).length;
+  const round = Math.floor(nPicks / nD);
+  const rOrder = round % 2 === 0 ? dr.drafters : [...dr.drafters].reverse();
+  const pickedThisRound = new Set((dr.picks || []).slice(round * nD).map((p) => p.drafter));
+  const stripRows = rOrder.map((d) => {
+    let cls = "";
+    if (d === otc) cls = "on-clock";
+    else if (pickedThisRound.has(d)) cls = "done";
+    return `<div class="drafter-strip-row ${cls}">${d}</div>`;
+  }).join("");
+  const strip = otc ? `<div class="draft-strip" style="margin:10px 0;">
+      <div class="strip-round">Round ${round + 1} / ${dr.rounds}</div>
+      ${stripRows}
+    </div>` : "";
   const rows = (dr.picks || []).map((p) => {
     const status = p.traded
       ? `✅ traded → ${p.traded_to || "?"} ${p.hit_team ? "🎯" : ""} <b>+${p.points.toFixed(1)}</b>`
@@ -4873,7 +4891,8 @@ function renderDeadlineBoard() {
   $("#dl-board").innerHTML = `
     <div class="accuracy-strip" style="margin:10px 0;">${board}
       <div class="m muted">deadline ${dr.deadline} · ${dr.trades_seen} MLB trades seen since ${dr.created}</div></div>
-    ${otc ? `<p><b>${otc}</b> is on the clock (round ${Math.floor((dr.picks || []).length / dr.drafters.length) + 1}/${dr.rounds})</p>` : "<p><b>Draft complete</b> — scores update as trades happen.</p>"}
+    ${strip}
+    ${otc ? "" : "<p><b>Draft complete</b> — scores update as trades happen.</p>"}
     <table><thead><tr><th>#</th><th>Drafter</th><th>Player</th><th>Predicted</th><th>Status</th></tr></thead>
     <tbody>${rows || ""}</tbody></table>`;
 }
