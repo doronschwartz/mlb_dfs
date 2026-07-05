@@ -4847,14 +4847,22 @@ async function loadDeadline() {
     renderDeadlineBoard();
     renderDeadlinePool();
   } catch (e) {
-    $("#dl-board").innerHTML = `<div class="muted">${e.message}</div>`;
+    window._dlWireIdentity = () => {
+    const sel = $("#dl-identity");
+    if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+  };
+  $("#dl-board").innerHTML = `<div class="muted">${e.message}</div>`;
   }
 }
 
 function renderDeadlineBoard() {
   const dr = dlState;
   if (!dr || !dr.exists) {
-    $("#dl-board").innerHTML = `<div class="muted" style="padding:8px 0;">No deadline draft yet — enter drafters above and start.</div>`;
+    window._dlWireIdentity = () => {
+    const sel = $("#dl-identity");
+    if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+  };
+  $("#dl-board").innerHTML = `<div class="muted" style="padding:8px 0;">No deadline draft yet — enter drafters above and start.</div>`;
     return;
   }
   const totals = Object.entries(dr.totals || {}).sort((a, b) => b[1] - a[1]);
@@ -4879,6 +4887,17 @@ function renderDeadlineBoard() {
       <div class="strip-round">Round ${round + 1} / ${dr.rounds}</div>
       ${stripRows}
     </div>` : "";
+  // Identity — shared with the daily draft (same people, one "who am I").
+  const idOpts = ["", ...dr.drafters].map((d) =>
+    `<option value="${d}" ${state.identity === d ? "selected" : ""}>${d || "— Who are you? —"}</option>`).join("");
+  const idBar = `<div class="setup-row" style="margin:8px 0;">
+      <label class="muted" style="font-size:12px;">You are:
+        <select id="dl-identity">${idOpts}</select></label>
+      ${otc && state.identity && state.identity !== otc
+        ? `<span class="muted" style="font-size:12px;">⏳ waiting for <b>${otc}</b> to pick</span>` : ""}
+      ${otc && !state.identity
+        ? `<span class="muted" style="font-size:12px;">identify yourself to pick</span>` : ""}
+    </div>`;
   const rows = (dr.picks || []).map((p) => {
     const status = p.traded
       ? `✅ traded → ${p.traded_to || "?"} ${p.hit_team ? "🎯" : ""} <b>+${p.points.toFixed(1)}</b>`
@@ -4888,19 +4907,27 @@ function renderDeadlineBoard() {
       <td>${p.player_name} ${badges} <span class="muted">(${p.position || "?"} · ${p.team || "?"})</span></td>
       <td>→ ${p.predicted_team}</td><td>${status}</td></tr>`;
   }).join("");
+  window._dlWireIdentity = () => {
+    const sel = $("#dl-identity");
+    if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+  };
   $("#dl-board").innerHTML = `
     <div class="accuracy-strip" style="margin:10px 0;">${board}
       <div class="m muted">deadline ${dr.deadline} · ${dr.trades_seen} MLB trades seen since ${dr.created}</div></div>
     ${strip}
+    ${idBar}
     ${otc ? "" : "<p><b>Draft complete</b> — scores update as trades happen.</p>"}
     <table><thead><tr><th>#</th><th>Drafter</th><th>Player</th><th>Predicted</th><th>Status</th></tr></thead>
     <tbody>${rows || ""}</tbody></table>`;
+  window._dlWireIdentity && window._dlWireIdentity();
 }
 
 function renderDeadlinePool() {
   const q = ($("#dl-search").value || "").toLowerCase();
   const tier = $("#dl-tier").value;
-  const otc = dlState && dlState.exists ? dlState.on_the_clock : null;
+  const otcRaw = dlState && dlState.exists ? dlState.on_the_clock : null;
+  // You must identify yourself, and it must be YOUR turn, to see Pick buttons.
+  const otc = otcRaw && state.identity === otcRaw ? otcRaw : null;
   const rows = dlPool
     .filter((c) => (tier === "all" || c.tier === tier) && (!q || c.name.toLowerCase().includes(q)))
     .map((c) => {
@@ -4918,13 +4945,13 @@ function renderDeadlinePool() {
         <td class="notes" style="font-size:11px;max-width:340px;">${c.context || ""}</td>
         <td>${pickCtl}</td></tr>`;
     }).join("");
-  $("#dl-pool").innerHTML = `<table><thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Tier</th><th>Rumored to</th><th>Context</th><th>${otc ? `Pick for ${otc}` : ""}</th></tr></thead><tbody>${rows || "<tr><td colspan=7 class=muted>No candidates match.</td></tr>"}</tbody></table>`;
+  $("#dl-pool").innerHTML = `<table><thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Tier</th><th>Rumored to</th><th>Context</th><th>${otc ? "Pick (you're up)" : (otcRaw ? `${otcRaw} is up` : "")}</th></tr></thead><tbody>${rows || "<tr><td colspan=7 class=muted>No candidates match.</td></tr>"}</tbody></table>`;
   $("#dl-pool").querySelectorAll(".dl-pick").forEach((b) => {
     b.addEventListener("click", async () => {
       const name = b.dataset.name;
       const sel = $("#dl-pool").querySelector(`.dl-team[data-name="${CSS.escape(name)}"]`);
       try {
-        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({ drafter: dlState.on_the_clock, player_name: name, predicted_team: sel.value }) });
+        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({ drafter: state.identity, player_name: name, predicted_team: sel.value }) });
         await loadDeadline();
       } catch (e) { alert(e.message); }
     });
