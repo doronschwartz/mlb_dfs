@@ -188,3 +188,7 @@ Risky and probably not worth it at launch. Google folded DFS explicitly into its
 **What to measure all week:** visits per subreddit (which community converts), accuracy-page CTR from landing (validates the hook), return-visitor rate by day 7 (the only number that matters for a daily-updated tool), and every feature request verbatim (week-2 roadmap + future post material).
 
 **Standing rules:** never post the same link in two subs on the same day; answer every comment for 24h after any post; if a mod removes something, modmail politely and ask the right format — mod relationships are the long game.
+
+## ⚠️ STEP 0 on launch day (added 2026-07-06)
+The public app is scaled to zero while traffic is zero (saves ~$10/mo). BEFORE posting anywhere, flip it back so visitors don't hit cold starts:
+in fly.public.toml set `min_machines_running = 1` and `auto_stop_machines = "suspend"`, then `flyctl deploy -c fly.public.toml`. (Or just ask Claude: "warm the public app for launch".)
