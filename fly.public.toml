@@ -24,12 +24,14 @@ primary_region = "iad"
 [http_service]
   internal_port = 8080
   force_https = true
-  # Keep one machine warm so the in-memory caches (projections/dynasty/accuracy)
-  # + startup pre-warm persist — a public product shouldn't cold-start and 502.
-  # ~a few $/mo for a shared-cpu-1x; cheap insurance for a monetization site.
-  auto_stop_machines = "suspend"
+  # SCALE-TO-ZERO until launch (2026-07-06): /api/stats shows literally zero
+  # visitors, so the always-on machine (~$10/mo) was insurance for nobody.
+  # First visitor after idle eats a cold start — acceptable pre-launch.
+  # >>> FLIP BACK on launch day (min_machines_running = 1, auto_stop
+  # "suspend") — it's step 0 of the Reddit-post checklist. <<<
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
 [[http_service.checks]]
   # Tolerant: the first cold slate compute of the day pegs CPU and a 5s
