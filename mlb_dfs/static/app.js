@@ -4840,6 +4840,14 @@ async function loadDeadline() {
     ]);
     dlState = dr;
     dlPool = pool.candidates || [];
+    const teamSel = $("#dl-team");
+    if (teamSel) {
+      const prev = teamSel.value;
+      const teams = [...new Set(dlPool.map((c) => c.team).filter(Boolean))].sort();
+      teamSel.innerHTML = `<option value="all">All teams</option>` +
+        teams.map((t) => `<option value="${t}">${t}</option>`).join("");
+      if ([...teamSel.options].some((o) => o.value === prev)) teamSel.value = prev;
+    }
     $("#dl-pool-meta").textContent = pool.as_of
       ? `— ${dlPool.length} candidates · research as of ${pool.as_of}`
       : "— candidate list not loaded yet";
@@ -4925,11 +4933,20 @@ function renderDeadlineBoard() {
 function renderDeadlinePool() {
   const q = ($("#dl-search").value || "").toLowerCase();
   const tier = $("#dl-tier").value;
+  const posF = $("#dl-pos")?.value || "all";
+  const teamF = $("#dl-team")?.value || "all";
+  const posMatch = (c) => {
+    if (posF === "all") return true;
+    const p = (c.position || "").toUpperCase();
+    if (posF === "OF") return ["OF", "LF", "CF", "RF"].includes(p);
+    if (posF === "DH") return ["DH", "UT", "UTIL"].includes(p);
+    return p === posF;
+  };
   const otcRaw = dlState && dlState.exists ? dlState.on_the_clock : null;
   // You must identify yourself, and it must be YOUR turn, to see Pick buttons.
   const otc = otcRaw && state.identity === otcRaw ? otcRaw : null;
   const rows = dlPool
-    .filter((c) => (tier === "all" || c.tier === tier) && (!q || c.name.toLowerCase().includes(q)))
+    .filter((c) => (tier === "all" || c.tier === tier) && posMatch(c) && (teamF === "all" || c.team === teamF) && (!q || c.name.toLowerCase().includes(q)))
     .map((c) => {
       const badges = `${c.has_allstar ? "⭐" : ""}${c.has_top3_voting ? "🏅" : ""}`;
       const rumored = (c.rumored_teams || []).join(", ");
@@ -4968,3 +4985,5 @@ $("#dl-create")?.addEventListener("click", async () => {
 });
 $("#dl-search")?.addEventListener("input", () => dlPool.length && renderDeadlinePool());
 $("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+$("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+$("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
