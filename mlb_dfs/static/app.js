@@ -4858,6 +4858,17 @@ async function loadDeadline() {
     window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+    const wBtn = $("#dl-writein-pick");
+    if (wBtn) wBtn.onclick = async () => {
+      const name = ($("#dl-writein-name").value || "").trim();
+      if (!name) return alert("enter a player name");
+      try {
+        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
+          drafter: state.identity, player_name: name,
+          predicted_team: $("#dl-writein-team").value }) });
+        await loadDeadline();
+      } catch (e) { alert(e.message); }
+    };
   };
   $("#dl-board").innerHTML = `<div class="muted">${e.message}</div>`;
   }
@@ -4869,6 +4880,17 @@ function renderDeadlineBoard() {
     window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+    const wBtn = $("#dl-writein-pick");
+    if (wBtn) wBtn.onclick = async () => {
+      const name = ($("#dl-writein-name").value || "").trim();
+      if (!name) return alert("enter a player name");
+      try {
+        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
+          drafter: state.identity, player_name: name,
+          predicted_team: $("#dl-writein-team").value }) });
+        await loadDeadline();
+      } catch (e) { alert(e.message); }
+    };
   };
   $("#dl-board").innerHTML = `<div class="muted" style="padding:8px 0;">No deadline draft yet — enter drafters above and start.</div>`;
     return;
@@ -4898,6 +4920,7 @@ function renderDeadlineBoard() {
   // Identity — shared with the daily draft (same people, one "who am I").
   const idOpts = ["", ...dr.drafters].map((d) =>
     `<option value="${d}" ${state.identity === d ? "selected" : ""}>${d || "— Who are you? —"}</option>`).join("");
+  const myTurn = otc && state.identity === otc;
   const idBar = `<div class="setup-row" style="margin:8px 0;">
       <label class="muted" style="font-size:12px;">You are:
         <select id="dl-identity">${idOpts}</select></label>
@@ -4905,7 +4928,13 @@ function renderDeadlineBoard() {
         ? `<span class="muted" style="font-size:12px;">⏳ waiting for <b>${otc}</b> to pick</span>` : ""}
       ${otc && !state.identity
         ? `<span class="muted" style="font-size:12px;">identify yourself to pick</span>` : ""}
-    </div>`;
+    </div>
+    ${myTurn ? `<div class="setup-row" style="margin:4px 0 10px;">
+      <span class="muted" style="font-size:12px;">✍️ Write-in (anyone is tradeable, rumored or not):</span>
+      <input id="dl-writein-name" placeholder="Any MLB player… (e.g. Mason Miller)" style="width:230px;" />
+      <select id="dl-writein-team">${MLB_TEAMS.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
+      <button id="dl-writein-pick" class="btn-pick">Pick write-in</button>
+    </div>` : ""}`;
   const rows = (dr.picks || []).map((p) => {
     const status = p.traded
       ? `✅ traded → ${p.traded_to || "?"} ${p.hit_team ? "🎯" : ""} <b>+${p.points.toFixed(1)}</b>`
@@ -4918,6 +4947,17 @@ function renderDeadlineBoard() {
   window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
+    const wBtn = $("#dl-writein-pick");
+    if (wBtn) wBtn.onclick = async () => {
+      const name = ($("#dl-writein-name").value || "").trim();
+      if (!name) return alert("enter a player name");
+      try {
+        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
+          drafter: state.identity, player_name: name,
+          predicted_team: $("#dl-writein-team").value }) });
+        await loadDeadline();
+      } catch (e) { alert(e.message); }
+    };
   };
   $("#dl-board").innerHTML = `
     <div class="accuracy-strip" style="margin:10px 0;">${board}

@@ -107,23 +107,53 @@ def on_the_clock(dr: dict) -> str | None:
     return order[idx]
 
 
-def _resolve_player_id(name: str) -> int | None:
-    try:
-        q = urllib.request.quote(name)
-    except AttributeError:
-        from urllib.parse import quote as q2
-        q = q2(name)
+def _resolve_player(name: str) -> dict | None:
+    """Resolve a name to {id, fullName, position, team} via MLB search.
+    Uses names= (reliable) — the q= param returns unrelated players for
+    some names (observed: 'Mason Miller' → Freddie Freeman)."""
+    from urllib.parse import quote
     try:
         d = json.load(urllib.request.urlopen(
-            f"https://statsapi.mlb.com/api/v1/people/search?q={q}", timeout=15))
+            f"https://statsapi.mlb.com/api/v1/people/search?names={quote(name)}"
+            f"&hydrate=currentTeam", timeout=15))
         ppl = d.get("people", [])
-        # prefer exact normalized match
-        for p in ppl:
-            if norm(p.get("fullName")) == norm(name):
-                return p.get("id")
-        return ppl[0].get("id") if ppl else None
+        best = next((p for p in ppl if norm(p.get("fullName")) == norm(name)),
+                    ppl[0] if ppl else None)
+        if not best:
+            return None
+        return {
+            "id": best.get("id"),
+            "fullName": best.get("fullName"),
+            "position": (best.get("primaryPosition") or {}).get("abbreviation"),
+            "team": (best.get("currentTeam") or {}).get("abbreviation")
+                    or (best.get("currentTeam") or {}).get("name"),
+        }
     except Exception:
         return None
+
+
+def _resolve_player_id(name: str) -> int | None:
+    p = _resolve_player(name)
+    return p["id"] if p else None
+
+
+# MLB awards → bonus flags for WRITE-IN picks (pool players carry researched
+# flags). All-Star = ALAS/NLAS selections. Top-3 voting isn't in the API, so
+# we credit MVP/CY WINNERS (a subset of top-3) — imperfect but never wrong.
+_ALLSTAR_IDS = {"ALAS", "NLAS"}
+_TOP3_WINNER_IDS = {"ALMVP", "NLMVP", "ALCY", "NLCY", "MLBMVP"}
+
+
+def _lookup_flags(pid: int | None) -> tuple[bool, bool]:
+    if not pid:
+        return False, False
+    try:
+        d = json.load(urllib.request.urlopen(
+            f"https://statsapi.mlb.com/api/v1/people/{pid}/awards", timeout=15))
+        ids = {a.get("id") for a in d.get("awards", [])}
+        return bool(ids & _ALLSTAR_IDS), bool(ids & _TOP3_WINNER_IDS)
+    except Exception:
+        return False, False
 
 
 def make_pick(dr: dict, drafter: str, player_name: str, predicted_team: str) -> dict:
@@ -136,17 +166,31 @@ def make_pick(dr: dict, drafter: str, player_name: str, predicted_team: str) -> 
         raise ValueError(f"{player_name} is already drafted")
     cands = {norm(c["name"]): c for c in load_candidates().get("candidates", [])}
     c = cands.get(norm(player_name))
+    resolved = _resolve_player(player_name)
+    pid = (resolved or {}).get("id")
+    if c is not None:
+        has_as, has_t3 = bool(c.get("has_allstar")), bool(c.get("has_top3_voting"))
+        pos, team, tier = c.get("position"), c.get("team"), c.get("tier")
+        disp = c.get("name")
+    else:
+        # WRITE-IN: anyone is tradeable, rumored or not (rule per Doron,
+        # 2026-07-07). Flags from MLB awards; position/team from the lookup.
+        if not pid:
+            raise ValueError(f"couldn't find an MLB player named '{player_name}' — check spelling")
+        has_as, has_t3 = _lookup_flags(pid)
+        pos, team = (resolved or {}).get("position"), (resolved or {}).get("team")
+        tier, disp = "write-in", (resolved or {}).get("fullName") or player_name
     pick = {
         "pick_number": len(dr["picks"]) + 1,
         "drafter": drafter,
-        "player_name": (c or {}).get("name") or player_name,
-        "player_id": _resolve_player_id(player_name),
-        "position": (c or {}).get("position"),
-        "team": (c or {}).get("team"),
-        "tier": (c or {}).get("tier"),
+        "player_name": disp or player_name,
+        "player_id": pid,
+        "position": pos,
+        "team": team,
+        "tier": tier,
         "predicted_team": (predicted_team or "").upper()[:3],
-        "has_allstar": bool((c or {}).get("has_allstar")),
-        "has_top3_voting": bool((c or {}).get("has_top3_voting")),
+        "has_allstar": has_as,
+        "has_top3_voting": has_t3,
     }
     dr["picks"].append(pick)
     save_draft(dr)
