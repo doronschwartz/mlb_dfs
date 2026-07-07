@@ -3327,6 +3327,14 @@ def deadline_candidates():
             "candidates": cands, "picked_count": len(picked)}
 
 
+@app.get("/api/deadline/player_search")
+def deadline_player_search(q: str):
+    """Unified pool search: any active MLB player by (partial) name, with
+    award flags resolved — rumored or not, anyone is draftable."""
+    from . import deadline
+    return {"results": deadline.search_players(q)}
+
+
 @app.post("/api/deadline/candidates")
 def deadline_candidates_upload(payload: dict):
     """Upload/replace the candidate pool (volume-persisted; no redeploy)."""

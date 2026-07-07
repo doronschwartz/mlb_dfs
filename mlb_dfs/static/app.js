@@ -4831,6 +4831,9 @@ refresh();
 const MLB_TEAMS = ["ATH","ATL","AZ","BAL","BOS","CHC","CIN","CLE","COL","CWS","DET","HOU","KC","LAA","LAD","MIA","MIL","MIN","NYM","NYY","PHI","PIT","SD","SEA","SF","STL","TB","TEX","TOR","WSH"];
 let dlPool = [];
 let dlState = null;
+let dlExtra = [];      // league-wide search hits (non-pool players)
+let dlExtraQ = "";
+let dlSearchTimer = null;
 
 async function loadDeadline() {
   try {
@@ -4858,17 +4861,7 @@ async function loadDeadline() {
     window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
-    const wBtn = $("#dl-writein-pick");
-    if (wBtn) wBtn.onclick = async () => {
-      const name = ($("#dl-writein-name").value || "").trim();
-      if (!name) return alert("enter a player name");
-      try {
-        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
-          drafter: state.identity, player_name: name,
-          predicted_team: $("#dl-writein-team").value }) });
-        await loadDeadline();
-      } catch (e) { alert(e.message); }
-    };
+
   };
   $("#dl-board").innerHTML = `<div class="muted">${e.message}</div>`;
   }
@@ -4880,17 +4873,7 @@ function renderDeadlineBoard() {
     window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
-    const wBtn = $("#dl-writein-pick");
-    if (wBtn) wBtn.onclick = async () => {
-      const name = ($("#dl-writein-name").value || "").trim();
-      if (!name) return alert("enter a player name");
-      try {
-        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
-          drafter: state.identity, player_name: name,
-          predicted_team: $("#dl-writein-team").value }) });
-        await loadDeadline();
-      } catch (e) { alert(e.message); }
-    };
+
   };
   $("#dl-board").innerHTML = `<div class="muted" style="padding:8px 0;">No deadline draft yet — enter drafters above and start.</div>`;
     return;
@@ -4929,12 +4912,7 @@ function renderDeadlineBoard() {
       ${otc && !state.identity
         ? `<span class="muted" style="font-size:12px;">identify yourself to pick</span>` : ""}
     </div>
-    ${myTurn ? `<div class="setup-row" style="margin:4px 0 10px;">
-      <span class="muted" style="font-size:12px;">✍️ Write-in (anyone is tradeable, rumored or not):</span>
-      <input id="dl-writein-name" placeholder="Any MLB player… (e.g. Mason Miller)" style="width:230px;" />
-      <select id="dl-writein-team">${MLB_TEAMS.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
-      <button id="dl-writein-pick" class="btn-pick">Pick write-in</button>
-    </div>` : ""}`;
+    `;
   const rows = (dr.picks || []).map((p) => {
     const status = p.traded
       ? `✅ traded → ${p.traded_to || "?"} ${p.hit_team ? "🎯" : ""} <b>+${p.points.toFixed(1)}</b>`
@@ -4947,17 +4925,7 @@ function renderDeadlineBoard() {
   window._dlWireIdentity = () => {
     const sel = $("#dl-identity");
     if (sel) sel.onchange = () => { setIdentity(sel.value); renderDeadlineBoard(); renderDeadlinePool(); };
-    const wBtn = $("#dl-writein-pick");
-    if (wBtn) wBtn.onclick = async () => {
-      const name = ($("#dl-writein-name").value || "").trim();
-      if (!name) return alert("enter a player name");
-      try {
-        await api("/api/deadline/pick", { method: "POST", body: JSON.stringify({
-          drafter: state.identity, player_name: name,
-          predicted_team: $("#dl-writein-team").value }) });
-        await loadDeadline();
-      } catch (e) { alert(e.message); }
-    };
+
   };
   $("#dl-board").innerHTML = `
     <div class="accuracy-strip" style="margin:10px 0;">${board}
@@ -4985,8 +4953,14 @@ function renderDeadlinePool() {
   const otcRaw = dlState && dlState.exists ? dlState.on_the_clock : null;
   // You must identify yourself, and it must be YOUR turn, to see Pick buttons.
   const otc = otcRaw && state.identity === otcRaw ? otcRaw : null;
-  const rows = dlPool
-    .filter((c) => (tier === "all" || c.tier === tier) && posMatch(c) && (teamF === "all" || c.team === teamF) && (!q || c.name.toLowerCase().includes(q)))
+  // Merge league-wide search hits (any active MLB player) into the table —
+  // one search bar, no separate write-in. Extras only apply to the current query.
+  const extras = (q && q === dlExtraQ) ? dlExtra : [];
+  const combined = dlPool
+    .filter((c) => (!q || c.name.toLowerCase().includes(q)))
+    .concat(extras.filter((e) => !dlPool.some((c) => c.name === e.name)));
+  const rows = combined
+    .filter((c) => (tier === "all" || c.tier === tier || c.tier === "write-in") && posMatch(c) && (teamF === "all" || c.team === teamF))
     .map((c) => {
       const badges = `${c.has_allstar ? "⭐" : ""}${c.has_top3_voting ? "🏅" : ""}`;
       const rumored = (c.rumored_teams || []).join(", ");
@@ -5023,7 +4997,21 @@ $("#dl-create")?.addEventListener("click", async () => {
     await loadDeadline();
   } catch (e) { alert(e.message); }
 });
-$("#dl-search")?.addEventListener("input", () => dlPool.length && renderDeadlinePool());
+$("#dl-search")?.addEventListener("input", () => {
+  if (!dlPool.length) return;
+  renderDeadlinePool();
+  const q = ($("#dl-search").value || "").trim();
+  clearTimeout(dlSearchTimer);
+  if (q.length < 3) { dlExtra = []; dlExtraQ = ""; return; }
+  dlSearchTimer = setTimeout(async () => {
+    try {
+      const r = await api(`/api/deadline/player_search?q=${encodeURIComponent(q)}`);
+      dlExtra = r.results || [];
+      dlExtraQ = q.toLowerCase();
+      renderDeadlinePool();
+    } catch (e) { /* search is best-effort */ }
+  }, 300);
+});
 $("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());

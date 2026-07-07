@@ -144,6 +144,59 @@ _ALLSTAR_IDS = {"ALAS", "NLAS"}
 _TOP3_WINNER_IDS = {"ALMVP", "NLMVP", "ALCY", "NLCY", "MLBMVP"}
 
 
+_ROSTER_CACHE: dict = {"at": 0.0, "players": []}
+_FLAGS_CACHE: dict[int, tuple[bool, bool]] = {}
+
+
+def active_players() -> list[dict]:
+    """All active MLB players (~1,300), cached 6h. Powers the unified pool
+    search — type any name, rumored or not."""
+    now = time.time()
+    if now - _ROSTER_CACHE["at"] < 6 * 3600 and _ROSTER_CACHE["players"]:
+        return _ROSTER_CACHE["players"]
+    try:
+        d = json.load(urllib.request.urlopen(
+            "https://statsapi.mlb.com/api/v1/sports/1/players?season=2026&hydrate=currentTeam",
+            timeout=60))
+        from .projections import _TEAM_ABBR
+        out = []
+        for p in d.get("people", []):
+            out.append({
+                "id": p.get("id"),
+                "name": p.get("fullName"),
+                "norm": norm(p.get("fullName")),
+                "position": (p.get("primaryPosition") or {}).get("abbreviation"),
+                "team": _TEAM_ABBR.get((p.get("currentTeam") or {}).get("id"), ""),
+            })
+        if out:
+            _ROSTER_CACHE["at"] = now
+            _ROSTER_CACHE["players"] = out
+    except Exception as e:
+        logging.warning("active_players fetch failed: %s", e)
+    return _ROSTER_CACHE["players"]
+
+
+def search_players(q: str, limit: int = 8) -> list[dict]:
+    """Substring search over all active MLB players, with award flags
+    resolved (memoized per player). Excludes names already in the candidate
+    pool — those rows are already on the board."""
+    nq = norm(q)
+    if len(nq) < 3:
+        return []
+    pool_names = {norm(c["name"]) for c in load_candidates().get("candidates", [])}
+    hits = [p for p in active_players()
+            if nq in p["norm"] and p["norm"] not in pool_names][:limit]
+    out = []
+    for p in hits:
+        if p["id"] not in _FLAGS_CACHE:
+            _FLAGS_CACHE[p["id"]] = _lookup_flags(p["id"])
+        has_as, has_t3 = _FLAGS_CACHE[p["id"]]
+        out.append({"name": p["name"], "position": p["position"], "team": p["team"],
+                    "tier": "write-in", "rumored_teams": [], "context": "not on any rumor list — you still believe",
+                    "has_allstar": has_as, "has_top3_voting": has_t3})
+    return out
+
+
 def _lookup_flags(pid: int | None) -> tuple[bool, bool]:
     if not pid:
         return False, False
