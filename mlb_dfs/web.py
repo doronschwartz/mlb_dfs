@@ -1434,12 +1434,17 @@ def _maybe_performance_order(dr) -> None:
     Reapplies if a newer completed draft appears (e.g. draft built days
     ahead); persists order_source so the UI can show why."""
     if dr.picks:
-        return
+        return None
     try:
         today = Date.today().isoformat()
+        # The standings source is the MOST RECENT draft with picks before this
+        # one — full stop. If that day's games aren't over yet (its date isn't
+        # fully past), the order is genuinely unknowable: report TBD rather
+        # than confidently showing an order built from older results that
+        # tonight will overwrite (Doron's catch, 2026-07-08).
         prev_id = None
         for d in sorted(draft_mod.list_drafts(), reverse=True):
-            if d >= dr.date or d >= today:
+            if d >= dr.date:
                 continue
             try:
                 cand = draft_mod.load_draft(d)
@@ -1449,8 +1454,16 @@ def _maybe_performance_order(dr) -> None:
                 prev_id = d
                 prev = cand
                 break
-        if not prev_id or dr.order_source == f"performance:{prev_id}":
-            return
+        if not prev_id:
+            return None
+        if prev_id >= today:
+            # source day still in play → TBD. Clear any stale provisional tag.
+            if dr.order_source:
+                dr.order_source = ""
+                draft_mod.save_draft(dr)
+            return prev_id
+        if dr.order_source == f"performance:{prev_id}":
+            return None
         totals = {s.drafter: s.total for s in live_mod.score_draft(prev)}
         cur_idx = {d: i for i, d in enumerate(dr.drafters)}
         new_order = sorted(dr.drafters,
@@ -1459,8 +1472,10 @@ def _maybe_performance_order(dr) -> None:
         dr.order_source = f"performance:{prev_id}"
         draft_mod.save_draft(dr)
         logging.info("draft %s order set by %s standings: %s", dr.date, prev_id, new_order)
+        return None
     except Exception as e:
         logging.warning("performance ordering skipped for %s: %s", dr.date, e)
+        return None
 
 
 @app.get("/api/drafts/{draft_id}")
@@ -1469,8 +1484,11 @@ def get_draft(draft_id: str):
         dr = draft_mod.load_draft(draft_id)
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
-    _maybe_performance_order(dr)
-    return _draft_state(dr)
+    pending_on = _maybe_performance_order(dr)
+    state = _draft_state(dr)
+    if pending_on:
+        state["order_pending_on"] = pending_on
+    return state
 
 
 @app.post("/api/drafts")
