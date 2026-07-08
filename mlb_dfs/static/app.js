@@ -2781,9 +2781,13 @@ async function renderDraft(prefetchedData) {
     }
     return `<div class="drafter-strip-row ${cls}">${label}</div>`;
   }).join("");
+  const orderNote = (data.order_source || "").startsWith("performance:")
+    ? `<div class="muted" style="font-size:10px;padding:2px 0;">🏆 order: winner of ${data.order_source.split(":")[1]} picks first</div>`
+    : "";
   html.push(`<div class="draft-strip">
     <div class="strip-time">⏰ ${startTime}</div>
     <div class="strip-round">Round ${data.is_complete ? nDrafters * 10 / nDrafters : round + 1}</div>
+    ${orderNote}
     ${orderHtml}
   </div>`);
   html.push(`<div class="rosters">`);

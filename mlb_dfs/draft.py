@@ -46,6 +46,10 @@ class Draft:
     # When non-empty, only players from these gamePks are eligible for the draft.
     # Empty = whole slate (back-compat).
     game_pks: list[int] = field(default_factory=list)
+    # How the drafter order was set: "" (as created / randomized) or
+    # "performance:<date>" — reordered by that day's final standings,
+    # winner first (rewards winning; rule per Doron 2026-07-08).
+    order_source: str = ""
 
     # ---- core mechanics --------------------------------------------------
 
@@ -459,6 +463,7 @@ class Draft:
             "picks": [asdict(p) for p in self.picks],
             "created_at": self.created_at,
             "game_pks": list(self.game_pks),
+            "order_source": self.order_source,
         }
 
     @classmethod
@@ -470,6 +475,7 @@ class Draft:
             picks=[Pick(**p) for p in data.get("picks", [])],
             created_at=data.get("created_at", time.time()),
             game_pks=list(data.get("game_pks", [])),
+            order_source=data.get("order_source", ""),
         )
 
 

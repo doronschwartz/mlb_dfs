@@ -5,6 +5,8 @@ Also serves the static SPA from `mlb_dfs/static/`.
 
 from __future__ import annotations
 
+import logging
+
 import os
 import time
 import random
@@ -1421,12 +1423,53 @@ def accuracy(days: int = 7):
     return res
 
 
+def _maybe_performance_order(dr) -> None:
+    """Winner-first ordering (rule per Doron 2026-07-08): a fresh draft's
+    order is set by the FINAL standings of the most recent completed draft —
+    yesterday's winner picks first today. Applied lazily on load so orders
+    always reflect finished games:
+      - only before any pick is made (order locks at pick 1)
+      - only from a prior draft WITH picks whose date is fully in the past
+      - drafters missing from that draft sort last (keep relative order)
+    Reapplies if a newer completed draft appears (e.g. draft built days
+    ahead); persists order_source so the UI can show why."""
+    if dr.picks:
+        return
+    try:
+        today = Date.today().isoformat()
+        prev_id = None
+        for d in sorted(draft_mod.list_drafts(), reverse=True):
+            if d >= dr.date or d >= today:
+                continue
+            try:
+                cand = draft_mod.load_draft(d)
+            except Exception:
+                continue
+            if cand.picks:
+                prev_id = d
+                prev = cand
+                break
+        if not prev_id or dr.order_source == f"performance:{prev_id}":
+            return
+        totals = {s.drafter: s.total for s in live_mod.score_draft(prev)}
+        cur_idx = {d: i for i, d in enumerate(dr.drafters)}
+        new_order = sorted(dr.drafters,
+                           key=lambda d: (-totals.get(d, float("-inf")), cur_idx[d]))
+        dr.drafters = new_order
+        dr.order_source = f"performance:{prev_id}"
+        draft_mod.save_draft(dr)
+        logging.info("draft %s order set by %s standings: %s", dr.date, prev_id, new_order)
+    except Exception as e:
+        logging.warning("performance ordering skipped for %s: %s", dr.date, e)
+
+
 @app.get("/api/drafts/{draft_id}")
 def get_draft(draft_id: str):
     try:
         dr = draft_mod.load_draft(draft_id)
     except FileNotFoundError:
         raise HTTPException(404, f"draft {draft_id} not found")
+    _maybe_performance_order(dr)
     return _draft_state(dr)
 
 
@@ -3475,6 +3518,7 @@ def _draft_state(dr) -> dict:
         "draft_id": dr.draft_id,
         "date": dr.date,
         "drafters": dr.drafters,
+        "order_source": dr.order_source,
         "picks": [_pick_dict(p) for p in dr.picks],
         "on_the_clock": dr.on_the_clock(),
         "is_complete": dr.is_complete(),
