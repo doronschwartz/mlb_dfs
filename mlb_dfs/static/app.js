@@ -2694,12 +2694,13 @@ async function renderDraft(prefetchedData) {
   state._hitterFreeDrafter = data.hitter_free_drafter || null;
   // Match the poll's myTurn definition exactly — otherwise the poll detects
   // a phantom flip every 4s and re-renders, which looks like flashing.
-  state._myTurnAtLastRender = isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP();
+  state._orderPending = !!data.order_pending_on;
+  state._myTurnAtLastRender = !state._orderPending && (isMyTurn(data.on_the_clock) || canJumpForSP() || canJumpForNonSP());
   // The REAL snake turn (genuinely on the clock) — distinct from the jump
   // states. Only a real turn unlocks every position; an SP/non-SP jump must
   // stay restricted to that slot type (see drawPool lockFor). Without this,
   // being the lone-SP-needer unlocked ALL players, not just SP.
-  state._isRealTurn = isMyTurn(data.on_the_clock);
+  state._isRealTurn = !state._orderPending && isMyTurn(data.on_the_clock);
   renderIdentityBar(data);
   // Enable the Undo button only when the most recent pick belongs to the
   // current user — protects the rest of the league from accidentally undoing
@@ -2724,7 +2725,7 @@ async function renderDraft(prefetchedData) {
   }
   const onClock = data.on_the_clock; // [drafter, suggested_slot] | null  — drafter picks any open slot
   const html = [];
-  html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : `On the clock: <b>${onClock?.[0] ?? "-"}</b>`}</div>`);
+  html.push(`<div class="muted">Draft <b>${data.draft_id}</b> — ${data.is_complete ? "complete" : (data.order_pending_on ? `On the clock: <b>TBD</b> (order set by ${data.order_pending_on} results)` : `On the clock: <b>${onClock?.[0] ?? "-"}</b>`)}</div>`);
 
   // Selected games badges
   if (data.selected_games && data.selected_games.length) {
@@ -2761,9 +2762,14 @@ async function renderDraft(prefetchedData) {
   const spAnytime = data.sp_jump_drafter || null;
   const oooNext = data.next_ooo_drafter || null;                     // next-in-snake for non-SP OOO pick
   const hitterFree = data.hitter_free_drafter || null;                // lone non-SP-needer, free-for-all hitters
-  const orderHtml = order.map((d) => {
+  const pendingOrder = !!data.order_pending_on;
+  const stripOrder = pendingOrder ? [...order].sort() : order;
+  const orderHtml = stripOrder.map((d) => {
     let cls = "";
     let label = d;
+    if (pendingOrder) {
+      return `<div class="drafter-strip-row" style="opacity:0.6;">${d}</div>`;
+    }
     if (d === hitterFree) {
       cls = "on-clock";
       label = `${d} <span style="font-size:10px;opacity:0.85;">↑ hitters anytime</span>`;

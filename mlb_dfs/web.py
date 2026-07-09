@@ -1506,6 +1506,16 @@ def create_draft(req: NewDraftRequest):
 
 @app.post("/api/drafts/{draft_id}/pick")
 def make_pick(draft_id: str, req: PickRequest):
+    # No picks while the order is TBD — a pick would lock the placeholder
+    # order before the source day's results are final (rule: order can only
+    # finalize on the NEXT calendar day after the source draft).
+    try:
+        _dr_guard = draft_mod.load_draft(draft_id)
+        _pending = _maybe_performance_order(_dr_guard)
+        if _pending and not _dr_guard.picks:
+            raise HTTPException(400, f"pick order is TBD until {_pending}'s games are final — drafting opens the next day")
+    except FileNotFoundError:
+        pass
     if req.draft_id != draft_id:
         raise HTTPException(400, "draft_id mismatch")
     try:
