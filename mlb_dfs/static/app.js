@@ -2938,9 +2938,11 @@ function renderIdentityBar(data) {
     `<option value="">— pick your name —</option>` +
     drafters.map((d) => `<option value="${d}" ${d === current ? "selected" : ""}>${d}</option>`).join("") +
     `<option value="__spectator__" ${current === "__spectator__" ? "selected" : ""}>spectator (read-only)</option>`;
-  const myTurn = isMyTurn(onClock);
+  const myTurn = !data.order_pending_on && isMyTurn(onClock);
   bar.classList.toggle("your-turn", myTurn);
-  if (data.is_complete) {
+  if (data.order_pending_on && !data.is_complete) {
+    $("#turn-status").textContent = `· order TBD — drafting locked until ${data.order_pending_on} results are final ⏳`;
+  } else if (data.is_complete) {
     $("#turn-status").textContent = "· draft complete";
   } else if (!current) {
     $("#turn-status").textContent = "· choose your name to enable picks";

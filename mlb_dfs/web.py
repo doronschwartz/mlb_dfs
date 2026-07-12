@@ -1462,6 +1462,23 @@ def _maybe_performance_order(dr) -> None:
                 dr.order_source = ""
                 draft_mod.save_draft(dr)
             return prev_id
+        # Doron's catch #3 (2026-07-12): calendar date alone isn't proof the
+        # source day is DONE — ask the MLB API. If any of the source draft's
+        # slate games is still LIVE (extra innings past midnight, suspended),
+        # stay TBD. Only applied when the source day is yesterday: a game
+        # still 'pre' on an older date is a postponement that will never
+        # play, and a suspension older than a day shouldn't block forever.
+        try:
+            from datetime import timedelta as _td
+            if prev_id == (Date.today() - _td(days=1)).isoformat():
+                states = _game_state_map(prev)
+                if any(v == "live" for v in states.values()):
+                    if dr.order_source:
+                        dr.order_source = ""
+                        draft_mod.save_draft(dr)
+                    return prev_id
+        except Exception:
+            pass
         if dr.order_source == f"performance:{prev_id}":
             return None
         totals = {s.drafter: s.total for s in live_mod.score_draft(prev)}
