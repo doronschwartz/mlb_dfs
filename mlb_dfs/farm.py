@@ -147,8 +147,14 @@ def _player_row(name: str) -> dict:
 def my_farm(league_id: str, team_id: str) -> list[dict]:
     """Roster players with 2026 MiLB activity (and roster players with NO
     stats anywhere — the invisible stashes are the most cuttable of all)."""
+    if not fantrax.is_authenticated():
+        raise fantrax.FantraxAuthError(
+            "Fantrax cookie expired — re-auth on the Fantrax tab, then reload")
     roster = fantrax.get_roster(league_id, team_id)
     names = [p["name"] for p in roster.get("players", []) if p.get("name")]
+    if not names:
+        raise fantrax.FantraxAuthError(
+            f"Fantrax returned no roster ({roster.get('error') or 'auth likely expired'}) — re-auth and retry")
     with ThreadPoolExecutor(max_workers=8) as ex:
         rows = list(ex.map(_player_row, names))
     # farm = has MiLB stats, OR has no MLB presence this season (stash).
@@ -188,6 +194,9 @@ def save_rankings(payload: dict) -> int:
 def add_targets(league_id: str, limit: int = 25) -> list[dict]:
     """Ranked prospects unowned by ANY league team, with live MiLB stats —
     'highly ranked AND doing well' = green verdicts at the top."""
+    if not fantrax.is_authenticated():
+        raise fantrax.FantraxAuthError(
+            "Fantrax cookie expired — re-auth on the Fantrax tab, then reload")
     ranks = load_rankings().get("prospects", [])
     owned: set[str] = set()
     for t in fantrax.list_teams(league_id):
