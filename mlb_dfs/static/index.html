@@ -302,7 +302,9 @@
       <h2>Farm Report</h2>
       <p class="muted" style="font-size:13px;">Live MiLB production for dynasty prospects (statsapi; refreshed every 6h). Verdicts: <span style="color:var(--accent-2);">green = keep</span> · yellow = watch · <span style="color:var(--bad);">red = cuttable</span>.</p>
       <div class="setup-row">
-        <button id="farm-load" class="btn-pick">Load my farm + targets</button>
+        <input id="farm-league" placeholder="Fantrax league ID" style="width:190px;" />
+        <select id="farm-team"><option value="">— team —</option></select>
+        <button id="farm-load" class="btn-pick">Load farm + targets</button>
         <span id="farm-status" class="muted" style="font-size:12px;"></span>
       </div>
       <h3>My minor-leaguers</h3>

@@ -5035,8 +5035,29 @@ $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlineP
 
 
 // ---------- Farm Report ----------
-const FARM_LEAGUE = "jfrwctf2mhjchb09";
-const FARM_TEAM = "tm87w5i5mhjchb0h";  // Crochet's Swinging Junk
+// Works for ANY Fantrax league/team; defaults to ours, remembered per browser.
+const FARM_DEFAULT_LEAGUE = "jfrwctf2mhjchb09";
+const FARM_DEFAULT_TEAM = "tm87w5i5mhjchb0h";  // Crochet's Swinging Junk
+
+function farmIds() {
+  return {
+    league: localStorage.getItem("farm_league") || FARM_DEFAULT_LEAGUE,
+    team: localStorage.getItem("farm_team") || FARM_DEFAULT_TEAM,
+  };
+}
+async function farmPopulateTeams() {
+  const league = ($("#farm-league").value || "").trim();
+  const sel = $("#farm-team");
+  if (!league) return;
+  try {
+    const d = await api(`/api/fantrax/teams?league_id=${encodeURIComponent(league)}`);
+    const cur = farmIds().team;
+    sel.innerHTML = (d.teams || []).map((t) =>
+      `<option value="${t.team_id}" ${t.team_id === cur ? "selected" : ""}>${t.name}</option>`).join("");
+  } catch (e) {
+    sel.innerHTML = `<option value="">(teams: ${e.message.slice(0, 40)})</option>`;
+  }
+}
 
 function farmBadge(v) {
   const c = v === "green" ? "var(--accent-2)" : v === "red" ? "var(--bad)" : "#eab308";
@@ -5058,11 +5079,18 @@ function farmTable(rows, withRank) {
 }
 async function loadFarm() {
   window._farmLoaded = true;
+  const ids = farmIds();
+  const lg = $("#farm-league");
+  if (lg && !lg.value) { lg.value = ids.league; farmPopulateTeams(); }
+  const league = (lg?.value || ids.league).trim();
+  const team = $("#farm-team")?.value || ids.team;
+  localStorage.setItem("farm_league", league);
+  if (team) localStorage.setItem("farm_team", team);
   $("#farm-status").textContent = "loading… (first load ~30s, cached after)";
   try {
     const [mine, targets] = await Promise.all([
-      api(`/api/farm/report?league_id=${FARM_LEAGUE}&team_id=${FARM_TEAM}`),
-      api(`/api/farm/targets?league_id=${FARM_LEAGUE}`),
+      api(`/api/farm/report?league_id=${encodeURIComponent(league)}&team_id=${encodeURIComponent(team)}`),
+      api(`/api/farm/targets?league_id=${encodeURIComponent(league)}`),
     ]);
     $("#farm-mine").innerHTML = farmTable(mine.players || [], false);
     $("#farm-targets").innerHTML = farmTable(targets.targets || [], true);
@@ -5075,3 +5103,4 @@ async function loadFarm() {
   }
 }
 $("#farm-load")?.addEventListener("click", loadFarm);
+$("#farm-league")?.addEventListener("change", farmPopulateTeams);
