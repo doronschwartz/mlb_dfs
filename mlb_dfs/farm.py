@@ -130,10 +130,10 @@ def _verdict(lines: dict) -> tuple[str, str]:
         if ip < 15:
             return "yellow", f"small sample ({ip:.0f} IP — injured/rehabbing?)"
         if kbb >= 15 and (fip is None or fip < 4.2):
-            return "green", f"dealing — {kbb:.0f}% K-BB, {fip} FIP-lite over {ip:.0f} IP"
+            return "green", f"dealing — {kbb:.0f}% K-BB, {round(fip,2) if fip else fip} FIP-lite over {ip:.0f} IP"
         if kbb < 8 or (fip is not None and fip > 5.0):
-            return "red", f"struggling — {kbb:.0f}% K-BB, {fip} FIP-lite over {ip:.0f} IP"
-        return "yellow", f"{kbb:.0f}% K-BB, {fip} FIP-lite over {ip:.0f} IP"
+            return "red", f"struggling — {kbb:.0f}% K-BB, {round(fip,2) if fip else fip} FIP-lite over {ip:.0f} IP"
+        return "yellow", f"{kbb:.0f}% K-BB, {round(fip,2) if fip else fip} FIP-lite over {ip:.0f} IP"
     return "red", "no 2026 MiLB stats found — inactive or long-term injured"
 
 
@@ -158,9 +158,22 @@ def my_farm(league_id: str, team_id: str) -> list[dict]:
     with ThreadPoolExecutor(max_workers=8) as ex:
         rows = list(ex.map(_player_row, names))
     # farm = has MiLB stats, OR has no MLB presence this season (stash).
+    # Exclude MLB regulars on rehab stints — a big-leaguer with 30 MiLB PA
+    # isn't a farm asset (Stowers/Ramos-class noise in v1).
     out = []
     for r in rows:
         if r["bat"] or r["arm"]:
+            if r["player_id"]:
+                mlb = _get(f"https://statsapi.mlb.com/api/v1/people/{r['player_id']}/stats"
+                           f"?stats=season&season=2026&group=hitting,pitching&sportId=1")
+                sig_mlb = False
+                for s in (mlb or {}).get("stats", []):
+                    for sp in s.get("splits", []):
+                        st = sp.get("stat", {})
+                        if _f(st.get("plateAppearances")) > 60 or _f(st.get("inningsPitched")) > 20:
+                            sig_mlb = True
+                if sig_mlb:
+                    continue  # rehabbing MLB regular, not a prospect stash
             out.append(r)
         elif r["player_id"]:
             mlb = _get(f"https://statsapi.mlb.com/api/v1/people/{r['player_id']}/stats"
