@@ -108,8 +108,15 @@ def milb_lines(pid: int, season: int = 2026) -> dict:
     return {"bat": bat, "arm": arm}
 
 
+_LEVEL_ORDER = {"AAA": 0, "AA": 1, "A+": 2, "A": 3, "ROK": 4}
+
+
 def _verdict(lines: dict) -> tuple[str, str]:
-    """(verdict, reason). green=keep, yellow=watch, red=cuttable."""
+    """(verdict, reason). green=keep, yellow=watch, red=cuttable.
+
+    Aggregate across levels, BUT the highest level with a real sample rules:
+    a guy getting shelled at AAA can't be green off rookie-ball rehab innings
+    (the Bloss bug — 7.06 FIP-lite at AAA hid behind a shiny aggregate)."""
     bats, arms = lines["bat"], lines["arm"]
     if bats:
         pa = sum(b["pa"] for b in bats)
@@ -117,7 +124,12 @@ def _verdict(lines: dict) -> tuple[str, str]:
         kp = sum(b["k_pct"] * b["pa"] for b in bats) / max(pa, 1)
         if pa < 50:
             return "yellow", f"small sample ({pa} PA)"
-        if ops >= 0.850:
+        top = min((b for b in bats if b["pa"] >= 50),
+                  key=lambda b: _LEVEL_ORDER.get(b["level"], 9), default=None)
+        if top and (top["ops"] < 0.650 or top["k_pct"] > 35):
+            return "red", (f"struggling at {top['level']} — {top['ops']:.3f} OPS, "
+                           f"{top['k_pct']:.0f}% K ({top['pa']} PA)")
+        if ops >= 0.850 and (not top or top["ops"] >= 0.750):
             return "green", f"raking — {ops:.3f} OPS over {pa} PA"
         if ops < 0.700 or kp > 32:
             return "red", f"struggling — {ops:.3f} OPS, {kp:.0f}% K over {pa} PA"
@@ -129,7 +141,12 @@ def _verdict(lines: dict) -> tuple[str, str]:
         fip = sum(fips) / len(fips) if fips else None
         if ip < 15:
             return "yellow", f"small sample ({ip:.0f} IP — injured/rehabbing?)"
-        if kbb >= 15 and (fip is None or fip < 4.2):
+        top = min((a for a in arms if _f(a["ip"]) >= 15),
+                  key=lambda a: _LEVEL_ORDER.get(a["level"], 9), default=None)
+        if top and (top["kbb_pct"] < 8 or (top["fip_lite"] is not None and top["fip_lite"] > 5.5)):
+            return "red", (f"struggling at {top['level']} — {top['kbb_pct']:.0f}% K-BB, "
+                           f"{top['fip_lite']} FIP-lite ({top['ip']} IP)")
+        if kbb >= 15 and (fip is None or fip < 4.2) and (not top or top["kbb_pct"] >= 10):
             return "green", f"dealing — {kbb:.0f}% K-BB, {round(fip,2) if fip else fip} FIP-lite over {ip:.0f} IP"
         if kbb < 8 or (fip is not None and fip > 5.0):
             return "red", f"struggling — {kbb:.0f}% K-BB, {round(fip,2) if fip else fip} FIP-lite over {ip:.0f} IP"
@@ -204,9 +221,11 @@ def save_rankings(payload: dict) -> int:
     return len(pros)
 
 
-def add_targets(league_id: str, limit: int = 25) -> list[dict]:
-    """Ranked prospects unowned by ANY league team, with live MiLB stats —
-    'highly ranked AND doing well' = green verdicts at the top."""
+def add_targets(league_id: str, limit: int = 25, scan: int = 120) -> list[dict]:
+    """Ranked prospects unowned by ANY league team who are PLAYING WELL —
+    only green (and strong-yellow bats ≥ .800 OPS) survive; red/inactive
+    guys are noise, not targets (rule per Doron 2026-07-15). Scans the top
+    `scan` unowned by rank, returns up to `limit` performers, best first."""
     if not fantrax.is_authenticated():
         raise fantrax.FantraxAuthError(
             "Fantrax cookie expired — re-auth on the Fantrax tab, then reload")
@@ -217,12 +236,21 @@ def add_targets(league_id: str, limit: int = 25) -> list[dict]:
         for p in r.get("players", []):
             if p.get("name"):
                 owned.add(norm(p["name"]))
-    free = [p for p in ranks if norm(p.get("name", "")) not in owned][:limit]
+    free = [p for p in ranks if norm(p.get("name", "")) not in owned][:scan]
     def enrich(p):
         row = _player_row(p["name"])
         return {**p, **{k: row[k] for k in ("player_id", "verdict", "reason", "bat", "arm")}}
     with ThreadPoolExecutor(max_workers=8) as ex:
         rows = list(ex.map(enrich, free))
-    order = {"green": 0, "yellow": 1, "red": 2}
-    rows.sort(key=lambda r: (order.get(r["verdict"], 1), r.get("rank", 999)))
-    return rows
+    def good(r):
+        if r["verdict"] == "green":
+            return True
+        if r["verdict"] == "yellow" and r["bat"]:
+            pa = sum(b["pa"] for b in r["bat"])
+            ops = sum(b["ops"] * b["pa"] for b in r["bat"]) / max(pa, 1)
+            return pa >= 100 and ops >= 0.800
+        return False
+    keep = [r for r in rows if good(r)]
+    order = {"green": 0, "yellow": 1}
+    keep.sort(key=lambda r: (order.get(r["verdict"], 1), r.get("rank", 999)))
+    return keep[:limit]
