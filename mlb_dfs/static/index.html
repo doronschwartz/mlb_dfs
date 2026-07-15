@@ -21,6 +21,7 @@
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
       <button data-tab="deadline">🔁 Deadline</button>
+      <button data-tab="farm">🌱 Farm</button>
       <button data-tab="ask">🎯 Ask Algo</button>
       <button data-tab="hof">🏆 Hall of Fame</button>
       <button data-tab="dynasty">👑 Dynasty</button>
@@ -294,6 +295,20 @@
         <select id="dl-team"><option value="all">All teams</option></select>
       </div>
       <div id="dl-pool"></div>
+    </section>
+
+
+    <section id="tab-farm" class="tab">
+      <h2>Farm Report</h2>
+      <p class="muted" style="font-size:13px;">Live MiLB production for dynasty prospects (statsapi; refreshed every 6h). Verdicts: <span style="color:var(--accent-2);">green = keep</span> · yellow = watch · <span style="color:var(--bad);">red = cuttable</span>.</p>
+      <div class="setup-row">
+        <button id="farm-load" class="btn-pick">Load my farm + targets</button>
+        <span id="farm-status" class="muted" style="font-size:12px;"></span>
+      </div>
+      <h3>My minor-leaguers</h3>
+      <div id="farm-mine"></div>
+      <h3 style="margin-top:18px;">Add targets <span class="muted" style="font-weight:400;font-size:12px;">— ranked prospects nobody owns, best-performing first</span></h3>
+      <div id="farm-targets"></div>
     </section>
 
     <section id="tab-insights" class="tab">

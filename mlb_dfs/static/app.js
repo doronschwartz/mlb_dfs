@@ -194,6 +194,9 @@ $$("nav button").forEach((b) => {
     if (b.dataset.tab === "deadline") {
       loadDeadline();
     }
+    if (b.dataset.tab === "farm" && !window._farmLoaded) {
+      loadFarm();
+    }
     if (b.dataset.tab === "hof") {
       loadHallOfFame().catch(() => {});
     }
@@ -5029,3 +5032,46 @@ $("#dl-search")?.addEventListener("input", () => {
 $("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+
+
+// ---------- Farm Report ----------
+const FARM_LEAGUE = "jfrwctf2mhjchb09";
+const FARM_TEAM = "tm87w5i5mhjchb0h";  // Crochet's Swinging Junk
+
+function farmBadge(v) {
+  const c = v === "green" ? "var(--accent-2)" : v === "red" ? "var(--bad)" : "#eab308";
+  const t = v === "green" ? "KEEP" : v === "red" ? "CUTTABLE" : "WATCH";
+  return `<span style="color:${c};font-weight:700;font-size:11px;">● ${t}</span>`;
+}
+function farmLine(r) {
+  const bits = [];
+  for (const b of r.bat || []) bits.push(`${b.level}: ${b.ops.toFixed(3)} OPS · ${b.k_pct}% K · ${b.bb_pct}% BB · ${b.hr} HR (${b.pa} PA)`);
+  for (const a of r.arm || []) bits.push(`${a.level}: ${a.era} ERA · ${a.kbb_pct}% K-BB · ${a.fip_lite} FIPlite (${a.ip} IP)`);
+  return bits.join(" | ") || "no 2026 MiLB stats";
+}
+function farmTable(rows, withRank) {
+  return `<table><thead><tr>${withRank ? "<th>#</th>" : ""}<th>Player</th><th>Verdict</th><th>Why</th><th>2026 line</th></tr></thead><tbody>${
+    rows.map((r) => `<tr>${withRank ? `<td>${r.rank ?? ""}</td>` : ""}
+      <td><b>${r.name}</b>${withRank ? ` <span class="muted">(${r.position || ""} ${r.team || ""})</span>` : ""}</td>
+      <td>${farmBadge(r.verdict)}</td><td class="muted" style="font-size:12px;">${r.reason}</td>
+      <td class="muted" style="font-size:11px;">${farmLine(r)}</td></tr>`).join("")}</tbody></table>`;
+}
+async function loadFarm() {
+  window._farmLoaded = true;
+  $("#farm-status").textContent = "loading… (first load ~30s, cached after)";
+  try {
+    const [mine, targets] = await Promise.all([
+      api(`/api/farm/report?league_id=${FARM_LEAGUE}&team_id=${FARM_TEAM}`),
+      api(`/api/farm/targets?league_id=${FARM_LEAGUE}`),
+    ]);
+    $("#farm-mine").innerHTML = farmTable(mine.players || [], false);
+    $("#farm-targets").innerHTML = farmTable(targets.targets || [], true);
+    $("#farm-status").textContent = `rankings as of ${targets.as_of || "?"}`;
+  } catch (e) {
+    $("#farm-status").textContent = e.message.includes("401")
+      ? "Fantrax cookie expired — re-auth on the Fantrax tab, then reload"
+      : e.message;
+    window._farmLoaded = false;
+  }
+}
+$("#farm-load")?.addEventListener("click", loadFarm);

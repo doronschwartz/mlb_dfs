@@ -3482,6 +3482,43 @@ def deadline_undo(req: DeadlinePickRequest):
     return {"ok": True, "undone": last}
 
 
+
+
+# -------------------- Farm Report --------------------
+
+@app.get("/api/farm/report")
+def farm_report(league_id: str, team_id: str):
+    """My minor-leaguers with live MiLB stats + cut/keep verdicts."""
+    from . import farm
+    try:
+        return {"players": farm.my_farm(league_id, team_id)}
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+
+
+@app.get("/api/farm/targets")
+def farm_targets(league_id: str, limit: int = 25):
+    """Ranked prospects unowned in the league, with live MiLB stats —
+    who is highly ranked AND doing well."""
+    from . import farm
+    try:
+        return {"as_of": farm.load_rankings().get("as_of"),
+                "targets": farm.add_targets(league_id, limit=limit)}
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+
+
+@app.post("/api/farm/rankings")
+def farm_rankings_upload(payload: dict):
+    """Upload/replace the prospect rankings list (volume-persisted)."""
+    from . import farm
+    try:
+        n = farm.save_rankings(payload)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "count": n}
+
+
 # -------------------- helpers --------------------
 
 

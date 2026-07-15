@@ -1,0 +1,806 @@
+{
+ "as_of": "2026-06-23",
+ "source": "TJStats Top 100 (June 2026 update)",
+ "prospects": [
+  {
+   "rank": 1,
+   "name": "Jes\u00fas Made",
+   "team": "MIL",
+   "position": "SS",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 2,
+   "name": "Colt Emerson",
+   "team": "SEA",
+   "position": "SS",
+   "level": "MLB",
+   "grade": 60
+  },
+  {
+   "rank": 3,
+   "name": "Ryan Sloan",
+   "team": "SEA",
+   "position": "P",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 4,
+   "name": "Max Clark",
+   "team": "DET",
+   "position": "OF",
+   "level": "AAA",
+   "grade": 60
+  },
+  {
+   "rank": 5,
+   "name": "Franklin Arias",
+   "team": "BOS",
+   "position": "SS",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 6,
+   "name": "Ethan Salas",
+   "team": "SD",
+   "position": "C",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 7,
+   "name": "Seth Hernandez",
+   "team": "PIT",
+   "position": "P",
+   "level": "A+",
+   "grade": 60
+  },
+  {
+   "rank": 8,
+   "name": "George Lombard Jr.",
+   "team": "NYY",
+   "position": "SS",
+   "level": "AAA",
+   "grade": 60
+  },
+  {
+   "rank": 9,
+   "name": "Josue De Paula",
+   "team": "LAD",
+   "position": "CF",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 10,
+   "name": "Kade Anderson",
+   "team": "SEA",
+   "position": "P",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 11,
+   "name": "Leo De Vries",
+   "team": "ATH",
+   "position": "SS",
+   "level": "AA",
+   "grade": 60
+  },
+  {
+   "rank": 12,
+   "name": "Caleb Bonemer",
+   "team": "CWS",
+   "position": "SS",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 13,
+   "name": "Rainiel Rodriguez",
+   "team": "STL",
+   "position": "C",
+   "level": "AA",
+   "grade": 55
+  },
+  {
+   "rank": 14,
+   "name": "Alfredo Duno",
+   "team": "CIN",
+   "position": "C",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 15,
+   "name": "Mike Sirota",
+   "team": "LAD",
+   "position": "CF",
+   "level": "AA",
+   "grade": 55
+  },
+  {
+   "rank": 16,
+   "name": "Theo Gillen",
+   "team": "TB",
+   "position": "OF",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 17,
+   "name": "Edward Florentino",
+   "team": "PIT",
+   "position": "OF",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 18,
+   "name": "Eli Willits",
+   "team": "WSH",
+   "position": "SS",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 19,
+   "name": "Josuar Gonzalez",
+   "team": "SF",
+   "position": "SS",
+   "level": "ROK",
+   "grade": 55
+  },
+  {
+   "rank": 20,
+   "name": "Gage Jump",
+   "team": "ATH",
+   "position": "P",
+   "level": "MLB",
+   "grade": 55
+  },
+  {
+   "rank": 21,
+   "name": "River Ryan",
+   "team": "LAD",
+   "position": "P",
+   "level": "ROK",
+   "grade": 55
+  },
+  {
+   "rank": 22,
+   "name": "Ralphy Velazquez",
+   "team": "CLE",
+   "position": "1B",
+   "level": "AAA",
+   "grade": 55
+  },
+  {
+   "rank": 23,
+   "name": "Walker Jenkins",
+   "team": "MIN",
+   "position": "OF",
+   "level": "AAA",
+   "grade": 55
+  },
+  {
+   "rank": 24,
+   "name": "Braden Montgomery",
+   "team": "CWS",
+   "position": "OF",
+   "level": "MLB",
+   "grade": 55
+  },
+  {
+   "rank": 25,
+   "name": "Ryan Waldschmidt",
+   "team": "AZ",
+   "position": "OF",
+   "level": "MLB",
+   "grade": 55
+  },
+  {
+   "rank": 26,
+   "name": "A.J. Ewing",
+   "team": "NYM",
+   "position": "SS",
+   "level": "MLB",
+   "grade": 55
+  },
+  {
+   "rank": 27,
+   "name": "Eric Hartman",
+   "team": "ATL",
+   "position": "OF",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 28,
+   "name": "Josiah Hartshorn",
+   "team": "CHC",
+   "position": "OF",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 29,
+   "name": "Luis Pe\u00f1a",
+   "team": "MIL",
+   "position": "SS",
+   "level": "A+",
+   "grade": 55
+  },
+  {
+   "rank": 30,
+   "name": "Emmanuel Rodriguez",
+   "team": "MIN",
+   "position": "CF",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 31,
+   "name": "Aidan Miller",
+   "team": "PHI",
+   "position": "SS",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 32,
+   "name": "Josue Brice\u00f1o",
+   "team": "DET",
+   "position": "C",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 33,
+   "name": "Sebastian Walcott",
+   "team": "TEX",
+   "position": "SS",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 34,
+   "name": "Bryce Rainer",
+   "team": "DET",
+   "position": "SS",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 35,
+   "name": "Anthony Eyanson",
+   "team": "BOS",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 36,
+   "name": "Joseph Dzierwa",
+   "team": "BAL",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 37,
+   "name": "Juneiker Caceres",
+   "team": "CLE",
+   "position": "OF",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 38,
+   "name": "Arjun Nimmala",
+   "team": "TOR",
+   "position": "SS",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 39,
+   "name": "JoJo Parker",
+   "team": "TOR",
+   "position": "SS",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 40,
+   "name": "Wei-En Lin",
+   "team": "ATH",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 41,
+   "name": "Johnny King",
+   "team": "TOR",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 42,
+   "name": "Dasan Hill",
+   "team": "MIN",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 43,
+   "name": "Eduardo Quintero",
+   "team": "LAD",
+   "position": "OF",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 44,
+   "name": "Zyhir Hope",
+   "team": "LAD",
+   "position": "CF",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 45,
+   "name": "Joshua Baez",
+   "team": "STL",
+   "position": "RF",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 46,
+   "name": "Michael Arroyo",
+   "team": "SEA",
+   "position": "SS",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 47,
+   "name": "Jacob Reimer",
+   "team": "NYM",
+   "position": "3B",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 48,
+   "name": "Aiva Arquette",
+   "team": "MIA",
+   "position": "SS",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 49,
+   "name": "Karson Milbrandt",
+   "team": "MIA",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 50,
+   "name": "Carlos Lagrange",
+   "team": "NYY",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 51,
+   "name": "George Klassen",
+   "team": "LAA",
+   "position": "P",
+   "level": "MLB",
+   "grade": 50
+  },
+  {
+   "rank": 52,
+   "name": "Luis Lara",
+   "team": "MIL",
+   "position": "CF",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 53,
+   "name": "Jett Williams",
+   "team": "MIL",
+   "position": "SS",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 54,
+   "name": "Michael Forret",
+   "team": "TB",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 55,
+   "name": "Caden Scarborough",
+   "team": "TEX",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 56,
+   "name": "Christian Zazueta",
+   "team": "LAD",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 57,
+   "name": "Gage Wood",
+   "team": "PHI",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 58,
+   "name": "Liam Doyle",
+   "team": "STL",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 59,
+   "name": "Jhonny Level",
+   "team": "SF",
+   "position": "SS",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 60,
+   "name": "Ronny Cruz",
+   "team": "WSH",
+   "position": "SS",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 61,
+   "name": "Devin Fitz-Gerald",
+   "team": "WSH",
+   "position": "SS",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 62,
+   "name": "Luis Hern\u00e1ndez",
+   "team": "SF",
+   "position": "SS",
+   "level": "ROK",
+   "grade": 50
+  },
+  {
+   "rank": 63,
+   "name": "JR Ritchie",
+   "team": "ATL",
+   "position": "P",
+   "level": "MLB",
+   "grade": 50
+  },
+  {
+   "rank": 64,
+   "name": "Hagen Smith",
+   "team": "CWS",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 65,
+   "name": "Tyler Bremner",
+   "team": "LAA",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 66,
+   "name": "Tanner McDougal",
+   "team": "CWS",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 67,
+   "name": "Pedro Ram\u00edrez",
+   "team": "CHC",
+   "position": "2B",
+   "level": "MLB",
+   "grade": 50
+  },
+  {
+   "rank": 68,
+   "name": "Owen Ayers",
+   "team": "CHC",
+   "position": "C",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 69,
+   "name": "Lazaro Montes",
+   "team": "SEA",
+   "position": "OF",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 70,
+   "name": "Charlie Condon",
+   "team": "COL",
+   "position": "OF",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 71,
+   "name": "Cooper Pratt",
+   "team": "MIL",
+   "position": "SS",
+   "level": "MLB",
+   "grade": 50
+  },
+  {
+   "rank": 72,
+   "name": "Braylon Doughty",
+   "team": "CLE",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 73,
+   "name": "Ben Jacobs",
+   "team": "DET",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 74,
+   "name": "Nolan Perry",
+   "team": "TOR",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 75,
+   "name": "Jack Wenninger",
+   "team": "NYM",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 76,
+   "name": "Jamie Arnold",
+   "team": "ATH",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 77,
+   "name": "Tyson Hardin",
+   "team": "MIL",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 78,
+   "name": "Charles Davalan",
+   "team": "LAD",
+   "position": "OF",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 79,
+   "name": "Murf Gray",
+   "team": "PIT",
+   "position": "3B",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 80,
+   "name": "Taitn Gray",
+   "team": "TB",
+   "position": "C",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 81,
+   "name": "Nathan Flewelling",
+   "team": "TB",
+   "position": "C",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 82,
+   "name": "Tate Southisene",
+   "team": "ATL",
+   "position": "SS",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 83,
+   "name": "John Gil",
+   "team": "ATL",
+   "position": "SS",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 84,
+   "name": "Angel Genao",
+   "team": "CLE",
+   "position": "3B",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 85,
+   "name": "Justin Gonzales",
+   "team": "BOS",
+   "position": "OF",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 86,
+   "name": "Josh Hammond",
+   "team": "KC",
+   "position": "SS",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 87,
+   "name": "Luis De Le\u00f3n",
+   "team": "BAL",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 88,
+   "name": "Bishop Letson",
+   "team": "MIL",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 89,
+   "name": "Kyson Witherspoon",
+   "team": "BOS",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 90,
+   "name": "Cam Caminiti",
+   "team": "ATL",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 91,
+   "name": "Caden Hunter",
+   "team": "BAL",
+   "position": "P",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 92,
+   "name": "Jake Bloss",
+   "team": "TOR",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 93,
+   "name": "Charlee Soto",
+   "team": "MIN",
+   "position": "P",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 94,
+   "name": "Ethan Holliday",
+   "team": "COL",
+   "position": "SS",
+   "level": "A",
+   "grade": 50
+  },
+  {
+   "rank": 95,
+   "name": "Nate George",
+   "team": "BAL",
+   "position": "OF",
+   "level": "A+",
+   "grade": 50
+  },
+  {
+   "rank": 96,
+   "name": "Dax Kilby",
+   "team": "NYY",
+   "position": "SS",
+   "level": "ROK",
+   "grade": 50
+  },
+  {
+   "rank": 97,
+   "name": "Travis Sykora",
+   "team": "WSH",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 98,
+   "name": "Jarlin Susana",
+   "team": "WSH",
+   "position": "P",
+   "level": "AA",
+   "grade": 50
+  },
+  {
+   "rank": 99,
+   "name": "Thomas White",
+   "team": "MIA",
+   "position": "P",
+   "level": "AAA",
+   "grade": 50
+  },
+  {
+   "rank": 100,
+   "name": "Robby Snelling",
+   "team": "MIA",
+   "position": "P",
+   "level": "MLB",
+   "grade": 50
+  }
+ ]
+}
