@@ -3409,8 +3409,16 @@ def deadline_candidates():
     data = deadline.load_candidates()
     dr = deadline.load_draft()
     picked = {deadline.norm(p["player_name"]) for p in (dr or {}).get("picks", [])}
-    cands = [c for c in data.get("candidates", [])
-             if deadline.norm(c.get("name", "")) not in picked]
+    traded = deadline.already_traded_names(dr)
+    cands = []
+    for c in data.get("candidates", []):
+        if deadline.norm(c.get("name", "")) in picked:
+            continue
+        t = traded.get(deadline.norm(c.get("name", "")))
+        if t:
+            c = {**c, "already_traded": True,
+                 "context": f"⚠️ ALREADY TRADED → {t['to_abbr']} ({t['date']}) — picking him scores nothing. " + (c.get("context") or "")}
+        cands.append(c)
     return {"as_of": data.get("as_of"), "sources": data.get("sources", []),
             "candidates": cands, "picked_count": len(picked)}
 

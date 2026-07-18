@@ -59,6 +59,15 @@ def norm(n: str) -> str:
     return " ".join(t for t in a.split() if t not in ("jr", "sr", "ii", "iii", "iv"))
 
 
+def already_traded_names(dr: dict | None) -> dict[str, dict]:
+    """{norm_name: trade} for trades since the draft window opened — used to
+    flag pool rows as 'already traded' (picking them can no longer score)."""
+    if not dr:
+        return {}
+    trades = mlb_trades(dr["created"], dr["deadline"])
+    return {norm(t["person_name"] or ""): t for t in trades}
+
+
 def load_candidates() -> dict:
     try:
         return json.load(open(CANDIDATES_PATH))
@@ -235,6 +244,7 @@ def make_pick(dr: dict, drafter: str, player_name: str, predicted_team: str) -> 
         tier, disp = "write-in", (resolved or {}).get("fullName") or player_name
     pick = {
         "pick_number": len(dr["picks"]) + 1,
+        "picked_at": Date.today().isoformat(),
         "drafter": drafter,
         "player_name": disp or player_name,
         "player_id": pid,
@@ -316,6 +326,13 @@ def score(dr: dict) -> dict:
     detail = []
     for p in dr["picks"]:
         t = by_pid.get(p.get("player_id")) or by_name.get(norm(p["player_name"]))
+        # Anti-exploit (2026-07-19): a trade only scores if it happened ON or
+        # AFTER the pick — otherwise drafting an already-traded player with
+        # the known destination is free points (Tommy Nance case). Legacy
+        # picks without picked_at fall back to draft creation.
+        cutoff = p.get("picked_at") or dr.get("created")
+        if t and cutoff and (t.get("date") or "") < cutoff:
+            t = None
         pts = 0.0
         hit_team = False
         if t:

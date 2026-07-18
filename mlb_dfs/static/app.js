@@ -4982,11 +4982,13 @@ function renderDeadlinePool() {
       const badges = `${c.has_allstar ? "⭐" : ""}${c.has_top3_voting ? "🏅" : ""}`;
       const rumored = (c.rumored_teams || []).join(", ");
       const opts = MLB_TEAMS.map((t) => `<option value="${t}" ${(c.rumored_teams || [])[0] === t ? "selected" : ""}>${t}</option>`).join("");
-      const pickCtl = otc
-        ? `<select class="dl-team" data-name="${escapeAttr(c.name)}">${opts}</select>
-           <button class="btn-pick dl-pick" data-name="${escapeAttr(c.name)}">Pick</button>`
-        : "";
-      return `<tr class="${c.tier === "high" ? "hitter" : ""}">
+      const pickCtl = c.already_traded
+        ? `<span class="muted" style="font-size:11px;">✅ already traded</span>`
+        : otc
+          ? `<select class="dl-team" data-name="${escapeAttr(c.name)}">${opts}</select>
+             <button class="btn-pick dl-pick" data-name="${escapeAttr(c.name)}">Pick</button>`
+          : "";
+      return `<tr class="${c.tier === "high" ? "hitter" : ""}" style="${c.already_traded ? "opacity:0.45;" : ""}">
         <td><b>${c.name}</b> ${badges}</td><td>${c.position || ""}</td><td>${c.team || ""}</td>
         <td><span class="bench-tag">${c.tier || "?"}</span></td>
         <td class="muted" style="font-size:12px;">${rumored}</td>
