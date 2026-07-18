@@ -1,36 +1,55 @@
 {
- "as_of": "2026-07-05",
+ "as_of": "2026-07-19",
  "deadline": "2026-08-03",
  "deadline_note": "2026 deadline is Aug 3, 6pm ET (movable window July 28-Aug 3)",
  "sources": [
-  "https://www.mlbtraderumors.com/2026/06/top-35-trade-candidates-for-the-2026-deadline.html",
-  "https://www.espn.com/mlb/story/_/id/49082474/ranking-mlb-trade-deadline-candidates-top-100-skubal-chapman-peralta-arraez",
-  "https://www.cbssports.com/mlb/news/2026-mlb-trade-deadline-buyers-sellers-guide-one-month-away/",
-  "https://www.foxsports.com/stories/mlb/2026-mlb-trade-deadline-primer-tarik-skubal",
-  "https://www.si.com/mlb/trade-candidate-rankings-2026-deadline-predictions",
-  "https://www.mlb.com/news/when-is-the-mlb-trade-deadline-2026-date-time-candidates-storylines",
   "https://bbwaa.com/25-nl-cy/",
-  "https://www.mlb.com/news/2025-all-star-game-rosters"
+  "https://bleacherreport.com/articles/25455765-new-mlb-rumors-potential-francisco-lindor-trade-between-mets-yankees-ahead-deadline",
+  "https://heavy.com/sports/mlb/boston-red-sox/sonny-gray-trade-deadline-sellers/",
+  "https://heavy.com/sports/mlb/philadelphia-phillies/mlb-trade-rumors-joe-ryan-phillies-cubs-skubal-no-trade-clauses/",
+  "https://heavy.com/sports/mlb/philadelphia-phillies/mlb-trade-rumors-mason-miller-phillies-luis-garcia-red-sox-francisco-lindor-trade-timeline/",
+  "https://heavy.com/sports/mlb/san-diego-padres/mlb-trade-rumors-tigers-keeping-skubal-blue-jays-selling-mason-miller-bo-bichette/",
+  "https://sports.yahoo.com/articles/red-sox-deadline-plans-complicated-195836471.html",
+  "https://sports.yahoo.com/articles/red-sox-winning-streak-changes-181524979.html",
+  "https://www.boston.com/sports/boston-red-sox/2026/07/17/red-sox-2026-trade-deadline-report/",
+  "https://www.cbssports.com/mlb/news/2026-mlb-trade-deadline-buyers-sellers-guide-one-month-away/",
+  "https://www.cbssports.com/mlb/news/mets-trade-deadline-david-peterson-freddy-peralta-luke-weaver-brooks-raley-clay-holmes/",
+  "https://www.cbssports.com/mlb/news/phillies-trade-deadline-shopping-list-brad-keller-injury/",
+  "https://www.espn.com/mlb/story/_/id/49082474/ranking-mlb-trade-deadline-candidates-top-100-skubal-chapman-peralta-arraez",
+  "https://www.espn.com/mlb/story/_/id/49249891/mlb-2026-all-star-game-roster-al-nl-reaction-snubs-takeaways-turang-contreras",
+  "https://www.espn.com/mlb/transactions",
+  "https://www.foxsports.com/stories/mlb/2026-mlb-trade-deadline-primer-tarik-skubal",
+  "https://www.foxsports.com/stories/mlb/2026-mlb-trade-deadline-rumors-news-trades",
+  "https://www.justbaseball.com/mlb/2026-mlb-trade-deadline-guide-buyers-sellers/",
+  "https://www.mlb.com/news/2025-all-star-game-rosters",
+  "https://www.mlb.com/news/2026-all-star-game-rosters",
+  "https://www.mlb.com/news/blue-jays-2026-trade-deadline-plans",
+  "https://www.mlb.com/news/mlb-trade-rumors-and-trade-deadline-news-july-15",
+  "https://www.mlb.com/news/what-the-white-sox-need-at-the-2026-trade-deadline",
+  "https://www.mlb.com/news/when-is-the-mlb-trade-deadline-2026-date-time-candidates-storylines",
+  "https://www.mlbtraderumors.com/2026/06/top-35-trade-candidates-for-the-2026-deadline.html",
+  "https://www.mlbtraderumors.com/2026/07/luis-arraez-open-to-extension-with-giants.html",
+  "https://www.mlbtraderumors.com/2026/07/multiple-teams-asking-nationals-about-luis-garcia-jr.html",
+  "https://www.mlbtraderumors.com/2026/07/royals-expected-to-maintain-high-asking-price-on-wacha-lugo.html",
+  "https://www.mlbtraderumors.com/2026/07/trade-deadline-outlook-houston-astros-2.html",
+  "https://www.mlbtraderumors.com/2026/07/trade-deadline-outlook-new-york-mets-2.html",
+  "https://www.mlbtraderumors.com/2026/07/twins-acquire-tommy-nance-from-blue-jays.html",
+  "https://www.pressdemocrat.com/2026/07/17/mlb-trade-deadline-sf-giants-robbie-ray-luis-arraez-jung-hoo-lee/",
+  "https://www.si.com/mlb/trade-candidate-rankings-2026-deadline-predictions"
  ],
  "candidates": [
   {
    "name": "Tarik Skubal",
    "position": "SP",
    "team": "DET",
-   "tier": "high",
+   "tier": "medium",
    "rumored_teams": [
-    "LAD",
-    "NYY",
-    "ATL",
-    "MIL",
-    "TOR",
-    "TB",
-    "CHC",
-    "PHI",
-    "SD",
-    "BAL"
+    "Cubs",
+    "Braves",
+    "Rays",
+    "Dodgers"
    ],
-   "context": "Two-time AL Cy Young winner and pending free agent; ESPN pegs 85% trade odds as Tigers fall out of race after his elbow surgery return.",
+   "context": "Downgrade from lock status: Tigers are 22-14 since June 1 and within 3.5 games of a playoff spot, and 'Tigers keeping Skubal' chatter is building (heavy.com, ~Jul 17; MLB.com Jul 15). Cubs/Braves/Rays strongest suitors if he moves; Dodgers a wild card seen as underselling interest.",
    "has_allstar": true,
    "has_top3_voting": true
   },
@@ -38,20 +57,9 @@
    "name": "Aroldis Chapman",
    "position": "RP",
    "team": "BOS",
-   "tier": "high",
-   "rumored_teams": [
-    "SEA",
-    "PIT",
-    "LAD",
-    "TB",
-    "PHI",
-    "ARI",
-    "MIN",
-    "CWS",
-    "CHC",
-    "CLE"
-   ],
-   "context": "Rejuvenated 38-year-old closer (sub-1.00 ERA); Red Sox expected to sell high \u2014 ESPN gives 90% trade odds.",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Boston 11-1 in July with a 10-game win streak; Morosi says a Chapman trade 'is increasingly unlikely to happen at all' (heavy.com/MLB Network, Jul 17). 2026 AL All-Star closer; Sox now lean keep-or-buy. Was 90% on ESPN's Jul 6 board.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -61,16 +69,13 @@
    "team": "NYM",
    "tier": "high",
    "rumored_teams": [
-    "CHC",
-    "SD",
-    "NYY",
-    "LAD",
-    "TB",
-    "CWS",
-    "CLE",
-    "STL"
+    "Cubs",
+    "White Sox",
+    "Guardians",
+    "Cardinals",
+    "A's"
    ],
-   "context": "Impending free agent on last-place Mets; no extension talks and 90% trade odds despite a 4.8 ERA.",
+   "context": "Still the most obvious Mets sell piece \u2014 near-lock to move despite a 4.81 ERA; Cubs and White Sox most heavily linked (heavy.com/SI, mid-Jul). Mets formally in sell mode with only Soto, Benge, Ewing, McLean and Scott off-limits (SNY via FOX, Jul 14).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -80,16 +85,12 @@
    "team": "SF",
    "tier": "high",
    "rumored_teams": [
-    "TB",
-    "TEX",
-    "SD",
-    "MIN",
-    "NYY",
-    "LAD",
-    "TOR",
-    "WSH"
+    "Yankees",
+    "Rays",
+    "Dodgers",
+    "Blue Jays"
    ],
-   "context": "Rental batting champion chasing a fourth title; selling Giants near-certain to move him (90% per ESPN).",
+   "context": "Hitting .330 (2nd in MLB) on an expiring $12M deal for a bad Giants team; says he's open to an SF extension but beat coverage treats him as the likeliest position player moved, with Yankees and Rays the top fits (Press Democrat Jul 17; MLBTR; heavy.com).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -97,17 +98,14 @@
    "name": "Ryan Jeffers",
    "position": "C",
    "team": "MIN",
-   "tier": "high",
+   "tier": "medium",
    "rumored_teams": [
-    "NYY",
-    "TB",
-    "TEX",
-    "ARI",
-    "SD",
-    "PIT",
-    "BOS"
+    "Yankees",
+    "Rays",
+    "Rangers",
+    "Padres"
    ],
-   "context": "Best rental catcher on the market, back from a hamate fracture; ESPN 85% trade odds.",
+   "context": "Was 85% on ESPN's Jul 6 board, but Minnesota's buyer behavior (Nance acquisition Jul 10 for the bullpen) softens the sell case; still the most movable Twins piece if they thread both needles.",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -153,16 +151,13 @@
    "name": "Casey Mize",
    "position": "SP",
    "team": "DET",
-   "tier": "high",
+   "tier": "long-shot",
    "rumored_teams": [
-    "ATL",
-    "CHC",
-    "SD",
-    "MIL",
-    "ATH",
-    "TB"
+    "Braves",
+    "Padres",
+    "Cubs"
    ],
-   "context": "2.95-ERA rental and the second-best rental starter available behind teammate Skubal; 60% trade odds.",
+   "context": "Same Tigers logic as Skubal: 22-14 since June 1 and 3.5 out \u2014 a controllable starter is even harder to pry loose from a team back in the race (Tigers surge reporting, Jul 14-17). Was 60% on Jul 6.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -170,19 +165,13 @@
    "name": "Joe Ryan",
    "position": "SP",
    "team": "MIN",
-   "tier": "high",
+   "tier": "medium",
    "rumored_teams": [
-    "CHC",
-    "SD",
-    "ATH",
-    "ARI",
-    "ATL",
-    "TOR",
-    "STL",
-    "PHI",
-    "CWS"
+    "Phillies",
+    "Cubs",
+    "White Sox"
    ],
-   "context": "Top-20 starter (3.18 ERA) controlled through 2027; teams queueing up offers to Minnesota, 55% odds.",
+   "context": "Conflicting signals: Twins acted as buyers with the Nance deal (Jul 10), but Joe Ryan-to-Phillies rumors persist in the wide-open AL (heavy.com, ~Jul 17). Down from 55% coin-flip to genuinely uncertain.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -212,8 +201,13 @@
    "position": "SP",
    "team": "SF",
    "tier": "high",
-   "rumored_teams": [],
-   "context": "Former Cy Young winner and rental on a selling Giants club; SF likely eats salary to boost return.",
+   "rumored_teams": [
+    "Cardinals",
+    "White Sox",
+    "Cubs",
+    "Diamondbacks"
+   ],
+   "context": "Giants beat expects Arraez and Ray to be the two who go (Press Democrat, Jul 17); newest fit is St. Louis (50-45, one back of the final NL WC), though his $25M salary narrows the market.",
    "has_allstar": true,
    "has_top3_voting": true
   },
@@ -351,19 +345,14 @@
    "name": "Michael Wacha",
    "position": "SP",
    "team": "KC",
-   "tier": "medium",
+   "tier": "long-shot",
    "rumored_teams": [
-    "STL",
-    "ATH",
-    "TOR",
-    "CWS",
-    "ATL",
-    "NYY",
-    "SD",
-    "ARI",
-    "CHC"
+    "Cubs",
+    "Braves",
+    "Cardinals",
+    "Astros"
    ],
-   "context": "Quality-start leader signed through 2027; Royals selling but may keep him \u2014 50% odds.",
+   "context": "Royals will listen but are holding a sky-high ask and are reluctant to move him; Rosenthal on a team meeting the multi-top-prospect price: 'Seems doubtful' (MLBTR/Athlon, ~Jul 16). Partial no-trade protection.",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -371,16 +360,13 @@
    "name": "Sonny Gray",
    "position": "SP",
    "team": "BOS",
-   "tier": "medium",
+   "tier": "long-shot",
    "rumored_teams": [
-    "ATL",
-    "SD",
-    "CHC",
-    "MIL",
-    "CWS",
-    "BAL"
+    "Braves",
+    "Cubs",
+    "White Sox"
    ],
-   "context": "Pitching like a top-rotation arm (2.95 ERA) but full no-trade clause and option structure complicate a deal.",
+   "context": "Effectively off the market amid Boston's surge \u2014 'Gray and Chapman don't look like trade candidates right now,' though a poor end of July could flip Boston back to selling (heavy.com, Jul 17; Passan calls plans 'fluid', boston.com Jul 17).",
    "has_allstar": true,
    "has_top3_voting": true
   },
@@ -388,20 +374,9 @@
    "name": "Sandy Alcantara",
    "position": "SP",
    "team": "MIA",
-   "tier": "medium",
-   "rumored_teams": [
-    "CHC",
-    "ARI",
-    "SD",
-    "TOR",
-    "CWS",
-    "CLE",
-    "ATH",
-    "TB",
-    "ATL",
-    "MIL"
-   ],
-   "context": "Innings-eating former Cy Young winner with a 2027 club option; 40% odds with Marlins surging.",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Direction flip: the Marlins have been the hottest team in baseball and sit in prime playoff position \u2014 they're listed among buyers now (MLB.com/Just Baseball, Jul 10-15), taking Alcantara off the realistic market.",
    "has_allstar": true,
    "has_top3_voting": true
   },
@@ -409,18 +384,9 @@
    "name": "Willson Contreras",
    "position": "1B",
    "team": "BOS",
-   "tier": "medium",
-   "rumored_teams": [
-    "ARI",
-    "TOR",
-    "CLE",
-    "TEX",
-    "MIA",
-    "PIT",
-    "SD",
-    "NYM"
-   ],
-   "context": "Raking (.280/.375/.520, 16 HR) with Cardinals covering salary, but full no-trade clause; SI predicts traded.",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "FOX Sports deadline tracker (Jul 14) lists him as not available \u2014 declined to waive his no-trade protection \u2014 and Boston's turnaround removes the incentive to push. Notable 2026 All-Star snub, so the bat still has value if Boston collapses.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -428,17 +394,9 @@
    "name": "Christian Walker",
    "position": "1B",
    "team": "HOU",
-   "tier": "medium",
-   "rumored_teams": [
-    "CLE",
-    "MIA",
-    "NYM",
-    "ARI",
-    "TOR",
-    "TEX",
-    "PIT"
-   ],
-   "context": "30-homer-caliber bounce-back; struggling Astros listening on veterans \u2014 45% odds.",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Astros' return to contention (3 GB in the ALW) shelves the veteran-bat sell-off scenarios from early July (CBS/MLBTR, ~Jul 15).",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -446,17 +404,13 @@
    "name": "Isaac Paredes",
    "position": "3B",
    "team": "HOU",
-   "tier": "medium",
+   "tier": "long-shot",
    "rumored_teams": [
-    "MIL",
-    "NYY",
-    "MIA",
-    "PHI",
-    "PIT",
-    "CLE",
-    "BOS"
+    "Guardians",
+    "Mariners",
+    "Pirates"
    ],
-   "context": "Astros listening as they retool; would be the fifth trade of his career.",
+   "context": "Still 'probably the most likely Houston piece moved if they soft-sell' (MLBTR outlook, ~Jul 15), but the Astros' climb back into the race drops him from 40% territory to a long shot.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -552,19 +506,9 @@
    "name": "Jarren Duran",
    "position": "OF",
    "team": "BOS",
-   "tier": "medium",
-   "rumored_teams": [
-    "SD",
-    "ARI",
-    "CLE",
-    "HOU",
-    "PHI",
-    "MIA",
-    "TB",
-    "TEX",
-    "SEA"
-   ],
-   "context": "Change-of-scenery candidate hitting a career-worst .199 amid Boston's outfield logjam; 25% odds.",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "Two more years of control and a down offensive year mean Boston would be selling low; with the Sox back in Wild Card contention, beat coverage says he stays unless the bat wakes up AND Boston slides (SI/Yahoo, Jul 17).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -572,17 +516,13 @@
    "name": "Matt Chapman",
    "position": "3B",
    "team": "SF",
-   "tier": "medium",
+   "tier": "long-shot",
    "rumored_teams": [
-    "PHI",
-    "NYY",
-    "PIT",
-    "MIA",
-    "STL",
-    "CIN",
-    "NYM"
+    "Cardinals",
+    "Brewers",
+    "Mets"
    ],
-   "context": "Giants open to offers on long-term money; no-trade clause and contract through 2030 are hurdles, but SI predicts a deal.",
+   "context": "Rosenthal throws cold water on SF moving its big contracts; Giants beat expects the lineup beyond Arraez/Ray to stay largely intact (ClutchPoints/Press Democrat, Jul 17).",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -605,8 +545,14 @@
    "position": "CF",
    "team": "SF",
    "tier": "medium",
-   "rumored_teams": [],
-   "context": "Hitting .333 in a thin outfield market, but his post-2027 opt-out deters some suitors.",
+   "rumored_teams": [
+    "Phillies",
+    "Braves",
+    "Padres",
+    "Rays",
+    "Marlins"
+   ],
+   "context": "One of three Giants leading ESPN insiders' candidate list with Arraez and Ray (McCovey Chronicles, mid-Jul), but Rosenthal is skeptical SF moves the big contracts \u2014 likelihood holds around a coin flip, below the rentals.",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -664,9 +610,13 @@
    "name": "Foster Griffin",
    "position": "SP",
    "team": "WSH",
-   "tier": "medium",
-   "rumored_teams": [],
-   "context": "NPB returnee with a 3.15 ERA and elite K/BB; Nats' direction and salary quirks complicate it.",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "Padres",
+    "Cubs",
+    "White Sox"
+   ],
+   "context": "Nationals are unexpectedly still in it \u2014 3 games back of the final NL Wild Card \u2014 and are only 'open to listening' rather than engaging on their pieces (MLBTR/Bleacher Report, Jul 17-18). Down from 55%.",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -697,16 +647,6 @@
    "tier": "medium",
    "rumored_teams": [],
    "context": "Perennial deadline name now on a selling Mets roster; talent-over-production gamble for buyers.",
-   "has_allstar": true,
-   "has_top3_voting": false
-  },
-  {
-   "name": "David Peterson",
-   "position": "SP",
-   "team": "NYM",
-   "tier": "medium",
-   "rumored_teams": [],
-   "context": "Controlled All-Star lefty; Mets listening on nearly everyone amid a lost season.",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -899,19 +839,9 @@
    "name": "Byron Buxton",
    "position": "CF",
    "team": "MIN",
-   "tier": "long-shot",
-   "rumored_teams": [
-    "PHI",
-    "SD",
-    "ARI",
-    "ATL",
-    "TB",
-    "STL",
-    "NYY",
-    "TEX",
-    "TOR"
-   ],
-   "context": "Star two-way center fielder, but he holds a full no-trade clause and Minnesota isn't fully selling \u2014 30% odds.",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Voted 2026 All-Star starter but sat out with the hip issue that's nagged him all season; Twins bought a reliever (Nance, Jul 10) for MLB's worst bullpen \u2014 trade scenario basically dead (Yardbarker/MLBTR, Jul 10-14).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -920,14 +850,8 @@
    "position": "SS",
    "team": "HOU",
    "tier": "long-shot",
-   "rumored_teams": [
-    "ATL",
-    "TB",
-    "NYY",
-    "TOR",
-    "BOS"
-   ],
-   "context": "Astros reportedly open to listening on their All-Star shortstop ahead of free agency \u2014 35% odds but a blockbuster price.",
+   "rumored_teams": [],
+   "context": "Astros have gotten healthy and climbed to 3 games out in the AL West (1.5 in the WC); despite moving McCullers, a Pena deal now reads as blow-it-up fantasy, not a live rumor (CBS/MLBTR outlook, ~Jul 15).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -995,18 +919,9 @@
    "name": "Seiya Suzuki",
    "position": "OF",
    "team": "CHC",
-   "tier": "long-shot",
-   "rumored_teams": [
-    "TB",
-    "SEA",
-    "MIA",
-    "SD",
-    "PHI",
-    "NYY",
-    "ARI",
-    "STL"
-   ],
-   "context": "Cubs exploring creative roster moves with their rental outfielder, but only 15% odds while contending.",
+   "tier": "deep",
+   "rumored_teams": [],
+   "context": "Cubs are firmly buyers \u2014 pursuing Skubal and Peralta-class pitching (heavy.com, ~Jul 17) \u2014 so the early-July Suzuki speculation is dead weight; drop from 15% to negligible.",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -1024,9 +939,9 @@
    "name": "Josh Hader",
    "position": "RP",
    "team": "HOU",
-   "tier": "long-shot",
+   "tier": "deep",
    "rumored_teams": [],
-   "context": "Rivals covet him if the struggling Astros pivot to selling; big contract and Houston's pride are obstacles.",
+   "context": "Signed through 2028 at $19M/yr, working back from injury, and Houston is contending again \u2014 MLBTR calls a deal unlikely even though the return would be significant (Jul 15).",
    "has_allstar": true,
    "has_top3_voting": false
   },
@@ -1874,9 +1789,9 @@
    "name": "Justin Slaten",
    "position": "RP",
    "team": "BOS",
-   "tier": "medium",
+   "tier": "long-shot",
    "rumored_teams": [],
-   "context": "Listed in Boston's 'possibly traded' tier in multiple 2026 sell rankings; 6.16 ERA but career-high 28.7% K rate and cheap pre-arb control keep interest alive.",
+   "context": "On the 15-day IL (retro Jul 9) with throwing-elbow inflammation; 6.48 ERA and availability now 'in question' \u2014 the injury plus Boston's buyer pivot kill the near-term market (Yahoo, mid-Jul).",
    "has_allstar": false,
    "has_top3_voting": false
   },
@@ -2255,16 +2170,6 @@
    "has_top3_voting": false
   },
   {
-   "name": "Tommy Nance",
-   "position": "RP",
-   "team": "TOR",
-   "tier": "deep",
-   "rumored_teams": [],
-   "context": "Out of options and struggling \u2014 odd man out as the buying Jays add bullpen help.",
-   "has_allstar": false,
-   "has_top3_voting": false
-  },
-  {
    "name": "Cedric Mullins",
    "position": "CF",
    "team": "TB",
@@ -2457,6 +2362,89 @@
    "tier": "deep",
    "rumored_teams": [],
    "context": "SI: 20-year-old switch-hitting shortstop potentially expendable for Seattle with Colt Emerson entrenched at the position.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Mason Miller",
+   "position": "RHP (closer)",
+   "team": "Padres",
+   "tier": "medium",
+   "rumored_teams": [
+    "Yankees",
+    "Phillies"
+   ],
+   "context": "Blockbuster newly in play: Yankees 'love the idea' of adding MLB's most dominant bullpen arm and Phillies chatter followed (MLB.com Jul 15; heavy.com Jul 17-18). Controllable through 2029, so open-minded San Diego's ask is a haul.",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Ketel Marte",
+   "position": "2B",
+   "team": "Diamondbacks",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "Rays"
+   ],
+   "context": "Rays linked to a Marte blockbuster on Jul 14 (FOX tracker) as Arizona weighs direction; led all non-All-Stars in total bases. Contract and D-backs' fence-sitting make it a long shot.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Shane Bieber",
+   "position": "RHP",
+   "team": "Blue Jays",
+   "tier": "medium",
+   "rumored_teams": [
+    "Cubs",
+    "Cardinals"
+   ],
+   "context": "One of four Toronto veterans on expiring deals named as prime candidates if the Jays sell (MLB.com Blue Jays deadline plans, mid-Jul). 2020 AL Cy Young pedigree.",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Daulton Varsho",
+   "position": "OF",
+   "team": "Blue Jays",
+   "tier": "medium",
+   "rumored_teams": [
+    "Phillies",
+    "Padres"
+   ],
+   "context": "Named with Gausman as the most attractive Toronto pieces if they head toward selling mode (heavy.com/Yardbarker, Jul 15-18); expiring deal, elite defense.",
+   "has_allstar": false,
+   "has_top3_voting": false
+  },
+  {
+   "name": "George Springer",
+   "position": "OF/DH",
+   "team": "Blue Jays",
+   "tier": "long-shot",
+   "rumored_teams": [],
+   "context": "On the Jays' expiring-deal sell list (MLB.com, mid-Jul), but age and salary mean Toronto may have to pay down money to move him (Lindy's).",
+   "has_allstar": true,
+   "has_top3_voting": false
+  },
+  {
+   "name": "Francisco Lindor",
+   "position": "SS",
+   "team": "Mets",
+   "tier": "long-shot",
+   "rumored_teams": [
+    "Yankees"
+   ],
+   "context": "Newly, genuinely available \u2014 only Soto and four young players are off-limits (SNY's Janes, ~Jul 15) \u2014 but $160M over five years, a limited NTC, a .210/.291/.363 line and his desire to stay make insiders call a deal unlikely (amNY Jul 17; BR Jul 18).",
+   "has_allstar": true,
+   "has_top3_voting": true
+  },
+  {
+   "name": "Spencer Steer",
+   "position": "IF/OF",
+   "team": "Reds",
+   "tier": "medium",
+   "rumored_teams": [],
+   "context": "Drawing interest from multiple teams with the last-place Reds selling (FOX tracker, Jul 14); positional flexibility widens the market.",
    "has_allstar": false,
    "has_top3_voting": false
   }
