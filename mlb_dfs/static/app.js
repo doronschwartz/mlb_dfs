@@ -4960,6 +4960,12 @@ function renderDeadlinePool() {
   const tier = $("#dl-tier").value;
   const posF = $("#dl-pos")?.value || "all";
   const teamF = $("#dl-team")?.value || "all";
+  const awardF = $("#dl-award")?.value || "all";
+  const awardMatch = (c) =>
+    awardF === "all" ? true :
+    awardF === "allstar" ? !!c.has_allstar :
+    awardF === "top3" ? !!c.has_top3_voting :
+    (!!c.has_allstar || !!c.has_top3_voting);
   const posMatch = (c) => {
     if (posF === "all") return true;
     const p = (c.position || "").toUpperCase();
@@ -4977,7 +4983,7 @@ function renderDeadlinePool() {
     .filter((c) => (!q || c.name.toLowerCase().includes(q)))
     .concat(extras.filter((e) => !dlPool.some((c) => c.name === e.name)));
   const rows = combined
-    .filter((c) => (tier === "all" || c.tier === tier || c.tier === "write-in") && posMatch(c) && (teamF === "all" || c.team === teamF))
+    .filter((c) => (tier === "all" || c.tier === tier || c.tier === "write-in") && posMatch(c) && (teamF === "all" || c.team === teamF) && awardMatch(c))
     .map((c) => {
       const badges = `${c.has_allstar ? "⭐" : ""}${c.has_top3_voting ? "🏅" : ""}`;
       const rumored = (c.rumored_teams || []).join(", ");
@@ -5034,6 +5040,7 @@ $("#dl-search")?.addEventListener("input", () => {
 $("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+$("#dl-award")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 
 
 // ---------- Farm Report ----------
