@@ -312,6 +312,42 @@ def mlb_trades(start: str, end: str) -> list[dict]:
     return out
 
 
+def refresh_flags() -> dict:
+    """Re-verify has_allstar / has_top3_voting against the MLB awards API
+    for every pool candidate AND every existing pick, OR-ing API truth into
+    the researched flags (API adds fresh selections — e.g. the 2026
+    All-Star rosters, announced after the pool was researched; research
+    keeps non-winner top-3 finishes the API can't see). Idempotent."""
+    from concurrent.futures import ThreadPoolExecutor
+    data = load_candidates()
+    cands = data.get("candidates", [])
+    def apply(obj, name_key):
+        pid = _resolve_player_id(obj.get(name_key) or "")
+        if not pid:
+            return 0
+        has_as, has_t3 = _lookup_flags(pid)
+        changed = 0
+        if has_as and not obj.get("has_allstar"):
+            obj["has_allstar"] = True; changed = 1
+        if has_t3 and not obj.get("has_top3_voting"):
+            obj["has_top3_voting"] = True; changed = 1
+        return changed
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        changed_pool = sum(ex.map(lambda c: apply(c, "name"), cands))
+    if changed_pool:
+        tmp = CANDIDATES_PATH + ".tmp"
+        json.dump(data, open(tmp, "w"))
+        os.replace(tmp, CANDIDATES_PATH)
+    changed_picks = 0
+    dr = load_draft()
+    if dr:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            changed_picks = sum(ex.map(lambda p: apply(p, "player_name"), dr["picks"]))
+        if changed_picks:
+            save_draft(dr)
+    return {"pool_updated": changed_pool, "picks_updated": changed_picks}
+
+
 def score(dr: dict) -> dict:
     """Live scores. Bonus points pay ONLY when the player is actually traded
     (otherwise the optimal strategy is drafting famous names regardless of

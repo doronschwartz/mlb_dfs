@@ -3431,6 +3431,14 @@ def deadline_player_search(q: str):
     return {"results": deadline.search_players(q)}
 
 
+@app.post("/api/deadline/refresh_flags")
+def deadline_refresh_flags():
+    """Re-verify All-Star / award flags vs the MLB awards API (pool + picks).
+    Run after new All-Star rosters or award announcements."""
+    from . import deadline
+    return deadline.refresh_flags()
+
+
 @app.post("/api/deadline/candidates")
 def deadline_candidates_upload(payload: dict):
     """Upload/replace the candidate pool (volume-persisted; no redeploy)."""
