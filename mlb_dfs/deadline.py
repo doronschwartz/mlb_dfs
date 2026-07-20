@@ -195,13 +195,18 @@ def search_players(q: str, limit: int = 8) -> list[dict]:
     pool_names = {norm(c["name"]) for c in load_candidates().get("candidates", [])}
     hits = [p for p in active_players()
             if nq in p["norm"] and p["norm"] not in pool_names][:limit]
+    traded = already_traded_names(load_draft())
     out = []
     for p in hits:
         if p["id"] not in _FLAGS_CACHE:
             _FLAGS_CACHE[p["id"]] = _lookup_flags(p["id"])
         has_as, has_t3 = _FLAGS_CACHE[p["id"]]
+        t = traded.get(p["norm"])
         out.append({"name": p["name"], "position": p["position"], "team": p["team"],
-                    "tier": "write-in", "rumored_teams": [], "context": "not on any rumor list — you still believe",
+                    "tier": "write-in", "rumored_teams": [],
+                    "already_traded": bool(t),
+                    "context": (f"⚠️ ALREADY TRADED → {t['to_abbr']} ({t['date']}) — no points. " if t
+                                else "not on any rumor list — you still believe"),
                     "has_allstar": has_as, "has_top3_voting": has_t3})
     return out
 
@@ -226,6 +231,14 @@ def make_pick(dr: dict, drafter: str, player_name: str, predicted_team: str) -> 
         raise ValueError(f"not your turn — {turn} is on the clock")
     if any(norm(p["player_name"]) == norm(player_name) for p in dr["picks"]):
         raise ValueError(f"{player_name} is already drafted")
+    # Same-day exploit guard (Halvorsen case, 2026-07-20): trade dates are
+    # day-granular, so the picked_at cutoff can't stop a pick made hours
+    # AFTER a same-day trade. If the player's trade is already in the feed,
+    # the pick is dead on arrival — reject it outright.
+    t = already_traded_names(dr).get(norm(player_name))
+    if t:
+        raise ValueError(
+            f"{player_name} was already traded to {t['to_abbr']} on {t['date']} — no points available, pick someone else")
     cands = {norm(c["name"]): c for c in load_candidates().get("candidates", [])}
     c = cands.get(norm(player_name))
     resolved = _resolve_player(player_name)
