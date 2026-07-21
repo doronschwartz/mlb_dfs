@@ -4982,6 +4982,13 @@ function renderDeadlinePool() {
   const combined = dlPool
     .filter((c) => (!q || c.name.toLowerCase().includes(q)))
     .concat(extras.filter((e) => !dlPool.some((c) => c.name === e.name)));
+  // Trade-likelihood sort: real ESPN % first; entries without one fall back
+  // to a tier-implied score so the whole list still orders sensibly.
+  const pctOf = (c) => c.trade_pct != null ? c.trade_pct
+    : ({ high: 65, medium: 40, "long-shot": 15, deep: 8 }[c.tier] ?? 5);
+  if (($("#dl-sort")?.value || "default") === "pct") {
+    combined.sort((a, b) => pctOf(b) - pctOf(a) || (a.espn_rank ?? 999) - (b.espn_rank ?? 999) || a.name.localeCompare(b.name));
+  }
   const rows = combined
     .filter((c) => (tier === "all" || c.tier === tier || c.tier === "write-in") && posMatch(c) && (teamF === "all" || c.team === teamF) && awardMatch(c))
     .map((c) => {
@@ -4997,11 +5004,12 @@ function renderDeadlinePool() {
       return `<tr class="${c.tier === "high" ? "hitter" : ""}" style="${c.already_traded ? "opacity:0.45;" : ""}">
         <td><b>${c.name}</b> ${badges}</td><td>${c.position || ""}</td><td>${c.team || ""}</td>
         <td><span class="bench-tag">${c.tier || "?"}</span></td>
+        <td>${c.trade_pct != null ? `<b>${c.trade_pct}%</b>` : `<span class="muted" style="font-size:11px;">~${pctOf(c)}%</span>`}</td>
         <td class="muted" style="font-size:12px;">${rumored}</td>
         <td class="notes" style="font-size:11px;max-width:340px;">${c.context || ""}</td>
         <td>${pickCtl}</td></tr>`;
     }).join("");
-  $("#dl-pool").innerHTML = `<table><thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Tier</th><th>Rumored to</th><th>Context</th><th>${otc ? "Pick (you're up)" : (otcRaw ? `${otcRaw} is up` : "")}</th></tr></thead><tbody>${rows || "<tr><td colspan=7 class=muted>No candidates match.</td></tr>"}</tbody></table>`;
+  $("#dl-pool").innerHTML = `<table><thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Tier</th><th>Trade %</th><th>Rumored to</th><th>Context</th><th>${otc ? "Pick (you're up)" : (otcRaw ? `${otcRaw} is up` : "")}</th></tr></thead><tbody>${rows || "<tr><td colspan=8 class=muted>No candidates match.</td></tr>"}</tbody></table>`;
   $("#dl-pool").querySelectorAll(".dl-pick").forEach((b) => {
     b.addEventListener("click", async () => {
       const name = b.dataset.name;
@@ -5041,6 +5049,7 @@ $("#dl-tier")?.addEventListener("change", () => dlPool.length && renderDeadlineP
 $("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-award")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+$("#dl-sort")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 
 
 // ---------- Farm Report ----------
