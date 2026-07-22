@@ -430,6 +430,70 @@ def _hitter_sb_bonus(stats_l14: dict, stats_season: dict, opposing_sp: dict | No
     return factor, f"SB threat {sb_rate*100:.0f}/100G x{factor:.2f}"
 
 
+def _opposing_sp_factor(opposing_sp_id: int | None, season: int, as_of: Date | None):
+    """Compute the hitter-suppression factor for one opposing SP.
+    Extracted from project_hitter so split doubleheaders can price BOTH
+    games' starters and blend. Returns (factor, sp_stats, source, note)."""
+    notes: list[str] = []
+    sp_factor = 1.0
+    opposing_sp_stats: dict | None = None
+    sp_factor_source = None  # "season" | "savant_fallback" | None
+    if opposing_sp_id:
+        sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season, as_of=as_of)
+        opposing_sp_stats = sp_season
+        ip = _safe_float(sp_season.get("inningsPitched"))
+        if ip >= 20:
+            era = _safe_float(sp_season.get("era"), default=4.20)
+            whip = _safe_float(sp_season.get("whip"), default=1.30)
+            k9 = _safe_float(sp_season.get("strikeoutsPer9Inn"), default=8.5)
+            k9_part = 8.5 / max(k9, 4.0)   # inverse: high K/9 → low hitter factor
+            # v9.9: blend pitcher whiff% percentile (forward-looking K-skill,
+            # more sample-efficient than rolling K/9). Savant 0-100 percentile;
+            # convert to a multiplier roughly centered at 50th = 1.0. A 90th
+            # percentile whiff pitcher (elite K stuff) gets ~0.85 (suppresses
+            # hitter by 15%); 10th gets ~1.15.
+            whiff_part = 1.0
+            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
+            if pp and pp.get("whiff") is not None:
+                # percentile → inverse multiplier: 100 → 0.80, 50 → 1.0, 0 → 1.20
+                whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40
+                sp_factor = (era / 4.20) * 0.35 + (whip / 1.30) * 0.20 + k9_part * 0.20 + whiff_part * 0.25
+                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f} whiff%-tile {pp['whiff']:.0f}"
+            else:
+                sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
+                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f}"
+            sp_factor = max(0.6, min(sp_factor, 1.45))
+            sp_factor_source = "season"
+            notes.append(f"opposing SP adj x{sp_factor:.2f} ({detail})")
+        else:
+            # v9.15: short-sample fallback. Rookies, post-TJ returnees, openers
+            # often have <20 IP — bailing to ×1.00 silently leaks signal we
+            # actually have via Savant's descriptive metrics (xERA + xwOBA-
+            # against stabilize MUCH faster than ERA on small samples; whiff%
+            # percentile is forward-looking K-skill). Use these if available.
+            sp_qoc = savant.lookup_pitcher_qoc(opposing_sp_id, season) or None
+            sp_expected = savant.lookup_pitcher(opposing_sp_id, season) or None
+            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
+            xera = _safe_float((sp_expected or {}).get("xera")) if sp_expected else None
+            xwoba_a = _safe_float((sp_expected or {}).get("est_woba")) if sp_expected else None
+            whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40 if pp and pp.get("whiff") is not None else 1.0
+            if xera or xwoba_a or (pp and pp.get("whiff") is not None):
+                # Tighter clamp than the season branch (±10% vs ±45%) — small-
+                # sample data is noisier so don't let it swing the projection.
+                xera_part = (xera / 4.20) if xera else 1.0
+                xwoba_part = (xwoba_a / 0.320) if xwoba_a else 1.0
+                sp_factor = xera_part * 0.40 + xwoba_part * 0.30 + whiff_part * 0.30
+                sp_factor = max(0.90, min(sp_factor, 1.10))
+                sp_factor_source = "savant_fallback"
+                detail_bits = []
+                if xera: detail_bits.append(f"xERA {xera:.2f}")
+                if xwoba_a: detail_bits.append(f"xwOBA-agst {xwoba_a:.3f}")
+                if pp and pp.get("whiff") is not None: detail_bits.append(f"whiff%-tile {pp['whiff']:.0f}")
+                detail_bits.append(f"only {int(ip)} IP — Savant fallback")
+                notes.append(f"opposing SP adj x{sp_factor:.2f} ({', '.join(detail_bits)})")
+    return sp_factor, opposing_sp_stats, sp_factor_source, (notes[0] if notes else None)
+
+
 def project_hitter(
     pid: int,
     name: str,
@@ -438,6 +502,8 @@ def project_hitter(
     position: str | None,
     season: int,
     opposing_sp_id: int | None,
+    opposing_sp2_id: int | None = None,
+    games_today: int = 1,
     park: dict | None = None,
     batting_order: int | None = None,
     implied_team_total: float | None = None,
@@ -540,62 +606,14 @@ def project_hitter(
     # ERA/WHIP alone underweighted strikeout pitchers like Skubal/Skenes who
     # have moderate ERA but elite K rates — they suppress hitter projections
     # more than ERA implies. Weighted 0.45/0.25/0.30.
-    sp_factor = 1.0
-    opposing_sp_stats: dict | None = None
-    sp_factor_source = None  # "season" | "savant_fallback" | None
-    if opposing_sp_id:
-        sp_season = mlb_api.player_stats(opposing_sp_id, group="pitching", season=season, as_of=as_of)
-        opposing_sp_stats = sp_season
-        ip = _safe_float(sp_season.get("inningsPitched"))
-        if ip >= 20:
-            era = _safe_float(sp_season.get("era"), default=4.20)
-            whip = _safe_float(sp_season.get("whip"), default=1.30)
-            k9 = _safe_float(sp_season.get("strikeoutsPer9Inn"), default=8.5)
-            k9_part = 8.5 / max(k9, 4.0)   # inverse: high K/9 → low hitter factor
-            # v9.9: blend pitcher whiff% percentile (forward-looking K-skill,
-            # more sample-efficient than rolling K/9). Savant 0-100 percentile;
-            # convert to a multiplier roughly centered at 50th = 1.0. A 90th
-            # percentile whiff pitcher (elite K stuff) gets ~0.85 (suppresses
-            # hitter by 15%); 10th gets ~1.15.
-            whiff_part = 1.0
-            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
-            if pp and pp.get("whiff") is not None:
-                # percentile → inverse multiplier: 100 → 0.80, 50 → 1.0, 0 → 1.20
-                whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40
-                sp_factor = (era / 4.20) * 0.35 + (whip / 1.30) * 0.20 + k9_part * 0.20 + whiff_part * 0.25
-                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f} whiff%-tile {pp['whiff']:.0f}"
-            else:
-                sp_factor = (era / 4.20) * 0.45 + (whip / 1.30) * 0.25 + k9_part * 0.30
-                detail = f"ERA {era:.2f} WHIP {whip:.2f} K/9 {k9:.1f}"
-            sp_factor = max(0.6, min(sp_factor, 1.45))
-            sp_factor_source = "season"
-            notes.append(f"opposing SP adj x{sp_factor:.2f} ({detail})")
-        else:
-            # v9.15: short-sample fallback. Rookies, post-TJ returnees, openers
-            # often have <20 IP — bailing to ×1.00 silently leaks signal we
-            # actually have via Savant's descriptive metrics (xERA + xwOBA-
-            # against stabilize MUCH faster than ERA on small samples; whiff%
-            # percentile is forward-looking K-skill). Use these if available.
-            sp_qoc = savant.lookup_pitcher_qoc(opposing_sp_id, season) or None
-            sp_expected = savant.lookup_pitcher(opposing_sp_id, season) or None
-            pp = savant.lookup_pitcher_percentiles(opposing_sp_id, season)
-            xera = _safe_float((sp_expected or {}).get("xera")) if sp_expected else None
-            xwoba_a = _safe_float((sp_expected or {}).get("est_woba")) if sp_expected else None
-            whiff_part = 1.20 - (pp["whiff"] / 100.0) * 0.40 if pp and pp.get("whiff") is not None else 1.0
-            if xera or xwoba_a or (pp and pp.get("whiff") is not None):
-                # Tighter clamp than the season branch (±10% vs ±45%) — small-
-                # sample data is noisier so don't let it swing the projection.
-                xera_part = (xera / 4.20) if xera else 1.0
-                xwoba_part = (xwoba_a / 0.320) if xwoba_a else 1.0
-                sp_factor = xera_part * 0.40 + xwoba_part * 0.30 + whiff_part * 0.30
-                sp_factor = max(0.90, min(sp_factor, 1.10))
-                sp_factor_source = "savant_fallback"
-                detail_bits = []
-                if xera: detail_bits.append(f"xERA {xera:.2f}")
-                if xwoba_a: detail_bits.append(f"xwOBA-agst {xwoba_a:.3f}")
-                if pp and pp.get("whiff") is not None: detail_bits.append(f"whiff%-tile {pp['whiff']:.0f}")
-                detail_bits.append(f"only {int(ip)} IP — Savant fallback")
-                notes.append(f"opposing SP adj x{sp_factor:.2f} ({', '.join(detail_bits)})")
+    sp_factor, opposing_sp_stats, sp_factor_source, _sp_note = _opposing_sp_factor(opposing_sp_id, season, as_of)
+    if _sp_note:
+        notes.append(_sp_note)
+    if opposing_sp2_id:
+        _f2, _, _, _ = _opposing_sp_factor(opposing_sp2_id, season, as_of)
+        _blend = (sp_factor + _f2) / 2.0
+        notes.append(f"split DH: G2 opposing SP adj x{_f2:.2f} blended with G1 x{sp_factor:.2f} -> x{_blend:.2f}")
+        sp_factor = _blend
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
     brl = _safe_float((qoc or {}).get("brl_percent"))
@@ -1049,6 +1067,14 @@ def project_hitter(
     # Without this, scratched stars showed full projections in the pool —
     # misleading for users browsing rankings, and the "actual=0 vs proj=12"
     # contributed to MAE inflation in calibration when scratches happened.
+    # Split doubleheader: draft scoring sums the player's WHOLE day, so a
+    # one-game EV underprices every hitter on a 2-game slate. Regulars start
+    # both ends far more often than not; catchers rarely do.
+    if games_today > 1:
+        dh_mult = 1.20 if (position or "").upper() == "C" else 1.45
+        proj *= dh_mult
+        notes.append(f"split doubleheader ({games_today} games) x{dh_mult:.2f}")
+
     pending_start_share = None
     if lineup_status == "out":
         proj *= 0.05
@@ -2228,7 +2254,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-07-02-v9.48" # P(plays) pending-EV multiplier + market guards; xwOBA form built+shelved (A/B killed)
+MODEL_REV = "2026-07-22-v9.49" # split-DH fix: blend both opposing SPs (game2 was silently overwriting game1) + 2-game volume boost
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -2424,16 +2450,24 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         home_sp_name = (home.get("probablePitcher") or {}).get("fullName")
         away_sp_name = (away.get("probablePitcher") or {}).get("fullName")
         if home_team and away_team:
-            matchups[home_team] = {
-                "opp": away_team, "opp_sp": away_sp, "park": park,
-                "opp_abbr": away_abbr, "opp_sp_name": away_sp_name,
-                "is_home": True,
-            }
-            matchups[away_team] = {
-                "opp": home_team, "opp_sp": home_sp, "park": park,
-                "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
-                "is_home": False,
-            }
+            for tid, entry in (
+                (home_team, {"opp": away_team, "opp_sp": away_sp, "park": park,
+                             "opp_abbr": away_abbr, "opp_sp_name": away_sp_name,
+                             "is_home": True}),
+                (away_team, {"opp": home_team, "opp_sp": home_sp, "park": park,
+                             "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
+                             "is_home": False}),
+            ):
+                prev = matchups.get(tid)
+                if prev:
+                    # Doubleheader: keep game 1 (schedule is chronological) as
+                    # the primary matchup, record game 2's starter for blending.
+                    prev["games_today"] = prev.get("games_today", 1) + 1
+                    prev["opp_sp2"] = entry["opp_sp"]
+                    prev["opp_sp2_name"] = entry["opp_sp_name"]
+                else:
+                    entry["games_today"] = 1
+                    matchups[tid] = entry
         ump_k = ump_k_by_pk.get(g.get("gamePk"))
         if home_sp:
             probable_sps[home_sp] = {
@@ -2632,6 +2666,8 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             position=meta.get("position"),
             season=season,
             opposing_sp_id=opp_sp,
+            opposing_sp2_id=m.get("opp_sp2"),
+            games_today=m.get("games_today", 1),
             park=m.get("park"),
             batting_order=(lineups.get(pid) or {}).get("batting_order"),
             implied_team_total=team_totals.get(team_id) if team_id else None,
@@ -2639,7 +2675,8 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             bats=(handedness.get(pid) or {}).get("bats"),
             opp_throws=(handedness.get(opp_sp) or {}).get("throws") if opp_sp else None,
             opp_abbr=m.get("opp_abbr"),
-            opp_sp_name=m.get("opp_sp_name"),
+            opp_sp_name=(f"{m.get('opp_sp_name')} (G1) + {m.get('opp_sp2_name')} (G2)"
+                         if m.get("opp_sp2_name") else m.get("opp_sp_name")),
             is_home=m.get("is_home"),
             lineup_status=(lineups.get(pid) or {}).get("status"),
             tb_prop=tb_prop_by_name.get(_norm_pitcher_name(meta["name"])),
