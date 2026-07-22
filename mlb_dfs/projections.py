@@ -609,11 +609,6 @@ def project_hitter(
     sp_factor, opposing_sp_stats, sp_factor_source, _sp_note = _opposing_sp_factor(opposing_sp_id, season, as_of)
     if _sp_note:
         notes.append(_sp_note)
-    if opposing_sp2_id:
-        _f2, _, _, _ = _opposing_sp_factor(opposing_sp2_id, season, as_of)
-        _blend = (sp_factor + _f2) / 2.0
-        notes.append(f"split DH: G2 opposing SP adj x{_f2:.2f} blended with G1 x{sp_factor:.2f} -> x{_blend:.2f}")
-        sp_factor = _blend
 
     qoc = savant.lookup_batter_qoc(pid, season) or None
     brl = _safe_float((qoc or {}).get("brl_percent"))
@@ -1067,14 +1062,6 @@ def project_hitter(
     # Without this, scratched stars showed full projections in the pool —
     # misleading for users browsing rankings, and the "actual=0 vs proj=12"
     # contributed to MAE inflation in calibration when scratches happened.
-    # Split doubleheader: draft scoring sums the player's WHOLE day, so a
-    # one-game EV underprices every hitter on a 2-game slate. Regulars start
-    # both ends far more often than not; catchers rarely do.
-    if games_today > 1:
-        dh_mult = 1.20 if (position or "").upper() == "C" else 1.45
-        proj *= dh_mult
-        notes.append(f"split doubleheader ({games_today} games) x{dh_mult:.2f}")
-
     pending_start_share = None
     if lineup_status == "out":
         proj *= 0.05
@@ -2254,7 +2241,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-07-22-v9.49" # split-DH fix: blend both opposing SPs (game2 was silently overwriting game1) + 2-game volume boost
+MODEL_REV = "2026-07-22-v9.50" # DH rule: one game per pick — no blend/boost; first game priced unless slate selects nightcap
 
 
 def _proj_disk_path(key: tuple) -> str:
@@ -2485,14 +2472,11 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None,
                              "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
                              "is_home": False, "dh_label": dh_label}),
             ):
-                prev = matchups.get(tid)
-                if prev:
-                    # Doubleheader: keep game 1 (schedule is chronological) as
-                    # the primary matchup, record game 2's starter for blending.
-                    prev["games_today"] = prev.get("games_today", 1) + 1
-                    prev["opp_sp2"] = entry["opp_sp"]
-                    prev["opp_sp2_name"] = entry["opp_sp_name"]
-                else:
+                # League rule: a player is picked for exactly ONE game.
+                # On a doubleheader day the first game (schedule is
+                # chronological) is the matchup unless the slate's game_pks
+                # select the nightcap; the other game is never blended in.
+                if tid not in matchups:
                     entry["games_today"] = 1
                     matchups[tid] = entry
         ump_k = ump_k_by_pk.get(g.get("gamePk"))
@@ -2708,12 +2692,8 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None,
             bats=(handedness.get(pid) or {}).get("bats"),
             opp_throws=(handedness.get(opp_sp) or {}).get("throws") if opp_sp else None,
             opp_abbr=m.get("opp_abbr"),
-            opp_sp_name=(f"{m.get('opp_sp_name')} (G1) + {m.get('opp_sp2_name')} (G2)"
-                         if m.get("opp_sp2_name") else
-                         (f"{m.get('opp_sp_name')} ({m['dh_only_label']} only — nightcap doesn't score)"
-                          if m.get("dh_only_label") == "G1" else
-                          f"{m.get('opp_sp_name')} ({m['dh_only_label']} only — opener doesn't score)"
-                          if m.get("dh_only_label") else m.get("opp_sp_name"))),
+            opp_sp_name=(f"{m.get('opp_sp_name')} ({m['dh_only_label']} of DH — only this game counts)"
+                         if m.get("dh_only_label") else m.get("opp_sp_name")),
             is_home=m.get("is_home"),
             lineup_status=(lineups.get(pid) or {}).get("status"),
             tb_prop=tb_prop_by_name.get(_norm_pitcher_name(meta["name"])),
