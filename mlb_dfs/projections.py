@@ -2307,7 +2307,8 @@ def _schedule_sp_fingerprint(d: Date) -> str:
 
 
 def project_slate_cached(
-    d: Date, *, team_filter: set[int] | None = None, force_refresh: bool = False
+    d: Date, *, team_filter: set[int] | None = None, force_refresh: bool = False,
+    game_pks: list[int] | None = None,
 ) -> list["Projection"]:
     """Memoized per date (full slate). team_filter is applied downstream so
     projections-tab and draft-tab share one cache entry — first hit pays the
@@ -2318,7 +2319,16 @@ def project_slate_cached(
     probable starter (Matz announced 2h after our cache was built, e.g.),
     fingerprint flips and the cache is forced to recompute. Without this,
     the slate stays missing the new SP until the 6h TTL expires."""
-    key = (d.isoformat(), None)
+    if game_pks:
+        # A slate covering every game of the day is the same as no restriction —
+        # collapse to the shared cache entry so DH-free days stay one compute.
+        try:
+            _day_pks = {g.get("gamePk") for g in mlb_api.schedule(d)}
+            if _day_pks and set(game_pks) >= _day_pks:
+                game_pks = None
+        except Exception:
+            pass
+    key = (d.isoformat(), ",".join(map(str, sorted(game_pks))) if game_pks else None)
     now = time.time()
     full: list["Projection"] | None = None
     if not force_refresh:
@@ -2374,7 +2384,7 @@ def project_slate_cached(
             if cached is not None and (now - cached[0]) < _PROJ_TTL_SEC and not force_refresh:
                 full = cached[1]
             else:
-                full = project_slate(d, team_filter=None)
+                full = project_slate(d, team_filter=None, game_pks=game_pks)
                 fp = _schedule_sp_fingerprint(d)
                 _PROJ_CACHE[key] = (now, full)
                 _PROJ_CACHE_FP[key] = fp
@@ -2400,14 +2410,28 @@ def project_slate_cached(
     return full
 
 
-def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Projection]:
+def project_slate(d: Date, *, team_filter: set[int] | None = None,
+                  game_pks: list[int] | None = None) -> list[Projection]:
     """Project everyone playing today. Handles probable SPs + position players.
 
     If `team_filter` is provided, only project players from those team IDs (used
     when a draft is restricted to a subset of the day's games).
+    If `game_pks` is provided, price ONLY those games — on a split-doubleheader
+    day where the draft slate has just one of the two games, hitters get that
+    game's opposing SP (no blend), no 2-game volume boost, and the excluded
+    game's starter drops out of the SP pool entirely (his innings don't score).
     """
     season = d.year
     games = mlb_api.schedule(d)
+    all_team_games: dict[int, int] = {}
+    for g in games:
+        for _side in ("home", "away"):
+            _tid = (((g.get("teams") or {}).get(_side) or {}).get("team") or {}).get("id")
+            if _tid:
+                all_team_games[_tid] = all_team_games.get(_tid, 0) + 1
+    if game_pks:
+        _sel = set(game_pks)
+        games = [g for g in games if g.get("gamePk") in _sel]
 
     # Per-game HP umpire k_factor lookup (1.0 = neutral, >1 = wider zone /
     # more Ks). Backed by UmpScorecards; missing data falls back to neutral.
@@ -2449,14 +2473,17 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
         away_abbr = _TEAM_ABBR.get(away_team or 0, "")
         home_sp_name = (home.get("probablePitcher") or {}).get("fullName")
         away_sp_name = (away.get("probablePitcher") or {}).get("fullName")
+        dh_label = None
+        if (g.get("doubleHeader") or "N") in ("Y", "S") and g.get("gameNumber"):
+            dh_label = f"G{g.get('gameNumber')}"
         if home_team and away_team:
             for tid, entry in (
                 (home_team, {"opp": away_team, "opp_sp": away_sp, "park": park,
                              "opp_abbr": away_abbr, "opp_sp_name": away_sp_name,
-                             "is_home": True}),
+                             "is_home": True, "dh_label": dh_label}),
                 (away_team, {"opp": home_team, "opp_sp": home_sp, "park": park,
                              "opp_abbr": home_abbr, "opp_sp_name": home_sp_name,
-                             "is_home": False}),
+                             "is_home": False, "dh_label": dh_label}),
             ):
                 prev = matchups.get(tid)
                 if prev:
@@ -2633,6 +2660,12 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
                         "z": (v["mtb"] - mu) / sd,
                     }
 
+    # A team playing a doubleheader today but with only one game on this
+    # slate gets labeled (G1/G2) so the pool shows which game counts.
+    for _tid, _m in matchups.items():
+        if _m.get("dh_label") and all_team_games.get(_tid, 1) > _m.get("games_today", 1):
+            _m["dh_only_label"] = _m["dh_label"]
+
     # Bullpen quality: season bullpen ERA per team. ~30 API calls cached for the day.
     bullpen_era = _bullpen_era_by_team(season)
 
@@ -2676,7 +2709,11 @@ def project_slate(d: Date, *, team_filter: set[int] | None = None) -> list[Proje
             opp_throws=(handedness.get(opp_sp) or {}).get("throws") if opp_sp else None,
             opp_abbr=m.get("opp_abbr"),
             opp_sp_name=(f"{m.get('opp_sp_name')} (G1) + {m.get('opp_sp2_name')} (G2)"
-                         if m.get("opp_sp2_name") else m.get("opp_sp_name")),
+                         if m.get("opp_sp2_name") else
+                         (f"{m.get('opp_sp_name')} ({m['dh_only_label']} only — nightcap doesn't score)"
+                          if m.get("dh_only_label") == "G1" else
+                          f"{m.get('opp_sp_name')} ({m['dh_only_label']} only — opener doesn't score)"
+                          if m.get("dh_only_label") else m.get("opp_sp_name"))),
             is_home=m.get("is_home"),
             lineup_status=(lineups.get(pid) or {}).get("status"),
             tb_prop=tb_prop_by_name.get(_norm_pitcher_name(meta["name"])),

@@ -1542,7 +1542,7 @@ def make_pick(draft_id: str, req: PickRequest):
 
     team_filter = _team_filter_for(dr)
     projs = projections.project_slate_cached(
-        Date.fromisoformat(dr.date), team_filter=team_filter,
+        Date.fromisoformat(dr.date), team_filter=team_filter, game_pks=dr.game_pks,
     )
     # A two-way player (Ohtani) has two projections under one id — a hitter and
     # a pitcher row. Pick the one matching the requested slot's role so drafting
@@ -2157,7 +2157,7 @@ def replace_pick(draft_id: str, pick_number: int, req: ReplaceRequest):
         raise HTTPException(404, f"draft {draft_id} not found")
     team_filter = _team_filter_for(dr)
     projs = projections.project_slate_cached(
-        Date.fromisoformat(dr.date), team_filter=team_filter,
+        Date.fromisoformat(dr.date), team_filter=team_filter, game_pks=dr.game_pks,
     )
     # Resolve to the projection whose role matches the slot being replaced
     # (two-way players have a hitter and a pitcher row under one id).
@@ -2986,7 +2986,7 @@ def get_pool(draft_id: str):
         raise HTTPException(404, f"draft {draft_id} not found")
     team_filter = _team_filter_for(dr)
     projs = projections.project_slate_cached(
-        Date.fromisoformat(dr.date), team_filter=team_filter,
+        Date.fromisoformat(dr.date), team_filter=team_filter, game_pks=dr.game_pks,
     )
     picked = dr.picked_keys()  # role-aware: two-way players stay draftable in their other role
     on_clock = dr.on_the_clock()
@@ -3075,7 +3075,7 @@ def recommend(draft_id: str, top_n: int = 8):
         raise HTTPException(404, f"draft {draft_id} not found")
     team_filter = _team_filter_for(dr)
     projs = projections.project_slate_cached(
-        Date.fromisoformat(dr.date), team_filter=team_filter,
+        Date.fromisoformat(dr.date), team_filter=team_filter, game_pks=dr.game_pks,
     )
     recs = dr.recommend(projs, top_n=top_n)
     lineups = mlb_api.lineups_by_date(
@@ -3161,7 +3161,7 @@ def score(draft_id: str):
     # Pull live projections so the Proj column reflects the current model,
     # not the snapshot at draft time.
     try:
-        live_projs = projections.project_slate_cached(Date.fromisoformat(dr.date))
+        live_projs = projections.project_slate_cached(Date.fromisoformat(dr.date), game_pks=dr.game_pks)
         _live_by_id: dict[int, list] = {}
         for lp in live_projs:
             _live_by_id.setdefault(lp.player_id, []).append(lp)
