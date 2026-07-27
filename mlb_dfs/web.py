@@ -2977,8 +2977,36 @@ def delete_draft(draft_id: str):
     return {"ok": True, "deleted": draft_id}
 
 
+@app.post("/api/admin/pool_add")
+def manual_pool_add(payload: dict):
+    """Inject a just-activated player into a date's draft pool (IL-activation
+    lag: MLB's rosterType=active can trail the announcement by hours). Body:
+    {date, player_id, team_id, name, position}. Persists to the volume, then
+    busts that date's projection caches so the pool picks him up now."""
+    import os as _os, json as _json
+    for k in ("date", "player_id", "team_id", "name", "position"):
+        if not payload.get(k):
+            raise HTTPException(400, f"missing {k}")
+    path = _os.path.join(_os.path.dirname(_os.environ.get("MLB_DFS_DRAFT_DIR", "data/drafts")), "manual_pool_adds.json")
+    try:
+        data = _json.load(open(path))
+    except Exception:
+        data = {}
+    day = str(payload["date"])
+    entry = {"player_id": int(payload["player_id"]), "team_id": int(payload["team_id"]),
+             "name": str(payload["name"]), "position": str(payload["position"])}
+    lst = data.setdefault(day, [])
+    if not any(e.get("player_id") == entry["player_id"] for e in lst):
+        lst.append(entry)
+    _os.makedirs(_os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    _json.dump(data, open(tmp, "w"))
+    _os.replace(tmp, path)
+    return {"ok": True, "adds_for_date": lst}
+
+
 @app.get("/api/drafts/{draft_id}/pool")
-def get_pool(draft_id: str):
+def get_pool(draft_id: str, refresh: bool = False):
     """All draft-eligible players for this draft, undrafted, sorted by projection."""
     try:
         dr = draft_mod.load_draft(draft_id)
@@ -2987,6 +3015,7 @@ def get_pool(draft_id: str):
     team_filter = _team_filter_for(dr)
     projs = projections.project_slate_cached(
         Date.fromisoformat(dr.date), team_filter=team_filter, game_pks=dr.game_pks,
+        force_refresh=refresh,
     )
     picked = dr.picked_keys()  # role-aware: two-way players stay draftable in their other role
     on_clock = dr.on_the_clock()

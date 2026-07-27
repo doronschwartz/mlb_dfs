@@ -334,15 +334,19 @@ def _load_manual_pool_adds(d: Date) -> list[dict]:
     who've been activated off the IL but haven't propagated to MLB's
     rosterType=active yet (timing lag is hours-to-day)."""
     import json, os
-    path = os.path.join(os.path.dirname(__file__), "data", "manual_pool_adds.json")
-    if not os.path.exists(path):
-        return []
-    try:
-        with open(path) as f:
-            data = json.load(f)
-        return data.get(d.isoformat(), [])
-    except Exception:
-        return []
+    out: list[dict] = []
+    vol = os.path.join(os.path.dirname(os.environ.get("MLB_DFS_DRAFT_DIR", "data/drafts")), "manual_pool_adds.json")
+    pkg = os.path.join(os.path.dirname(__file__), "data", "manual_pool_adds.json")
+    for path in (vol, pkg):
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            out.extend(data.get(d.isoformat(), []))
+        except Exception:
+            pass
+    return out
 
 
 def players_in_slate(d: Date) -> dict[int, dict]:
