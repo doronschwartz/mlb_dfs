@@ -21,7 +21,7 @@ import os
 import time
 import unicodedata
 import urllib.request
-from datetime import date as Date
+from datetime import date as Date, timedelta
 
 DATA_DIR = os.environ.get(
     "MLB_DFS_DRAFT_DIR",
@@ -291,15 +291,28 @@ def mlb_trades(start: str, end: str) -> list[dict]:
     if now - _TX_CACHE["at"] < _TX_TTL and _TX_CACHE["trades"]:
         return _TX_CACHE["trades"]
     from .projections import _TEAM_ABBR
-    try:
-        d = json.load(urllib.request.urlopen(
-            f"https://statsapi.mlb.com/api/v1/transactions?startDate={start}&endDate={end}",
-            timeout=30))
-    except Exception as e:
-        logging.warning("transactions fetch failed: %s", e)
+    # MLB's API serves long date-range queries from a stale server-side
+    # cache — on 2026-08-02 the month-window query was missing the Skubal
+    # trade that the single-day query already had. Always re-fetch the last
+    # 3 days as a separate (fresh) query and merge by transaction id.
+    rows: dict = {}
+    recent_start = max(start, (Date.today() - timedelta(days=2)).isoformat())
+    windows = [(start, end)] + ([(recent_start, end)] if recent_start > start else [])
+    ok = False
+    for ws, we in windows:
+        try:
+            d = json.load(urllib.request.urlopen(
+                f"https://statsapi.mlb.com/api/v1/transactions?startDate={ws}&endDate={we}",
+                timeout=30))
+            ok = True
+            for t in d.get("transactions", []):
+                rows[t.get("id") or id(t)] = t
+        except Exception as e:
+            logging.warning("transactions fetch failed (%s..%s): %s", ws, we, e)
+    if not ok:
         return _TX_CACHE["trades"]
     out = []
-    for t in d.get("transactions", []):
+    for t in rows.values():
         if t.get("typeCode") != "TR":
             continue
         person = t.get("person") or {}
