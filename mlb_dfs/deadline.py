@@ -306,7 +306,9 @@ def mlb_trades(start: str, end: str) -> list[dict]:
                 timeout=30))
             ok = True
             for t in d.get("transactions", []):
-                rows[t.get("id") or id(t)] = t
+                # one transaction id per TRADE but one row per PERSON —
+                # dedupe on (trade, person) or multi-player deals lose bodies
+                rows[(t.get("id"), (t.get("person") or {}).get("id")) if t.get("id") else id(t)] = t
         except Exception as e:
             logging.warning("transactions fetch failed (%s..%s): %s", ws, we, e)
     if not ok:
