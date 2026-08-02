@@ -5050,6 +5050,16 @@ $("#dl-pos")?.addEventListener("change", () => dlPool.length && renderDeadlinePo
 $("#dl-team")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-award")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
 $("#dl-sort")?.addEventListener("change", () => dlPool.length && renderDeadlinePool());
+$("#dl-refresh-trades")?.addEventListener("click", async () => {
+  const st = $("#dl-trades-status");
+  st.textContent = "checking MLB transactions…";
+  try {
+    const r = await api("/api/deadline/refresh_trades", { method: "POST" });
+    const last = (r.latest || []).slice(-3).map((t) => `${t.name}→${t.to} ${t.date}`).join(", ");
+    st.textContent = `${r.trade_count} trades since draft opened.` + (last ? ` Latest: ${last}` : "");
+    await loadDeadline();
+  } catch (e) { st.textContent = "refresh failed: " + e.message; }
+});
 
 
 // ---------- Farm Report ----------

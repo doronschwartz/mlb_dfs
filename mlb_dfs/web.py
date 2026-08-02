@@ -3432,6 +3432,21 @@ class DeadlinePickRequest(BaseModel):
     predicted_team: str
 
 
+@app.post("/api/deadline/refresh_trades")
+def deadline_refresh_trades():
+    """Bust the 15-min MLB transactions cache and rescore now — the 'did that
+    trade really happen yet?' button for deadline week."""
+    from . import deadline
+    deadline._TX_CACHE["at"] = 0.0
+    dr = deadline.load_draft()
+    if not dr:
+        return {"ok": True, "trades": []}
+    trades = deadline.mlb_trades(dr["created"], dr["deadline"])
+    return {"ok": True, "checked_at_utc": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+            "trade_count": len(trades),
+            "latest": [{"name": t["person_name"], "to": t["to_abbr"], "date": t["date"]} for t in trades[-8:]]}
+
+
 @app.get("/api/deadline/candidates")
 def deadline_candidates():
     from . import deadline

@@ -1561,6 +1561,17 @@ def project_pitcher(
         notes.append(f"opener clamp: capping projection at 9.0 (was {proj:.1f})")
         proj = 9.0
 
+    # v9.51: total-inflation guard. Misiorowski 8/02 hit 53.6 off a 22.1
+    # per-start base — Vegas x1.22, rolling-K x1.08, K-prop +1.9 and HOT
+    # x1.35 all price the SAME "he's elite right now" signal, then the two
+    # de-compression notches (calibrated on the 8-20 range) extrapolate the
+    # pile-up linearly. No start's mean is 2.4x the pitcher's own demonstrated
+    # mean; cap the whole chain at 1.6x base. Ordering is preserved (a capped
+    # ace still tops the slate) — this only stops absurd tails.
+    if base > 0 and proj > base * 1.6:
+        notes.append(f"total-inflation guard: {proj:.1f} capped at 1.6x per-start base {base:.1f} (v9.51)")
+        proj = base * 1.6
+
     # Pitcher bands — EMPIRICAL QUANTILES (v9.42, upgrades v9.39 sigma). Same
     # skew story as hitters: real p90 ≈ +9.1 nearly flat (good starts cluster),
     # real p10 ≈ −(6.5+0.25·proj) (aces have the furthest to fall). Fits from
@@ -2241,7 +2252,7 @@ def _proj_lock(key: tuple) -> threading.Lock:
 # MODEL_REV are ignored and recomputed. This is the only reliable way to
 # avoid 'calibration says HOT bias is X' when the cache was written under
 # an older code version.
-MODEL_REV = "2026-07-22-v9.50" # DH rule: one game per pick — no blend/boost; first game priced unless slate selects nightcap
+MODEL_REV = "2026-08-02-v9.51" # pitcher total-inflation guard: final proj capped at 1.6x per-start base (Misiorowski 53.6 tail)
 
 
 def _proj_disk_path(key: tuple) -> str:
