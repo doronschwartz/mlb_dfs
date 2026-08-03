@@ -3432,6 +3432,31 @@ class DeadlinePickRequest(BaseModel):
     predicted_team: str
 
 
+@app.post("/api/admin/deadline_pick_id")
+def deadline_fix_pick_id(payload: dict):
+    """Repair a deadline pick's resolved player_id (early write-ins used the
+    buggy people/search?q= resolver — 'Robbie Ray' stored Freddie Freeman's
+    id). Re-verifies award flags for the corrected player."""
+    from . import deadline
+    name = payload.get("player_name"); pid = payload.get("player_id")
+    if not name or not pid:
+        raise HTTPException(400, "player_name and player_id required")
+    dr = deadline.load_draft()
+    if not dr:
+        raise HTTPException(404, "no deadline draft")
+    hit = None
+    for p in dr["picks"]:
+        if deadline.norm(p["player_name"]) == deadline.norm(str(name)):
+            p["player_id"] = int(pid)
+            has_as, has_t3 = deadline._lookup_flags(int(pid))
+            p["has_allstar"] = bool(has_as); p["has_top3_voting"] = bool(has_t3)
+            hit = p
+    if not hit:
+        raise HTTPException(404, f"no pick named {name}")
+    deadline.save_draft(dr)
+    return {"ok": True, "pick": {k: hit[k] for k in ("player_name", "player_id", "has_allstar", "has_top3_voting")}}
+
+
 @app.post("/api/deadline/refresh_trades")
 def deadline_refresh_trades():
     """Bust the 15-min MLB transactions cache and rescore now — the 'did that
