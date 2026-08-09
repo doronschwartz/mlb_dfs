@@ -3572,11 +3572,12 @@ def deadline_undo(req: DeadlinePickRequest):
 # -------------------- Farm Report --------------------
 
 @app.get("/api/farm/report")
-def farm_report(league_id: str, team_id: str):
-    """My minor-leaguers with live MiLB stats + cut/keep verdicts."""
+def farm_report(league_id: str, team_id: str, sort: str = "cut"):
+    """My minor-leaguers with live MiLB stats + cut/keep verdicts.
+    sort=perf ranks best performers first; sort=cut ranks cuttable first."""
     from . import farm
     try:
-        return {"players": farm.my_farm(league_id, team_id)}
+        return {"players": farm.my_farm(league_id, team_id, sort=sort)}
     except fantrax.FantraxAuthError as e:
         raise HTTPException(401, str(e))
 

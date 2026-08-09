@@ -157,13 +157,44 @@ def _verdict(lines: dict) -> tuple[str, str]:
 def _player_row(name: str) -> dict:
     pid = resolve_pid(name)
     lines = milb_lines(pid) if pid else {"bat": [], "arm": []}
+    for a in lines.get("arm", []):
+        a["ip_f"] = _f(a.get("ip"))
     verdict, reason = _verdict(lines)
     return {"name": name, "player_id": pid, "verdict": verdict, "reason": reason, **lines}
 
 
-def my_farm(league_id: str, team_id: str) -> list[dict]:
+def _perf_score(r: dict) -> float:
+    """A single 'how well is he playing' number for sorting best-first.
+    Bats: weighted OPS across levels. Arms: inverse FIP-lite (lower=better).
+    Verdict dominates so greens always outrank reds regardless of raw stats."""
+    tier = {"green": 2000, "yellow": 1000, "red": 0}.get(r.get("verdict"), 500)
+    if r.get("bat"):
+        pa = sum(b["pa"] for b in r["bat"]) or 1
+        ops = sum(b["ops"] * b["pa"] for b in r["bat"]) / pa
+        return tier + ops * 100
+    if r.get("arm"):
+        ip = sum(a["ip_f"] for a in r["arm"] if a.get("ip_f")) or 1
+        fip = sum(a["fip_lite"] * a.get("ip_f", 0) for a in r["arm"]) / ip
+        return tier + max(0, 60 - fip * 6)
+    return tier
+
+
+def _attach_rank(r: dict, rank_by_name: dict) -> dict:
+    hit = rank_by_name.get(norm(r["name"]))
+    if hit:
+        r["rank"] = hit.get("rank")
+        r["grade"] = hit.get("grade")
+        r["position"] = r.get("position") or hit.get("position")
+        r["team"] = r.get("team") or hit.get("team")
+    return r
+
+
+def my_farm(league_id: str, team_id: str, sort: str = "cut") -> list[dict]:
     """Roster players with 2026 MiLB activity (and roster players with NO
-    stats anywhere — the invisible stashes are the most cuttable of all)."""
+    stats anywhere — the invisible stashes are the most cuttable of all).
+    Each row is joined to the prospect rankings so you can see a guy's
+    overall prospect rank next to how he's actually performing.
+    sort='cut' → most-cuttable first (red top); sort='perf' → best first."""
     if not fantrax.is_authenticated():
         raise fantrax.FantraxAuthError(
             "Fantrax cookie expired — re-auth on the Fantrax tab, then reload")
@@ -198,8 +229,14 @@ def my_farm(league_id: str, team_id: str) -> list[dict]:
             has_mlb = any(s.get("splits") for s in (mlb or {}).get("stats", []))
             if not has_mlb:
                 out.append(r)
-    order = {"red": 0, "yellow": 1, "green": 2}
-    out.sort(key=lambda r: order.get(r["verdict"], 1))
+    rank_by_name = {norm(p["name"]): p for p in load_rankings().get("prospects", [])}
+    for r in out:
+        _attach_rank(r, rank_by_name)
+    if sort == "perf":
+        out.sort(key=_perf_score, reverse=True)  # best performers first
+    else:
+        cut = {"red": 0, "yellow": 1, "green": 2}
+        out.sort(key=lambda r: cut.get(r["verdict"], 1))  # most cuttable first
     return out
 
 

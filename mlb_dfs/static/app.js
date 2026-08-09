@@ -5099,8 +5099,8 @@ function farmLine(r) {
   return bits.join(" | ") || "no 2026 MiLB stats";
 }
 function farmTable(rows, withRank) {
-  return `<table><thead><tr>${withRank ? "<th>#</th>" : ""}<th>Player</th><th>Verdict</th><th>Why</th><th>2026 line</th></tr></thead><tbody>${
-    rows.map((r) => `<tr>${withRank ? `<td>${r.rank ?? ""}</td>` : ""}
+  return `<table><thead><tr>${withRank ? "<th>Rank</th>" : ""}<th>Player</th><th>Verdict</th><th>Why</th><th>2026 line</th></tr></thead><tbody>${
+    rows.map((r) => `<tr>${withRank ? `<td>${r.rank ? `#${r.rank}${r.grade ? ` <span class="muted">${r.grade}FV</span>` : ""}` : `<span class="muted">unranked</span>`}</td>` : ""}
       <td><b>${r.name}</b>${withRank ? ` <span class="muted">(${r.position || ""} ${r.team || ""})</span>` : ""}</td>
       <td>${farmBadge(r.verdict)}</td><td class="muted" style="font-size:12px;">${r.reason}</td>
       <td class="muted" style="font-size:11px;">${farmLine(r)}</td></tr>`).join("")}</tbody></table>`;
@@ -5116,11 +5116,12 @@ async function loadFarm() {
   if (team) localStorage.setItem("farm_team", team);
   $("#farm-status").textContent = "loading… (first load ~30s, cached after)";
   try {
+    const sort = $("#farm-sort")?.value || "cut";
     const [mine, targets] = await Promise.all([
-      api(`/api/farm/report?league_id=${encodeURIComponent(league)}&team_id=${encodeURIComponent(team)}`),
+      api(`/api/farm/report?league_id=${encodeURIComponent(league)}&team_id=${encodeURIComponent(team)}&sort=${sort}`),
       api(`/api/farm/targets?league_id=${encodeURIComponent(league)}`),
     ]);
-    $("#farm-mine").innerHTML = farmTable(mine.players || [], false);
+    $("#farm-mine").innerHTML = farmTable(mine.players || [], true);
     $("#farm-targets").innerHTML = farmTable(targets.targets || [], true);
     $("#farm-status").textContent = `rankings as of ${targets.as_of || "?"}`;
   } catch (e) {
@@ -5131,4 +5132,5 @@ async function loadFarm() {
   }
 }
 $("#farm-load")?.addEventListener("click", loadFarm);
+$("#farm-sort")?.addEventListener("change", () => window._farmLoaded && loadFarm());
 $("#farm-league")?.addEventListener("change", farmPopulateTeams);
