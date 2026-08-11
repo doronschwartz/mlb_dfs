@@ -5133,4 +5133,31 @@ async function loadFarm() {
 }
 $("#farm-load")?.addEventListener("click", loadFarm);
 $("#farm-sort")?.addEventListener("change", () => window._farmLoaded && loadFarm());
+
+async function loadGrinders() {
+  const ids = farmIds();
+  const league = ($("#farm-league")?.value || ids.league).trim();
+  const age = $("#grind-age")?.value || 27;
+  const fip = $("#grind-fip")?.value || 4.0;
+  const rp = $("#grind-rp")?.checked ? "&include_rp=true" : "";
+  $("#grind-status").textContent = "scanning AAA + MLB last 3 weeks…";
+  try {
+    const d = await api(`/api/farm/grinders?league_id=${encodeURIComponent(league)}&max_age=${age}&fip_max=${fip}${rp}`);
+    const g = d.grinders || [];
+    $("#grind-status").textContent = `${g.length} unowned producing arms`;
+    $("#farm-grinders").innerHTML = g.length ? `<table><thead><tr><th>Lvl</th><th>Age</th><th>Pitcher</th><th>Pedigree</th><th>FIP-lite</th><th>ERA</th><th>K%</th><th>K-BB%</th><th>GS</th></tr></thead><tbody>${
+      g.map((r) => `<tr class="${r.ranked ? "" : "hitter"}">
+        <td>${r.level}</td><td>${r.age}</td>
+        <td><b>${r.name}</b></td>
+        <td class="muted" style="font-size:11px;">${r.ranked ? "ranked" : "🔧 no fanfare"}</td>
+        <td><b>${r.fip_lite}</b></td><td class="muted">${r.era}</td>
+        <td>${r.k_pct}%</td><td>${r.kbb_pct}%</td><td>${r.gs}</td></tr>`).join("")}</tbody></table>`
+      : "<p class=muted>No producing unowned arms match — loosen the FIP or age filter.</p>";
+  } catch (e) {
+    $("#grind-status").textContent = e.message.includes("401")
+      ? "Fantrax cookie expired — re-auth on the Fantrax tab, then reload" : e.message;
+  }
+}
+$("#grind-load")?.addEventListener("click", loadGrinders);
+
 $("#farm-league")?.addEventListener("change", farmPopulateTeams);

@@ -295,3 +295,96 @@ def add_targets(league_id: str, limit: int = 25, scan: int = 120) -> list[dict]:
     order = {"green": 0, "yellow": 1}
     keep.sort(key=lambda r: (order.get(r["verdict"], 1), r.get("rank", 999)))
     return keep[:limit]
+
+
+# --- Grinders: performance-first, the inverse of the rankings view ---------
+# Unowned arms PRODUCING at AAA/MLB over a recent window, screened by age +
+# recency so it surfaces the "Ureña / Messick / pre-blowup Gabriel Hughes"
+# archetype — no prospect fanfare required, just current results. (Doron,
+# 2026-08-11: "no rankings no BS just grinders … look at last game.")
+def _pf(x, dv=99.0):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return dv
+
+
+def _pi(x):
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return 0
+
+
+def grinders(league_id: str, *, max_age: int = 27, fip_max: float = 4.00,
+             kbb_min: float = 12.0, min_gs: int = 2, min_ip: float = 12.0,
+             include_rp: bool = False, days: int = 21) -> list[dict]:
+    """Unowned pitchers producing over the last `days` at AAA (sportId 11) and
+    MLB (sportId 1). Gated on FIP-lite + K-BB, NOT ERA — ERA lies (a soft-
+    tosser like Coleman Crow ran a 1.52 ERA on a 4.54 FIP and cratered). The
+    recent window guarantees they're active (no stale-stat injury traps); age
+    caps to the young-grinder archetype; `ranked` flags prospect pedigree."""
+    from datetime import date as _Date, timedelta as _td
+    if not fantrax.is_authenticated():
+        raise fantrax.FantraxAuthError(
+            "Fantrax cookie expired — re-auth on the Fantrax tab, then reload")
+    owned = set()
+    for t in fantrax.list_teams(league_id):
+        r = fantrax.get_roster(league_id, t.get("team_id"))
+        for p in r.get("players", []):
+            if p.get("name"):
+                owned.add(norm(p["name"]))
+    if not owned:
+        raise fantrax.FantraxAuthError("Fantrax returned no rosters — re-auth and retry")
+    ranks = {norm(p["name"]) for p in load_rankings().get("prospects", [])}
+    end = _Date.today()
+    start = end - _td(days=days)
+    gs_floor = 0 if include_rp else min_gs
+    ip_floor = (min_ip / 2.0) if include_rp else min_ip
+    seen: dict[int, dict] = {}
+    for sid, label in ((11, "AAA"), (1, "MLB")):
+        url = (f"https://statsapi.mlb.com/api/v1/stats?stats=byDateRange&group=pitching"
+               f"&sportId={sid}&season={end.year}&startDate={start.isoformat()}"
+               f"&endDate={end.isoformat()}&limit=4000&playerPool=all")
+        data = _get(url) or {}
+        for s in data.get("stats", []):
+            for sp in s.get("splits", []):
+                st = sp.get("stat", {})
+                p = sp.get("player", {})
+                pid = p.get("id")
+                ip = _pf(st.get("inningsPitched"), 0.0)
+                tbf = _pi(st.get("battersFaced"))
+                if not pid or ip < ip_floor or tbf < 1:
+                    continue
+                k = _pi(st.get("strikeOuts"))
+                bb = _pi(st.get("baseOnBalls"))
+                hr = _pi(st.get("homeRuns"))
+                era = _pf(st.get("era"))
+                gs = _pi(st.get("gamesStarted"))
+                kbb = (k - bb) / tbf * 100
+                # FIP-lite is the peripheral truth ERA hides — gate on it.
+                fip = round((13 * hr + 3 * bb - 2 * k) / ip + 3.10, 2) if ip else 99.0
+                if fip >= fip_max or kbb < kbb_min or gs < gs_floor:
+                    continue
+                row = {"name": p.get("fullName"), "player_id": pid, "level": label,
+                       "ip": round(ip, 1), "era": round(era, 2), "fip_lite": fip,
+                       "k_pct": round(k / tbf * 100, 1), "kbb_pct": round(kbb, 1),
+                       "gs": gs, "ranked": norm(p.get("fullName") or "") in ranks}
+                # MLB line wins over AAA if a guy appears in both windows
+                if pid not in seen or label == "MLB":
+                    seen[pid] = row
+    cands = [r for r in seen.values() if norm(r["name"]) not in owned]
+
+    def add_age(r):
+        try:
+            d = _get(f"https://statsapi.mlb.com/api/v1/people/{r['player_id']}")
+            r["age"] = (d.get("people") or [{}])[0].get("currentAge")
+        except Exception:
+            r["age"] = None
+        return r
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        cands = list(ex.map(add_age, cands))
+    cands = [r for r in cands if r.get("age") is not None and r["age"] <= max_age]
+    # unranked grinders first (the archetype), then by FIP-lite, then K-BB
+    cands.sort(key=lambda r: (0 if not r["ranked"] else 1, r["fip_lite"], -r["kbb_pct"]))
+    return cands

@@ -315,6 +315,16 @@
       <div id="farm-mine"></div>
       <h3 style="margin-top:18px;">Add targets <span class="muted" style="font-weight:400;font-size:12px;">— ranked prospects nobody owns, best-performing first</span></h3>
       <div id="farm-targets"></div>
+
+      <h3 style="margin-top:22px;">🔧 Grinders <span class="muted" style="font-weight:400;font-size:12px;">— unowned arms PRODUCING at AAA/MLB right now (by FIP-lite, not ERA), no ranking required</span></h3>
+      <div class="setup-row" style="margin-bottom:8px;">
+        <button id="grind-load" class="btn-pick">Find grinders</button>
+        <label class="muted" style="font-size:12px;">max age <input id="grind-age" type="number" value="27" style="width:52px;" /></label>
+        <label class="muted" style="font-size:12px;">FIP-lite ≤ <input id="grind-fip" type="number" step="0.1" value="4.0" style="width:56px;" /></label>
+        <label class="muted" style="font-size:12px;"><input id="grind-rp" type="checkbox" /> include relievers</label>
+        <span id="grind-status" class="muted" style="font-size:12px;"></span>
+      </div>
+      <div id="farm-grinders"></div>
     </section>
 
     <section id="tab-insights" class="tab">

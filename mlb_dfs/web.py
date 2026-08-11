@@ -3638,6 +3638,22 @@ def farm_available_ranked(league_id: str, position: str | None = None, limit: in
     return {"available": out, "owned_count": len(owned), "owned_names": sorted(owned)}
 
 
+@app.get("/api/farm/grinders")
+def farm_grinders(league_id: str, max_age: int = 27, fip_max: float = 4.00,
+                  kbb_min: float = 12.0, include_rp: bool = False):
+    """Performance-first, the inverse of the rankings view: unowned pitchers
+    PRODUCING (by FIP-lite, not ERA) at AAA/MLB over the last 3 weeks —
+    grinders with no prospect fanfare. Screens age + recency; ERA-mirages
+    with bad peripherals (Coleman Crow) are filtered out by the FIP gate."""
+    from . import farm, fantrax
+    try:
+        return {"grinders": farm.grinders(league_id, max_age=max_age,
+                                           fip_max=fip_max, kbb_min=kbb_min,
+                                           include_rp=include_rp)}
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+
+
 # -------------------- helpers --------------------
 
 
