@@ -137,8 +137,12 @@ def _verdict(lines: dict) -> tuple[str, str]:
     if arms:
         ip = sum(_f(a["ip"]) for a in arms)
         kbb = sum(a["kbb_pct"] * _f(a["ip"]) for a in arms) / max(ip, 1)
-        fips = [a["fip_lite"] for a in arms if a["fip_lite"] is not None]
-        fip = sum(fips) / len(fips) if fips else None
+        # IP-weight FIP-lite too (was a simple average): a 1.2-IP cameo with a
+        # 43 ERA must not drag a 51-IP dominant level to red (the Wei-En Lin
+        # bug — AA 1.93 ERA / 26.6% K wrongly flagged cuttable).
+        fip_w = [(a["fip_lite"], _f(a["ip"])) for a in arms if a["fip_lite"] is not None]
+        fip = (sum(f * w for f, w in fip_w) / sum(w for _, w in fip_w)
+               if fip_w and sum(w for _, w in fip_w) > 0 else None)
         if ip < 15:
             return "yellow", f"small sample ({ip:.0f} IP — injured/rehabbing?)"
         top = min((a for a in arms if _f(a["ip"]) >= 15),
