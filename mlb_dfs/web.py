@@ -3583,13 +3583,14 @@ def farm_report(league_id: str, team_id: str, sort: str = "cut"):
 
 
 @app.get("/api/farm/targets")
-def farm_targets(league_id: str, limit: int = 25):
+def farm_targets(league_id: str, limit: int = 25, scan: int = 120):
     """Ranked prospects unowned in the league, with live MiLB stats —
-    who is highly ranked AND doing well."""
+    who is highly ranked AND doing well. `scan` = how deep into the ranking
+    to look (raise it to surface deeper sleepers, not just the top ~120)."""
     from . import farm
     try:
         return {"as_of": farm.load_rankings().get("as_of"),
-                "targets": farm.add_targets(league_id, limit=limit)}
+                "targets": farm.add_targets(league_id, limit=limit, scan=scan)}
     except fantrax.FantraxAuthError as e:
         raise HTTPException(401, str(e))
 
