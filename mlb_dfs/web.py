@@ -3635,7 +3635,7 @@ def farm_available_ranked(league_id: str, position: str | None = None, limit: in
         out.append(p)
         if len(out) >= limit:
             break
-    return {"available": out, "owned_count": len(owned)}
+    return {"available": out, "owned_count": len(owned), "owned_names": sorted(owned)}
 
 
 # -------------------- helpers --------------------
