@@ -3606,6 +3606,38 @@ def farm_rankings_upload(payload: dict):
     return {"ok": True, "count": n}
 
 
+@app.get("/api/farm/available_ranked")
+def farm_available_ranked(league_id: str, position: str | None = None, limit: int = 40):
+    """Ranked prospects UNOWNED in the league, by prospect rank — regardless of
+    current hot/cold form. Surfaces high-pedigree guys who are available because
+    they're having a quiet stretch (add_targets hides them; this doesn't).
+    Optional position filter (e.g. SP matches SP/RHP/LHP/P)."""
+    from . import farm, fantrax
+    try:
+        owned = set()
+        for t in fantrax.list_teams(league_id):
+            r = fantrax.get_roster(league_id, t["team_id"])
+            for p in r.get("players", []):
+                if p.get("name"):
+                    owned.add(farm.norm(p["name"]))
+    except fantrax.FantraxAuthError as e:
+        raise HTTPException(401, str(e))
+    pos_set = None
+    if position:
+        pu = position.upper()
+        pos_set = {"SP", "RHP", "LHP", "P"} if pu in ("SP", "P", "PITCHER") else {pu}
+    out = []
+    for p in farm.load_rankings().get("prospects", []):
+        if farm.norm(p.get("name", "")) in owned:
+            continue
+        if pos_set and (p.get("position") or "").upper() not in pos_set:
+            continue
+        out.append(p)
+        if len(out) >= limit:
+            break
+    return {"available": out, "owned_count": len(owned)}
+
+
 # -------------------- helpers --------------------
 
 
