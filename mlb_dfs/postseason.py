@@ -462,6 +462,10 @@ def parse_fangraphs(data) -> dict[str, dict]:
             return "pennant" if wins else "reach_lcs"   # win LCS = pennant
         if "lds" in lk or "divseries" in lk or "ds" == lk:
             return "reach_lcs" if wins else "reach_lds"
+        if "bye" in lk:
+            return "bye"
+        if "wc" in lk or "wildcard" in lk:
+            return "wc"          # win/make the WC round -> they played it
         if "poff" in lk or "playoff" in lk:
             return "playoffs"
         return None
@@ -494,6 +498,8 @@ def parse_fangraphs(data) -> dict[str, dict]:
             if k in entry:
                 entry[k] = min(entry[k], hi)
                 hi = entry[k]
+        if "bye" in entry:
+            entry["bye"] = min(entry["bye"], entry.get("playoffs", 1.0))
         if "ws_win" in entry:
             ladder[team] = entry
     if len(ladder) < 8:
@@ -529,8 +535,15 @@ def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
             # matchup-conditional from the strength solve (even matchup -> long
             # series, mismatch -> short), falling back to neutral constants.
             cl = tm.get("cond_len") or {}
+            # P(play the WC round): FanGraphs' clinch-bye prob when present
+            # (a current #2 seed can still slip to 3 and play it); otherwise
+            # today's seeding decides. 8 of the 12 playoff teams play it.
+            if "bye" in L:
+                p_wc = 1.0 - cond(L["bye"])
+            else:
+                p_wc = 0.0 if bye else 1.0
             by_round = {
-                "wc": 0.0 if bye else cl.get("wc", _E_LEN["wc"]),
+                "wc": p_wc * cl.get("wc", _E_LEN["wc"]),
                 "lds": rl * cl.get("lds", _E_LEN["lds"]),
                 "lcs": rc * cl.get("lcs", _E_LEN["lcs"]),
                 "ws": pn * cl.get("ws", _E_LEN["ws"]),
