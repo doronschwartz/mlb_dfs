@@ -5375,9 +5375,7 @@ async function renderOctModel(el) {
       <span id="oct-odds-status" class="muted" style="font-size:12px;"></span>
       <span class="muted" style="font-size:12px;">${
         m.mode === "pythag" ? "· no odds saved — using Pythagorean run-differential ratings"
-        : m.mode === "fangraphs-ladder" ? "· using FanGraphs full advancement ladder (make LDS/LCS/WS per round) — finest mode"
-        : m.mode === "fangraphs" ? "· strengths calibrated to imported FanGraphs model odds"
-        : "· strengths calibrated to saved market odds"}</span>
+        : `· ensemble mode: ${m.mode}` + (m.mode.includes("ladder") ? " (FG per-round chain blended in, zero-sum enforced)" : "")}</span>
     </div>
     <details style="margin:6px 0;">
       <summary class="muted" style="font-size:12px;cursor:pointer;">📈 Import FanGraphs playoff odds (best model numbers — paste required, Cloudflare blocks our server)</summary>

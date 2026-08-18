@@ -511,49 +511,74 @@ def parse_fangraphs(data) -> dict[str, dict]:
 _E_LEN = {"wc": 2.55, "lds": 4.15, "lcs": 5.8, "ws": 5.8}
 
 
+def _geo_blend(a: float, b: float, wa: float = 0.6) -> float:
+    """Weighted geometric mean of two probabilities (a = FG, b = model)."""
+    a, b = max(a, 1e-4), max(b, 1e-4)
+    return math.exp(wa * math.log(a) + (1 - wa) * math.log(b))
+
+
 def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
     """Refine per-team reach probs + expected games with FanGraphs' full
     advancement ladder (make LDS / make LCS / make WS / win WS), conditioned
     on making the playoffs so August qualification odds don't dilute the
-    bracket. Returns how many teams were refined."""
+    bracket. FG values are BLENDED with the solver's own chain (0.6/0.4
+    geometric), then rescaled to the bracket's ZERO-SUM invariants — one team
+    advancing IS its opponent losing, so per league exactly 4 teams play the
+    WC round, 4 reach the LDS, 2 reach the LCS, 1 wins the pennant, and one
+    of 12 wins the WS. Returns how many teams had FG data."""
     n = 0
+    # phase 1: blended chain per team (solver values fill FG gaps so the
+    # conservation sums below stay meaningful)
+    chain: dict[str, dict] = {}
     for lg_ in ("AL", "NL"):
         for t in field[lg_]:
             ab = t["abbrev"]
-            L = ladder.get(ab)
-            if not L or len({"reach_lds", "reach_lcs", "pennant"} & set(L)) < 2:
-                continue
+            L = ladder.get(ab) or {}
             pp = L.get("playoffs", 0.0)
             cond = (lambda v: min(1.0, v / pp)) if pp > 0.02 else (lambda v: v)
             tm = teams[ab]
             bye = tm["seed"] <= 2
-            rl = cond(L["reach_lds"]) if "reach_lds" in L else (1.0 if bye else tm["p_reach_lds"])
-            rc = cond(L["reach_lcs"]) if "reach_lcs" in L else tm["p_reach_lcs"]
-            pn = cond(L["pennant"]) if "pennant" in L else tm["p_pennant"]
-            ww = cond(L["ws_win"])
-            # FG reach probs weight the rounds; series LENGTH per round stays
-            # matchup-conditional from the strength solve (even matchup -> long
-            # series, mismatch -> short), falling back to neutral constants.
-            cl = tm.get("cond_len") or {}
-            # P(play the WC round): FanGraphs' clinch-bye prob when present
-            # (a current #2 seed can still slip to 3 and play it); otherwise
-            # today's seeding decides. 8 of the 12 playoff teams play it.
-            if "bye" in L:
-                p_wc = 1.0 - cond(L["bye"])
-            else:
-                p_wc = 0.0 if bye else 1.0
-            by_round = {
-                "wc": p_wc * cl.get("wc", _E_LEN["wc"]),
-                "lds": rl * cl.get("lds", _E_LEN["lds"]),
-                "lcs": rc * cl.get("lcs", _E_LEN["lcs"]),
-                "ws": pn * cl.get("ws", _E_LEN["ws"]),
+            refined = len({"reach_lds", "reach_lcs", "pennant"} & set(L)) >= 2
+            chain[ab] = {
+                "wc": (1.0 - cond(L["bye"])) if "bye" in L else (0.0 if bye else 1.0),
+                "rl": _geo_blend(cond(L["reach_lds"]), tm["p_reach_lds"]) if "reach_lds" in L else (1.0 if bye else tm["p_reach_lds"]),
+                "rc": _geo_blend(cond(L["reach_lcs"]), tm["p_reach_lcs"]) if "reach_lcs" in L else tm["p_reach_lcs"],
+                "pn": _geo_blend(cond(L["pennant"]), tm["p_pennant"]) if "pennant" in L else tm["p_pennant"],
+                "ww": _geo_blend(cond(L["ws_win"]), tm["p_ws"]) if "ws_win" in L else tm["p_ws"],
             }
-            exp = sum(by_round.values())
-            tm.update({"p_reach_lds": round(rl, 4), "p_reach_lcs": round(rc, 4),
-                       "p_pennant": round(pn, 4), "p_ws": round(ww, 4),
-                       "exp_games": round(exp, 2),
-                       "exp_by_round": {r: round(v, 2) for r, v in by_round.items() if v > 1e-4}})
-            n += 1
+            n += refined
+    # phase 2: enforce the zero-sum totals per league, then WS globally
+    for lg_ in ("AL", "NL"):
+        abs_ = [t["abbrev"] for t in field[lg_]]
+        for key, total in (("wc", 4.0), ("rl", 4.0), ("rc", 2.0), ("pn", 1.0)):
+            s = sum(chain[ab][key] for ab in abs_)
+            if s > 1e-6:
+                for ab in abs_:
+                    chain[ab][key] = min(1.0, chain[ab][key] * total / s)
+    s = sum(c["ww"] for c in chain.values())
+    if s > 1e-6:
+        for c in chain.values():
+            c["ww"] = min(1.0, c["ww"] / s)
+    # phase 3: expected games from the conserved chain; series LENGTH per
+    # round stays matchup-conditional from the strength solve
+    for ab, c in chain.items():
+        tm = teams[ab]
+        rl = c["rl"]
+        rc = min(c["rc"], rl)   # re-clip monotone after rescaling
+        pn = min(c["pn"], rc)
+        ww = min(c["ww"], pn)
+        cl = tm.get("cond_len") or {}
+        by_round = {
+            "wc": c["wc"] * cl.get("wc", _E_LEN["wc"]),
+            "lds": rl * cl.get("lds", _E_LEN["lds"]),
+            "lcs": rc * cl.get("lcs", _E_LEN["lcs"]),
+            "ws": pn * cl.get("ws", _E_LEN["ws"]),
+        }
+        exp = sum(by_round.values())
+        tm.update({"p_reach_lds": round(rl, 4), "p_reach_lcs": round(rc, 4),
+                   "p_pennant": round(pn, 4), "p_ws": round(ww, 4),
+                   "exp_games": round(exp, 2),
+                   "exp_by_round": {r: round(v, 2) for r, v in by_round.items() if v > 1e-4}})
     return n
 
 
@@ -567,30 +592,39 @@ def advancement_model(season: int, odds: dict, ws_probs: dict | None = None,
            tuple(sorted((ws_probs or {}).items())),
            tuple(sorted((k, tuple(sorted(v.items()))) for k, v in (fg_ladder or {}).items())))
 
+    # Ensemble weights when a source is available — market futures and the
+    # FanGraphs model split the signal, Pythagorean anchors against odd lines.
+    _W = {"fangraphs": 0.4, "market": 0.4, "pythag": 0.2}
+
     def build():
         field = playoff_field(season)
         abbrevs = [t["abbrev"] for lg in ("AL", "NL") for t in field[lg]]
+        # every available source produces a WS-prob vector over the field
+        sources: dict[str, dict] = {}
+        pyth_r = pythag_strengths(field)
+        sources["pythag"] = {ab: t["p_ws"] for ab, t in solve_bracket(field, pyth_r).items()}
+        if odds:
+            sources["market"] = implied_ws_probs(odds, abbrevs)
         if ws_probs:
             in_field = {ab: ws_probs[ab] for ab in abbrevs if ab in ws_probs}
             med = sorted(in_field.values())[len(in_field) // 2] if in_field else 1.0
-            full = {ab: ws_probs.get(ab, med) for ab in abbrevs}
-            z = sum(full.values()) or 1.0
-            target = {ab: p / z for ab, p in full.items()}
-            strengths = calibrate_strengths(field, target)
-            mode = "fangraphs"
-        elif odds:
-            target = implied_ws_probs(odds, abbrevs)
-            strengths = calibrate_strengths(field, target)
-            mode = "market"
-        else:
-            target = {}
-            strengths = pythag_strengths(field)
+            sources["fangraphs"] = {ab: ws_probs.get(ab, med) for ab in abbrevs}
+        wsum = sum(_W[k] for k in sources)
+        target = {ab: math.exp(sum(_W[k] / wsum * math.log(max(sources[k].get(ab, 1e-4), 1e-4))
+                                   for k in sources)) for ab in abbrevs}
+        z = sum(target.values()) or 1.0
+        target = {ab: p / z for ab, p in target.items()}
+        if len(sources) == 1:
+            strengths = pyth_r
             mode = "pythag"
+        else:
+            strengths = calibrate_strengths(field, target)
+            mode = "blend(" + "+".join(sorted(sources)) + ")"
         teams = solve_bracket(field, strengths)
         if fg_ladder:
             refined = _apply_fg_ladder(teams, field, fg_ladder)
             if refined >= 8:
-                mode = "fangraphs-ladder"
+                mode += "+ladder"
         for lg in ("AL", "NL"):
             for t in field[lg]:
                 teams[t["abbrev"]].update({
