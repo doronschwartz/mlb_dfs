@@ -5391,13 +5391,15 @@ async function renderOctModel(el) {
     </details>
     <table style="font-size:12px;max-width:860px;">
       <tr><th style="text-align:left;">Team</th><th>Seed</th><th>Record</th><th>WS odds</th><th>Market WS%</th><th>Model WS%</th>
-      <th>Pennant%</th><th>Reach LCS%</th><th title="Expected postseason games — multiplies every player's per-game rates">Exp games</th></tr>
+      <th>Pennant%</th><th>Reach LCS%</th>
+      <th title="Probability-weighted AVERAGE games across all outcomes — a favorite still has ~40% chance of a 3-5 game LDS exit, which drags this well below a full run. This is the right number for pricing draft value.">Exp games</th>
+      <th title="Games in a title run (bye teams skip the 2-3 game WC round)">If champs</th></tr>
       ${rows.map(([ab, t]) => `<tr>
         <td style="text-align:left;"><b>${ab}</b> <span class="muted">${escapeAttr(t.name || "")}</span></td>
         <td>${t.league} ${t.seed}</td><td>${t.record || ""}</td>
         <td><input class="oct-odds" data-team="${ab}" value="${t.odds ?? ""}" style="width:64px;" placeholder="+650" /></td>
         <td>${fmtPct(t.market_ws)}</td><td>${fmtPct(t.p_ws)}</td><td>${fmtPct(t.p_pennant)}</td>
-        <td>${fmtPct(t.p_reach_lcs)}</td><td><b>${t.exp_games}</b></td>
+        <td>${fmtPct(t.p_reach_lcs)}</td><td><b>${t.exp_games}</b></td><td class="muted">~${t.ws_run_games}</td>
       </tr>`).join("")}
     </table>
     <div class="muted" style="font-size:11px;margin-top:6px;">
