@@ -1,0 +1,751 @@
+{
+ "season": 2025,
+ "managers": [
+  "Eli S",
+  "Stock",
+  "Meech",
+  "JL",
+  "Mendel S",
+  "Josh Kass",
+  "Benjamin",
+  "Mitch"
+ ],
+ "picks": [
+  {
+   "manager": "Eli S",
+   "slot": "C",
+   "name": "William Contreras"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "1B",
+   "name": "Ryan O'Hearn"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "2B",
+   "name": "Nico Hoerner"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "3B",
+   "name": "Ryan McMahon"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "SS",
+   "name": "Trea Turner"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "C+IF",
+   "name": "Bo Bichette"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "OF",
+   "name": "Aaron Judge"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "OF",
+   "name": "Pete Crow-Armstrong"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "OF",
+   "name": "Sal Frelick"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "OF",
+   "name": "Myles Straw"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "UT",
+   "name": "Anthony Volpe"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "UT",
+   "name": "Kerry Carpenter"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "SP",
+   "name": "Cristopher Sanchez"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "SP",
+   "name": "Yoshinobu Yamamoto"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "SP",
+   "name": "Brayan Bello"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "P",
+   "name": "Matthew Boyd"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "RP",
+   "name": "Jhoan Duran"
+  },
+  {
+   "manager": "Eli S",
+   "slot": "RP",
+   "name": "Anthony Banda"
+  },
+  {
+   "manager": "Stock",
+   "slot": "C",
+   "name": "Carlos Narvaez"
+  },
+  {
+   "manager": "Stock",
+   "slot": "1B",
+   "name": "Bryce Harper"
+  },
+  {
+   "manager": "Stock",
+   "slot": "2B",
+   "name": "Bryson Stott"
+  },
+  {
+   "manager": "Stock",
+   "slot": "3B",
+   "name": "Max Muncy"
+  },
+  {
+   "manager": "Stock",
+   "slot": "SS",
+   "name": "Jose Caballero"
+  },
+  {
+   "manager": "Stock",
+   "slot": "C+IF",
+   "name": "Josh Naylor"
+  },
+  {
+   "manager": "Stock",
+   "slot": "OF",
+   "name": "Cody Bellinger"
+  },
+  {
+   "manager": "Stock",
+   "slot": "OF",
+   "name": "Randy Arozarena"
+  },
+  {
+   "manager": "Stock",
+   "slot": "OF",
+   "name": "Addison Barger"
+  },
+  {
+   "manager": "Stock",
+   "slot": "OF",
+   "name": "TJ Friedl"
+  },
+  {
+   "manager": "Stock",
+   "slot": "UT",
+   "name": "Shohei Ohtani"
+  },
+  {
+   "manager": "Stock",
+   "slot": "UT",
+   "name": "Romy Gonzalez"
+  },
+  {
+   "manager": "Stock",
+   "slot": "SP",
+   "name": "Freddy Peralta"
+  },
+  {
+   "manager": "Stock",
+   "slot": "SP",
+   "name": "Ranger Suarez"
+  },
+  {
+   "manager": "Stock",
+   "slot": "SP",
+   "name": "Shane Bieber"
+  },
+  {
+   "manager": "Stock",
+   "slot": "P",
+   "name": "Michael King"
+  },
+  {
+   "manager": "Stock",
+   "slot": "RP",
+   "name": "David Bednar"
+  },
+  {
+   "manager": "Stock",
+   "slot": "RP",
+   "name": "Kyle Finnegan"
+  },
+  {
+   "manager": "Meech",
+   "slot": "C",
+   "name": "JT Realmuto"
+  },
+  {
+   "manager": "Meech",
+   "slot": "1B",
+   "name": "Michael Busch"
+  },
+  {
+   "manager": "Meech",
+   "slot": "2B",
+   "name": "Jorge Polanco"
+  },
+  {
+   "manager": "Meech",
+   "slot": "3B",
+   "name": "Jose Ramirez"
+  },
+  {
+   "manager": "Meech",
+   "slot": "SS",
+   "name": "Xander Bogaerts"
+  },
+  {
+   "manager": "Meech",
+   "slot": "C+IF",
+   "name": "Gavin Sheets"
+  },
+  {
+   "manager": "Meech",
+   "slot": "OF",
+   "name": "Fernando Tatis Jr."
+  },
+  {
+   "manager": "Meech",
+   "slot": "OF",
+   "name": "Seiya Suzuki"
+  },
+  {
+   "manager": "Meech",
+   "slot": "OF",
+   "name": "Anthony Santander"
+  },
+  {
+   "manager": "Meech",
+   "slot": "OF",
+   "name": "Isaac Collins"
+  },
+  {
+   "manager": "Meech",
+   "slot": "UT",
+   "name": "Max Kepler"
+  },
+  {
+   "manager": "Meech",
+   "slot": "UT",
+   "name": "Spencer Steer"
+  },
+  {
+   "manager": "Meech",
+   "slot": "SP",
+   "name": "George Kirby"
+  },
+  {
+   "manager": "Meech",
+   "slot": "SP",
+   "name": "Blake Snell"
+  },
+  {
+   "manager": "Meech",
+   "slot": "SP",
+   "name": "Nick Pivetta"
+  },
+  {
+   "manager": "Meech",
+   "slot": "P",
+   "name": "Trey Yesavage"
+  },
+  {
+   "manager": "Meech",
+   "slot": "RP",
+   "name": "Mason Miller"
+  },
+  {
+   "manager": "Meech",
+   "slot": "RP",
+   "name": "Matt Brash"
+  },
+  {
+   "manager": "JL",
+   "slot": "C",
+   "name": "Alejandro Kirk"
+  },
+  {
+   "manager": "JL",
+   "slot": "1B",
+   "name": "Ben Rice"
+  },
+  {
+   "manager": "JL",
+   "slot": "2B",
+   "name": "Jazz Chisholm Jr."
+  },
+  {
+   "manager": "JL",
+   "slot": "3B",
+   "name": "Matt Shaw"
+  },
+  {
+   "manager": "JL",
+   "slot": "SS",
+   "name": "Trevor Story"
+  },
+  {
+   "manager": "JL",
+   "slot": "C+IF",
+   "name": "Ernie Clement"
+  },
+  {
+   "manager": "JL",
+   "slot": "OF",
+   "name": "George Springer"
+  },
+  {
+   "manager": "JL",
+   "slot": "OF",
+   "name": "Giancarlo Stanton"
+  },
+  {
+   "manager": "JL",
+   "slot": "OF",
+   "name": "Harrison Bader"
+  },
+  {
+   "manager": "JL",
+   "slot": "OF",
+   "name": "Rob Refsnyder"
+  },
+  {
+   "manager": "JL",
+   "slot": "UT",
+   "name": "Christian Yelich"
+  },
+  {
+   "manager": "JL",
+   "slot": "UT",
+   "name": "Joey Ortiz"
+  },
+  {
+   "manager": "JL",
+   "slot": "SP",
+   "name": "Max Fried"
+  },
+  {
+   "manager": "JL",
+   "slot": "SP",
+   "name": "Hunter Greene"
+  },
+  {
+   "manager": "JL",
+   "slot": "SP",
+   "name": "Quinn Priester"
+  },
+  {
+   "manager": "JL",
+   "slot": "P",
+   "name": "Cam Schlittler"
+  },
+  {
+   "manager": "JL",
+   "slot": "RP",
+   "name": "Andres Munoz"
+  },
+  {
+   "manager": "JL",
+   "slot": "RP",
+   "name": "Abner Uribe"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "C",
+   "name": "Cal Raleigh"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "1B",
+   "name": "Andrew Vaughn"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "2B",
+   "name": "Brice Turang"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "3B",
+   "name": "Manny Machado"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "SS",
+   "name": "Mookie Betts"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "C+IF",
+   "name": "Kyle Manzardo"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "OF",
+   "name": "Andy Pages"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "OF",
+   "name": "Trent Grisham"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "OF",
+   "name": "Ian Happ"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "OF",
+   "name": "Wilyer Abreu"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "UT",
+   "name": "Luis Arraez"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "UT",
+   "name": "Dominic Canzone"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "SP",
+   "name": "Tyler Glasnow"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "SP",
+   "name": "Shohei Ohtani (P)"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "SP",
+   "name": "Luis Castillo"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "P",
+   "name": "Jesus Luzardo"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "RP",
+   "name": "Cade Smith"
+  },
+  {
+   "manager": "Mendel S",
+   "slot": "RP",
+   "name": "Roki Sasaki"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "C",
+   "name": "Austin Wells"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "1B",
+   "name": "Vladimir Guerrero Jr."
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "2B",
+   "name": "Gleyber Torres"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "3B",
+   "name": "Caleb Durbin"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "SS",
+   "name": "Elly De La Cruz"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "C+IF",
+   "name": "Paul Goldschmidt"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "OF",
+   "name": "Julio Rodriguez"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "OF",
+   "name": "Jackson Chourio"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "OF",
+   "name": "Jarren Duran"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "OF",
+   "name": "Tommy Edman"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "UT",
+   "name": "Noelvi Marte"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "UT",
+   "name": "Michael Conforto"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "SP",
+   "name": "Garrett Crochet"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "SP",
+   "name": "Bryan Woo"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "SP",
+   "name": "Kevin Gausman"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "P",
+   "name": "Brandon Woodruff"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "RP",
+   "name": "Tanner Scott"
+  },
+  {
+   "manager": "Josh Kass",
+   "slot": "RP",
+   "name": "Jeff Hoffman"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "C",
+   "name": "Dillon Dingler"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "1B",
+   "name": "Freddie Freeman"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "2B",
+   "name": "Matt McLain"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "3B",
+   "name": "Eugenio Suarez"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "SS",
+   "name": "JP Crawford"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "C+IF",
+   "name": "Alec Bohm"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "OF",
+   "name": "Nick Castellanos"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "OF",
+   "name": "Steven Kwan"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "OF",
+   "name": "Daulton Varsho"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "OF",
+   "name": "Wenceel Perez"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "UT",
+   "name": "Kyle Schwarber"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "UT",
+   "name": "George Valera"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "SP",
+   "name": "Gavin Williams"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "SP",
+   "name": "Carlos Rodon"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "SP",
+   "name": "Shota Imanaga"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "P",
+   "name": "Trevor Megill"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "RP",
+   "name": "Aroldis Chapman"
+  },
+  {
+   "manager": "Benjamin",
+   "slot": "RP",
+   "name": "Emilio Pagan"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "C",
+   "name": "Will Smith"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "1B",
+   "name": "Spencer Torkelson"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "2B",
+   "name": "Ceddanne Rafaela"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "3B",
+   "name": "Alex Bregman"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "SS",
+   "name": "Dansby Swanson"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "C+IF",
+   "name": "Ke'Bryan Hayes"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "OF",
+   "name": "Kyle Tucker"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "OF",
+   "name": "Jackson Merrill"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "OF",
+   "name": "Riley Greene"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "OF",
+   "name": "Teoscar Hernandez"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "UT",
+   "name": "Nathan Lukes"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "UT",
+   "name": "Jake Cronenworth"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "SP",
+   "name": "Tarik Skubal"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "SP",
+   "name": "Logan Gilbert"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "SP",
+   "name": "Tanner Bibee"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "P",
+   "name": "Andrew Abbott"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "RP",
+   "name": "Robert Suarez"
+  },
+  {
+   "manager": "Mitch",
+   "slot": "RP",
+   "name": "Will Vest"
+  }
+ ],
+ "mvp_awards": {
+  "NLCS": "Shohei Ohtani",
+  "ALCS": "Vladimir Guerrero Jr.",
+  "WS": "Yoshinobu Yamamoto"
+ },
+ "sheet_standings": {
+  "Josh Kass": 57,
+  "Stock": 53,
+  "Eli S": 51.5,
+  "Mitch": 47,
+  "JL": 46.5,
+  "Mendel S": 46,
+  "Meech": 44,
+  "Benjamin": 25
+ },
+ "source": "2025 Fantasy Postseason MLB.xlsx"
+}

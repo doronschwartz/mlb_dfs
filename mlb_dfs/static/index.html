@@ -21,6 +21,7 @@
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
       <button data-tab="deadline">🔁 Deadline</button>
+      <button data-tab="october">🎃 October</button>
       <button data-tab="farm">🌱 Farm</button>
       <button data-tab="ask">🎯 Ask Algo</button>
       <button data-tab="hof">🏆 Hall of Fame</button>
@@ -301,6 +302,31 @@
       <div id="dl-pool"></div>
     </section>
 
+
+    <section id="tab-october" class="tab">
+      <h2>Postseason Fantasy</h2>
+      <p class="muted" style="font-size:13px;max-width:780px;">
+        The October league: snake-draft playoff-team players into fixed roster slots
+        (C · 1B · 2B · 3B · SS · C+IF · 4×OF · 2×UT · 3×SP · P · 2×RP), then real playoff stats
+        accumulate <b>over the whole postseason</b> into roto standings — rank in each of the 10
+        categories (AVG R HR RBI SB · ERA WHIP K QS SV+H) pays N…1 points, ties split.
+        MVP bonuses: NLCS/ALCS <b>+2</b>, WS <b>+4</b> to every owner.
+        The draft board prices <b>expected playing time</b>: WS futures odds → calibrated bracket model
+        → expected games per team → each player's expected PA/IP.
+      </p>
+      <div id="oct-setup" class="setup-row" style="display:none;">
+        <input id="oct-managers" placeholder="Manager names, comma-separated (any number, 2+)" style="width:360px;" />
+        <button id="oct-create" class="btn-pick">Create league (random snake order)</button>
+      </div>
+      <div class="setup-row">
+        <button class="oct-sub btn-pick" data-view="board">Draft board</button>
+        <button class="oct-sub" data-view="rosters">Rosters</button>
+        <button class="oct-sub" data-view="standings">Standings</button>
+        <button class="oct-sub" data-view="model">Odds model</button>
+        <span id="oct-status" class="muted" style="font-size:12px;"></span>
+      </div>
+      <div id="oct-main"></div>
+    </section>
 
     <section id="tab-farm" class="tab">
       <h2>Farm Report</h2>

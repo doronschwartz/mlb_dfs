@@ -39,7 +39,7 @@ PUBLIC_MODE = os.environ.get("PUBLIC_MODE", "").lower() in ("1", "true", "yes")
 # Path prefixes that are private (league tool) — 404'd in PUBLIC_MODE.
 _PRIVATE_PREFIXES = ("/api/drafts", "/api/fantrax", "/api/trivia", "/api/lineup",
                      "/api/dynasty/pickups", "/api/records", "/api/lineups",
-                     "/api/schedule", "/api/diag")
+                     "/api/schedule", "/api/diag", "/api/postseason")
 
 
 @app.middleware("http")
@@ -3567,6 +3567,147 @@ def deadline_undo(req: DeadlinePickRequest):
     return {"ok": True, "undone": last}
 
 
+# -------------------- Postseason Fantasy --------------------
+
+
+def _ps_season(season: int | None) -> int:
+    from datetime import date as _D
+    return int(season) if season else _D.today().year
+
+
+@app.get("/api/postseason/league")
+def postseason_league(season: int | None = None):
+    from . import postseason as ps
+    season = _ps_season(season)
+    lg = ps.load_league(season)
+    if not lg:
+        return {"exists": False, "season": season}
+    return {"exists": True, "league": lg, "on_the_clock": ps.on_the_clock(lg),
+            "open_slots": {m: ps.open_slots(lg, m) for m in lg["managers"]}}
+
+
+@app.post("/api/postseason/league")
+def postseason_create(payload: dict):
+    """{managers: [..], season?} — creates the league with a RANDOM snake order."""
+    from . import postseason as ps
+    season = _ps_season(payload.get("season"))
+    existing = ps.load_league(season)
+    if existing and existing.get("picks"):
+        raise HTTPException(400, f"a {season} postseason league with {len(existing['picks'])} picks exists")
+    try:
+        lg = ps.new_league(season, payload.get("managers") or [])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "league": lg}
+
+
+@app.post("/api/postseason/pick")
+def postseason_pick(payload: dict):
+    """{manager, slot, player_id, name, team_id, team, position, season?, force?}"""
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season(payload.get("season")))
+    if not lg:
+        raise HTTPException(400, "no postseason league — create one first")
+    try:
+        pick = ps.make_pick(lg, payload["manager"], payload["slot"],
+                            payload["player_id"], payload["name"],
+                            payload.get("team_id") or 0, payload.get("team") or "",
+                            payload.get("position") or "", force=bool(payload.get("force")))
+    except (ValueError, KeyError) as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "pick": pick, "on_the_clock": ps.on_the_clock(lg)}
+
+
+@app.post("/api/postseason/undo")
+def postseason_undo(payload: dict):
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season(payload.get("season")))
+    if not lg:
+        raise HTTPException(400, "no postseason league")
+    return {"ok": True, "undone": ps.undo_pick(lg), "on_the_clock": ps.on_the_clock(lg)}
+
+
+@app.post("/api/postseason/odds")
+def postseason_odds(payload: dict):
+    """{odds: {LAD: 220, ...}, season?} to set manually, or {fetch: true} to
+    pull World Series futures from The Odds API (1 credit)."""
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season(payload.get("season")))
+    if not lg:
+        raise HTTPException(400, "no postseason league")
+    if payload.get("fetch"):
+        try:
+            fetched = ps.fetch_ws_futures()
+        except Exception as e:
+            raise HTTPException(502, f"futures fetch failed: {e}")
+        lg["odds"] = {**lg.get("odds", {}), **fetched}
+    else:
+        odds = payload.get("odds") or {}
+        try:
+            lg["odds"] = {str(k).upper(): float(v) for k, v in odds.items()}
+        except (TypeError, ValueError):
+            raise HTTPException(400, "odds must be {TEAM_ABBREV: american_odds}")
+    ps.save_league(lg)
+    return {"ok": True, "odds": lg["odds"]}
+
+
+@app.post("/api/postseason/mvp")
+def postseason_mvp(payload: dict):
+    """{award: NLCS|ALCS|WS, player: name, season?}"""
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season(payload.get("season")))
+    if not lg:
+        raise HTTPException(400, "no postseason league")
+    award = str(payload.get("award", "")).upper()
+    if award not in ps.MVP_POINTS:
+        raise HTTPException(400, f"award must be one of {list(ps.MVP_POINTS)}")
+    lg.setdefault("mvp_awards", {})[award] = payload.get("player") or ""
+    ps.save_league(lg)
+    return {"ok": True, "mvp_awards": lg["mvp_awards"]}
+
+
+@app.get("/api/postseason/model")
+def postseason_model(season: int | None = None):
+    """The odds-calibrated bracket model: per-team advancement probs +
+    expected postseason games (drives every player's expected PA/IP)."""
+    from . import postseason as ps
+    season = _ps_season(season)
+    lg = ps.load_league(season) or {}
+    return ps.advancement_model(season, lg.get("odds") or {})
+
+
+@app.get("/api/postseason/board")
+def postseason_board(season: int | None = None):
+    """Draft board: every playoff-field player priced by expected playing time."""
+    from . import postseason as ps
+    season = _ps_season(season)
+    lg = ps.load_league(season) or {}
+    rows = ps.player_board(season, lg.get("odds") or {})
+    drafted = {(p["player_id"], p["role"]): p["manager"] for p in lg.get("picks", [])}
+    for r in rows:
+        r["drafted_by"] = drafted.get((r["player_id"], r["role"]))
+    return {"season": season, "players": rows}
+
+
+@app.get("/api/postseason/standings")
+def postseason_standings(season: int | None = None):
+    """Live roto standings from real playoff stats + projected standings from
+    the odds model + team alive/eliminated status."""
+    from . import postseason as ps
+    season = _ps_season(season)
+    lg = ps.load_league(season)
+    if not lg:
+        return {"exists": False, "season": season}
+    lines = ps.live_lines(lg)
+    out = {"exists": True, "season": season,
+           "live": ps.roto_standings(lg, lines), "lines": lines,
+           "team_status": ps.team_status(season), "mvp_awards": lg.get("mvp_awards", {})}
+    try:
+        out["projected"] = ps.projected_standings(lg)
+    except Exception as e:
+        out["projected"] = None
+        out["projected_error"] = str(e)
+    return out
 
 
 # -------------------- Farm Report --------------------

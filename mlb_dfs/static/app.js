@@ -194,6 +194,9 @@ $$("nav button").forEach((b) => {
     if (b.dataset.tab === "deadline") {
       loadDeadline();
     }
+    if (b.dataset.tab === "october") {
+      loadOctober().catch(() => {});
+    }
     if (b.dataset.tab === "farm" && !window._farmLoaded) {
       loadFarm();
     }
@@ -5161,3 +5164,236 @@ async function loadGrinders() {
 $("#grind-load")?.addEventListener("click", loadGrinders);
 
 $("#farm-league")?.addEventListener("change", farmPopulateTeams);
+
+// -------------------- Postseason Fantasy (🎃 October) --------------------
+
+const OCT = { view: "board", league: null, onClock: null, openSlots: {}, board: null, standings: null, model: null };
+
+// Mirror of backend slot eligibility, for the pick dropdown.
+function octEligibleSlots(position, open) {
+  const pos = (position || "").toUpperCase();
+  const M = {
+    C: ["C", "C+IF"], "1B": ["1B", "C+IF"], "2B": ["2B", "C+IF"], "3B": ["3B", "C+IF"], SS: ["SS", "C+IF"],
+    LF: ["OF"], CF: ["OF"], RF: ["OF"], OF: ["OF"], DH: [],
+    P: ["SP", "P", "RP"], SP: ["SP", "P"], RP: ["RP", "P"], TWP: ["SP", "P", "RP", "UT"],
+  };
+  let allowed = M[pos] || ["C", "1B", "2B", "3B", "SS", "C+IF", "OF", "UT"];
+  if (pos in M && !["P", "SP", "RP", "TWP"].includes(pos)) allowed = allowed.concat(["UT"]);
+  const seen = new Set();
+  return open.filter((s) => allowed.includes(s) && !seen.has(s) && seen.add(s) !== undefined);
+}
+
+async function loadOctober() {
+  const r = await api("/api/postseason/league");
+  if (!r.exists) {
+    OCT.league = null;
+    $("#oct-setup").style.display = "";
+    $("#oct-status").textContent = `No ${r.season} league yet.`;
+  } else {
+    OCT.league = r.league;
+    OCT.onClock = r.on_the_clock;
+    OCT.openSlots = r.open_slots || {};
+    $("#oct-setup").style.display = "none";
+    const total = r.league.managers.length * r.league.slots.length;
+    $("#oct-status").textContent = OCT.onClock
+      ? `Draft live — pick ${r.league.picks.length + 1}/${total}, ${OCT.onClock} on the clock`
+      : `${r.league.season} league · ${r.league.managers.length} managers · draft complete`;
+  }
+  renderOctober();
+}
+
+function renderOctober() {
+  $$(".oct-sub").forEach((b) => b.classList.toggle("btn-pick", b.dataset.view === OCT.view));
+  const el = $("#oct-main");
+  if (OCT.view === "board") return renderOctBoard(el);
+  if (OCT.view === "standings") return renderOctStandings(el);
+  if (OCT.view === "rosters") return renderOctRosters(el);
+  if (OCT.view === "model") return renderOctModel(el);
+}
+
+$$(".oct-sub").forEach((b) => b.addEventListener("click", () => { OCT.view = b.dataset.view; renderOctober(); }));
+
+$("#oct-create")?.addEventListener("click", async () => {
+  const names = $("#oct-managers").value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (names.length < 2) return alert("Enter at least 2 manager names");
+  const r = await api("/api/postseason/league", { method: "POST", body: JSON.stringify({ managers: names }) });
+  alert("League created. Random draft order: " + r.league.managers.join(" → "));
+  await loadOctober();
+});
+
+async function renderOctBoard(el) {
+  el.innerHTML = `<div class="muted" style="padding:12px;">Loading draft board (first load computes the odds model + 12 team pools, ~20s)…</div>`;
+  if (!OCT.board) {
+    try { OCT.board = (await api("/api/postseason/board")).players; }
+    catch (e) { el.innerHTML = `<div class="muted">Board failed: ${escapeAttr(e.message)}</div>`; return; }
+  }
+  const q = (OCT._q || "").toLowerCase();
+  const role = OCT._role || "all";
+  const team = OCT._team || "all";
+  const teams = [...new Set(OCT.board.map((r) => r.team))].sort();
+  let rows = OCT.board.filter((r) =>
+    (role === "all" || r.role === role) &&
+    (team === "all" || r.team === team) &&
+    (!q || r.name.toLowerCase().includes(q)));
+  const canPick = OCT.league && OCT.onClock;
+  const open = canPick ? (OCT.openSlots[OCT.onClock] || []) : [];
+  const hdrProj = (r) => r.role === "hitter"
+    ? `${r.proj.AVG.toFixed(3)} avg · ${r.proj.R} R · ${r.proj.HR} HR · ${r.proj.RBI} RBI · ${r.proj.SB} SB`
+    : `${r.proj.IP} IP · ${r.proj.ERA} ERA · ${r.proj.K} K · ${r.proj.QS} QS · ${r.proj.SVH} SV+H`;
+  el.innerHTML = `
+    <div class="setup-row">
+      <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
+      <select id="oct-role"><option value="all">Hitters + pitchers</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
+      <select id="oct-team"><option value="all">All teams</option>${teams.map((t) => `<option ${t === team ? "selected" : ""}>${t}</option>`).join("")}</select>
+      ${canPick ? `<span class="muted" style="font-size:12px;">Picking for <b>${escapeAttr(OCT.onClock)}</b> (open: ${open.join(", ")})</span>` : ""}
+    </div>
+    <table style="font-size:12px;">
+      <tr><th style="text-align:left;">Player</th><th>Team</th><th>Pos</th><th title="Team expected postseason games from the odds model">Exp G</th>
+      <th title="Expected plate appearances / innings — the core of the model">Exp PA/IP</th><th style="text-align:left;">Projected (whole postseason)</th><th>Value</th><th></th></tr>
+      ${rows.slice(0, 250).map((r) => `<tr style="${r.drafted_by ? "opacity:.45;" : ""}">
+        <td style="text-align:left;">${escapeAttr(r.name)}${r.role === "pitcher" ? " <span class='muted'>(P)</span>" : ""}</td>
+        <td>${r.team}</td><td>${r.position}</td><td>${r.exp_games}</td>
+        <td><b>${r.role === "hitter" ? r.exp_pa + " PA" : r.exp_ip + " IP"}</b></td>
+        <td style="text-align:left;">${hdrProj(r)}</td><td>${r.value.toFixed(1)}</td>
+        <td>${r.drafted_by ? escapeAttr(r.drafted_by) : (canPick ? octPickCell(r, open) : "")}</td>
+      </tr>`).join("")}
+    </table>
+    <div class="muted" style="font-size:11px;margin-top:4px;">${rows.length} players (showing ≤250). Value = pool z-score sum, AVG/ERA/WHIP playing-time-weighted.</div>`;
+  $("#oct-q").addEventListener("input", (e) => { OCT._q = e.target.value; renderOctBoard(el); });
+  $("#oct-role").value = role;
+  $("#oct-role").addEventListener("change", (e) => { OCT._role = e.target.value; renderOctBoard(el); });
+  $("#oct-team").addEventListener("change", (e) => { OCT._team = e.target.value; renderOctBoard(el); });
+  $$(".oct-pick-btn").forEach((b) => b.addEventListener("click", () => octDoPick(b)));
+}
+
+function octPickCell(r, open) {
+  const slots = octEligibleSlots(r.position, open);
+  if (!slots.length) return `<span class="muted">no slot</span>`;
+  return `<select class="oct-slot" data-pid="${r.player_id}">${slots.map((s) => `<option>${s}</option>`).join("")}</select>
+    <button class="oct-pick-btn btn-pick" data-pid="${r.player_id}" data-name="${escapeAttr(r.name)}" data-team="${r.team}"
+      data-teamid="${r.team_id}" data-pos="${escapeAttr(r.position)}" data-role="${r.role}">Pick</button>`;
+}
+
+async function octDoPick(b) {
+  const slot = document.querySelector(`.oct-slot[data-pid="${b.dataset.pid}"]`)?.value;
+  if (!slot) return;
+  if (!confirm(`${OCT.onClock} drafts ${b.dataset.name} at ${slot}?`)) return;
+  try {
+    await api("/api/postseason/pick", { method: "POST", body: JSON.stringify({
+      manager: OCT.onClock, slot, player_id: parseInt(b.dataset.pid, 10), name: b.dataset.name,
+      team_id: parseInt(b.dataset.teamid, 10), team: b.dataset.team, position: b.dataset.pos }) });
+  } catch (e) { return alert(e.message); }
+  OCT.board = null;  // re-annotate drafted_by
+  await loadOctober();
+}
+
+async function renderOctStandings(el) {
+  el.innerHTML = `<div class="muted" style="padding:12px;">Loading standings…</div>`;
+  let r;
+  try { r = await api("/api/postseason/standings"); }
+  catch (e) { el.innerHTML = `<div class="muted">${escapeAttr(e.message)}</div>`; return; }
+  if (!r.exists) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
+  OCT.standings = r;
+  const CATS = ["AVG", "R", "HR", "RBI", "SB", "ERA", "WHIP", "K", "QS", "SVH"];
+  const tbl = (data, title, sub) => !data ? "" : `
+    <h3 style="margin-top:16px;">${title} <span class="muted" style="font-weight:400;font-size:12px;">${sub}</span></h3>
+    <table style="font-size:12px;">
+      <tr><th></th><th style="text-align:left;">Manager</th><th>Total</th>${CATS.map((c) => `<th>${c === "SVH" ? "SV+H" : c}</th>`).join("")}<th>MVP</th></tr>
+      ${data.standings.map((row) => `<tr>
+        <td>${row.place}</td><td style="text-align:left;"><b>${escapeAttr(row.manager)}</b></td><td><b>${row.total}</b></td>
+        ${CATS.map((c) => {
+          const v = row.cat_values[c];
+          return `<td title="${v === null || v === undefined ? "—" : v}">${row.cat_points[c]}</td>`;
+        }).join("")}
+        <td>${Object.values(row.mvp_points).reduce((a, x) => a + x, 0) || ""}</td>
+      </tr>`).join("")}
+    </table>`;
+  const status = r.team_status || {};
+  const chips = Object.keys(status).length
+    ? `<div style="margin-top:10px;">${Object.entries(status).map(([t, s]) =>
+        `<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;font-size:11px;
+         background:${s === "eliminated" ? "#fde8e8" : s === "champion" ? "#fff3cd" : "#e7f6ec"};">
+         ${t} ${s === "eliminated" ? "✖" : s === "champion" ? "🏆" : "✔"}</span>`).join("")}</div>`
+    : `<div class="muted" style="font-size:12px;margin-top:8px;">Postseason hasn't started — live table fills in once games are played.</div>`;
+  el.innerHTML =
+    tbl(r.live, "Live standings", "real playoff stats, whole-postseason totals; cells = roto points (hover for category value)") +
+    chips +
+    tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""));
+}
+
+async function renderOctRosters(el) {
+  if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
+  el.innerHTML = `<div class="muted" style="padding:12px;">Loading rosters…</div>`;
+  let r;
+  try { r = await api("/api/postseason/standings"); }
+  catch (e) { el.innerHTML = `<div class="muted">${escapeAttr(e.message)}</div>`; return; }
+  const byMgr = {};
+  (r.lines || []).forEach((l) => { (byMgr[l.manager] = byMgr[l.manager] || []).push(l); });
+  const status = r.team_status || {};
+  const line = (l) => l.role === "hitter"
+    ? `${l.stats.AB ? (l.stats.H / l.stats.AB).toFixed(3) : "—"} · ${l.stats.R} R · ${l.stats.HR} HR · ${l.stats.RBI} RBI · ${l.stats.SB} SB`
+    : `${l.stats.IP} IP · ${l.stats.ER} ER · ${l.stats.K} K · ${l.stats.QS} QS · ${l.stats.SVH} SV+H`;
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;">` + OCT.league.managers.map((m) => `
+    <div style="min-width:320px;flex:1;">
+      <h3>${escapeAttr(m)}</h3>
+      <table style="font-size:11px;">
+        <tr><th>Slot</th><th style="text-align:left;">Player</th><th>Team</th><th style="text-align:left;">Postseason line</th></tr>
+        ${(byMgr[m] || []).map((l) => `<tr style="${status[l.team] === "eliminated" ? "opacity:.5;" : ""}">
+          <td>${l.slot}</td><td style="text-align:left;">${escapeAttr(l.name)}</td>
+          <td>${l.team}${status[l.team] === "eliminated" ? " ✖" : ""}</td>
+          <td style="text-align:left;">${line(l)}</td></tr>`).join("")}
+      </table>
+      <div class="muted" style="font-size:11px;">${(OCT.openSlots[m] || []).length ? "open: " + (OCT.openSlots[m] || []).join(", ") : ""}</div>
+    </div>`).join("") + `</div>
+    ${OCT.league.picks.length ? `<div style="margin-top:10px;"><button id="oct-undo">Undo last pick (${escapeAttr(OCT.league.picks[OCT.league.picks.length - 1].name)})</button></div>` : ""}`;
+  $("#oct-undo")?.addEventListener("click", async () => {
+    if (!confirm("Undo the last pick?")) return;
+    await api("/api/postseason/undo", { method: "POST", body: "{}" });
+    OCT.board = null;
+    await loadOctober();
+  });
+}
+
+async function renderOctModel(el) {
+  el.innerHTML = `<div class="muted" style="padding:12px;">Solving bracket…</div>`;
+  let m;
+  try { m = await api("/api/postseason/model"); }
+  catch (e) { el.innerHTML = `<div class="muted">${escapeAttr(e.message)}</div>`; return; }
+  OCT.model = m;
+  const rows = Object.entries(m.teams).sort((a, b) => b[1].p_ws - a[1].p_ws);
+  el.innerHTML = `
+    <div class="setup-row">
+      <button id="oct-fetch-odds" class="btn-pick" title="Pull WS futures from The Odds API (1 credit)">Fetch WS futures</button>
+      <span class="muted" style="font-size:12px;">or edit American odds below and</span>
+      <button id="oct-save-odds">Save odds</button>
+      <span id="oct-odds-status" class="muted" style="font-size:12px;"></span>
+    </div>
+    <table style="font-size:12px;max-width:860px;">
+      <tr><th style="text-align:left;">Team</th><th>Seed</th><th>Record</th><th>WS odds</th><th>Market WS%</th><th>Model WS%</th>
+      <th>Pennant%</th><th>Reach LCS%</th><th title="Expected postseason games — multiplies every player's per-game rates">Exp games</th></tr>
+      ${rows.map(([ab, t]) => `<tr>
+        <td style="text-align:left;"><b>${ab}</b> <span class="muted">${escapeAttr(t.name || "")}</span></td>
+        <td>${t.league} ${t.seed}</td><td>${t.record || ""}</td>
+        <td><input class="oct-odds" data-team="${ab}" value="${t.odds ?? ""}" style="width:64px;" placeholder="+650" /></td>
+        <td>${fmtPct(t.market_ws)}</td><td>${fmtPct(t.p_ws)}</td><td>${fmtPct(t.p_pennant)}</td>
+        <td>${fmtPct(t.p_reach_lcs)}</td><td><b>${t.exp_games}</b></td>
+      </tr>`).join("")}
+    </table>
+    <div class="muted" style="font-size:11px;margin-top:6px;">
+      Field = current would-be seeds from live standings (division leaders 1-3, wild cards 4-6) until the real bracket is set.
+      Strengths are Bradley-Terry, calibrated so the exact bracket solve (WC bo3 → LDS bo5 → LCS bo7 → WS bo7, top-2 seeds bye)
+      reproduces the market's devigged WS probabilities. No league yet? Odds save needs the league created first.
+    </div>`;
+  const saveOdds = async (fetch_) => {
+    const odds = {};
+    $$(".oct-odds").forEach((i) => { if (i.value.trim()) odds[i.dataset.team] = parseFloat(i.value); });
+    try {
+      await api("/api/postseason/odds", { method: "POST", body: JSON.stringify(fetch_ ? { fetch: true } : { odds }) });
+      $("#oct-odds-status").textContent = "saved ✓ — recalibrating";
+    } catch (e) { $("#oct-odds-status").textContent = e.message; return; }
+    OCT.board = null;
+    renderOctModel(el);
+  };
+  $("#oct-save-odds").addEventListener("click", () => saveOdds(false));
+  $("#oct-fetch-odds").addEventListener("click", () => saveOdds(true));
+}
