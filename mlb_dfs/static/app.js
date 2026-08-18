@@ -5401,7 +5401,9 @@ async function renderOctModel(el) {
         <td>${t.league} ${t.seed}</td><td>${t.record || ""}</td>
         <td><input class="oct-odds" data-team="${ab}" value="${t.odds ?? ""}" style="width:64px;" placeholder="+650" /></td>
         <td>${fmtPct(t.market_ws)}</td><td>${fmtPct(t.p_ws)}</td><td>${fmtPct(t.p_pennant)}</td>
-        <td>${fmtPct(t.p_reach_lcs)}</td><td><b>${t.exp_games}</b></td><td class="muted">~${t.ws_run_games}</td>
+        <td>${fmtPct(t.p_reach_lcs)}</td>
+        <td title="${escapeAttr(Object.entries(t.exp_by_round || {}).map(([r, g]) => `${r.toUpperCase()}: ${g}`).join(" + "))} — winning a round earns the NEXT round's games; both teams play a series' games whoever wins it"><b>${t.exp_games}</b></td>
+        <td class="muted">~${t.ws_run_games}</td>
       </tr>`).join("")}
     </table>
     <div class="muted" style="font-size:11px;margin-top:6px;">

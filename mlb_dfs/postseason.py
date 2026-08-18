@@ -368,6 +368,7 @@ def solve_bracket(field: dict, strengths: dict) -> dict:
             seed = next(x["seed"] for x in field[lg] if x["abbrev"] == t)
             cond_len = {r: round(rgs[t][r] / ris[t][r], 2)
                         for r in rgs[t] if ris[t].get(r, 0) > 1e-6}
+            exp_by_round = {r: round(v, 2) for r, v in rgs[t].items() if v > 1e-4}
             out[t] = {
                 "league": lg, "seed": seed,
                 "strength": round(strengths[t], 4),
@@ -377,6 +378,7 @@ def solve_bracket(field: dict, strengths: dict) -> dict:
                 "p_ws": round(ws_p, 4),
                 "exp_games": round(exps[t], 2),
                 "cond_len": cond_len,  # E[series length | t plays that round]
+                "exp_by_round": exp_by_round,
             }
     return out
 
@@ -527,13 +529,17 @@ def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
             # matchup-conditional from the strength solve (even matchup -> long
             # series, mismatch -> short), falling back to neutral constants.
             cl = tm.get("cond_len") or {}
-            exp = ((0.0 if bye else cl.get("wc", _E_LEN["wc"]))
-                   + rl * cl.get("lds", _E_LEN["lds"])
-                   + rc * cl.get("lcs", _E_LEN["lcs"])
-                   + pn * cl.get("ws", _E_LEN["ws"]))
+            by_round = {
+                "wc": 0.0 if bye else cl.get("wc", _E_LEN["wc"]),
+                "lds": rl * cl.get("lds", _E_LEN["lds"]),
+                "lcs": rc * cl.get("lcs", _E_LEN["lcs"]),
+                "ws": pn * cl.get("ws", _E_LEN["ws"]),
+            }
+            exp = sum(by_round.values())
             tm.update({"p_reach_lds": round(rl, 4), "p_reach_lcs": round(rc, 4),
                        "p_pennant": round(pn, 4), "p_ws": round(ww, 4),
-                       "exp_games": round(exp, 2)})
+                       "exp_games": round(exp, 2),
+                       "exp_by_round": {r: round(v, 2) for r, v in by_round.items() if v > 1e-4}})
             n += 1
     return n
 
