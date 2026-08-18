@@ -297,16 +297,21 @@ def _pwin(strengths: dict, a: str, b: str) -> float:
     return 1.0 / (1.0 + math.exp(-(strengths[a] - strengths[b])))
 
 
-def _league_solve(seeds: list[str], strengths: dict) -> tuple[dict, dict, dict]:
+def _league_solve(seeds: list[str], strengths: dict) -> tuple[dict, dict, dict, dict, dict]:
     """Solve one league's bracket exactly. seeds = [s1..s6] abbrevs.
-    Returns (pennant_prob, exp_games, reach) — reach[t] = {'LDS':p,'LCS':p}."""
+    Returns (pennant_prob, exp_games, reach, round_games, round_in) where
+    round_games[t][r] / round_in[t][r] give per-round expected games and
+    participation prob — their ratio is the MATCHUP-CONDITIONAL series length
+    (evenly-matched opponents → longer series, mismatches → shorter)."""
     s = seeds
     exp = {t: 0.0 for t in s}
     reach = {t: {"LDS": 0.0, "LCS": 0.0} for t in s}
+    rg: dict[str, dict] = {t: {} for t in s}
+    ri: dict[str, dict] = {t: {} for t in s}
 
-    def duel(a_dist: dict, b_dist: dict, wins_needed: int) -> dict:
+    def duel(a_dist: dict, b_dist: dict, wins_needed: int, rname: str) -> dict:
         """a_dist/b_dist: {team: prob of being here}. Returns winner dist and
-        accrues expected games + reach-this-round bookkeeping via closures."""
+        accrues expected games + per-round bookkeeping via closures."""
         out: dict[str, float] = {}
         for a, pa in a_dist.items():
             for b, pb in b_dist.items():
@@ -315,33 +320,38 @@ def _league_solve(seeds: list[str], strengths: dict) -> tuple[dict, dict, dict]:
                 w = _pwin(strengths, a, b)
                 meet = pa * pb
                 glen = expected_series_games(w, wins_needed)
-                exp[a] += meet * glen
-                exp[b] += meet * glen
+                for t in (a, b):
+                    exp[t] += meet * glen
+                    rg[t][rname] = rg[t].get(rname, 0.0) + meet * glen
+                    ri[t][rname] = ri[t].get(rname, 0.0) + meet
                 out[a] = out.get(a, 0.0) + meet * series_win_prob(w, wins_needed)
                 out[b] = out.get(b, 0.0) + meet * series_win_prob(1 - w, wins_needed)
         return out
 
-    wc1 = duel({s[3]: 1.0}, {s[4]: 1.0}, 2)   # 4 vs 5, best-of-3
-    wc2 = duel({s[2]: 1.0}, {s[5]: 1.0}, 2)   # 3 vs 6
+    wc1 = duel({s[3]: 1.0}, {s[4]: 1.0}, 2, "wc")   # 4 vs 5, best-of-3
+    wc2 = duel({s[2]: 1.0}, {s[5]: 1.0}, 2, "wc")   # 3 vs 6
     for t, pr in {**{s[0]: 1.0, s[1]: 1.0}, **wc1, **wc2}.items():
         reach[t]["LDS"] = max(reach[t]["LDS"], pr) if t in (s[0], s[1]) else pr
-    lds1 = duel({s[0]: 1.0}, wc1, 3)          # 1 vs winner(4/5), best-of-5
-    lds2 = duel({s[1]: 1.0}, wc2, 3)          # 2 vs winner(3/6)
+    lds1 = duel({s[0]: 1.0}, wc1, 3, "lds")         # 1 vs winner(4/5), best-of-5
+    lds2 = duel({s[1]: 1.0}, wc2, 3, "lds")         # 2 vs winner(3/6)
     for t, pr in {**lds1, **lds2}.items():
         reach[t]["LCS"] = pr
-    pennant = duel(lds1, lds2, 4)             # LCS best-of-7
-    return pennant, exp, reach
+    pennant = duel(lds1, lds2, 4, "lcs")            # LCS best-of-7
+    return pennant, exp, reach, rg, ri
 
 
 def solve_bracket(field: dict, strengths: dict) -> dict:
     """Full-bracket exact solve. Returns per-team model dict keyed by abbrev."""
     out = {}
     pennants, exps, reaches = {}, {}, {}
+    rgs, ris = {}, {}
     for lg in ("AL", "NL"):
         seeds = [t["abbrev"] for t in field[lg]]
-        pen, exp, reach = _league_solve(seeds, strengths)
+        pen, exp, reach, rg, ri = _league_solve(seeds, strengths)
         pennants[lg], reaches[lg] = pen, reach
         exps.update(exp)
+        rgs.update(rg)
+        ris.update(ri)
     for lg, other in (("AL", "NL"), ("NL", "AL")):
         for t in [x["abbrev"] for x in field[lg]]:
             ws_p, ws_games = 0.0, 0.0
@@ -353,7 +363,11 @@ def solve_bracket(field: dict, strengths: dict) -> dict:
                 ws_p += pt * po * series_win_prob(w, 4)
                 ws_games += pt * po * expected_series_games(w, 4)
             exps[t] = exps.get(t, 0.0) + ws_games
+            rgs[t]["ws"] = ws_games
+            ris[t]["ws"] = pt
             seed = next(x["seed"] for x in field[lg] if x["abbrev"] == t)
+            cond_len = {r: round(rgs[t][r] / ris[t][r], 2)
+                        for r in rgs[t] if ris[t].get(r, 0) > 1e-6}
             out[t] = {
                 "league": lg, "seed": seed,
                 "strength": round(strengths[t], 4),
@@ -362,6 +376,7 @@ def solve_bracket(field: dict, strengths: dict) -> dict:
                 "p_pennant": round(pt, 4),
                 "p_ws": round(ws_p, 4),
                 "exp_games": round(exps[t], 2),
+                "cond_len": cond_len,  # E[series length | t plays that round]
             }
     return out
 
@@ -508,7 +523,14 @@ def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
             rc = cond(L["reach_lcs"]) if "reach_lcs" in L else tm["p_reach_lcs"]
             pn = cond(L["pennant"]) if "pennant" in L else tm["p_pennant"]
             ww = cond(L["ws_win"])
-            exp = (0.0 if bye else _E_LEN["wc"]) + rl * _E_LEN["lds"] + rc * _E_LEN["lcs"] + pn * _E_LEN["ws"]
+            # FG reach probs weight the rounds; series LENGTH per round stays
+            # matchup-conditional from the strength solve (even matchup -> long
+            # series, mismatch -> short), falling back to neutral constants.
+            cl = tm.get("cond_len") or {}
+            exp = ((0.0 if bye else cl.get("wc", _E_LEN["wc"]))
+                   + rl * cl.get("lds", _E_LEN["lds"])
+                   + rc * cl.get("lcs", _E_LEN["lcs"])
+                   + pn * cl.get("ws", _E_LEN["ws"]))
             tm.update({"p_reach_lds": round(rl, 4), "p_reach_lcs": round(rc, 4),
                        "p_pennant": round(pn, 4), "p_ws": round(ww, 4),
                        "exp_games": round(exp, 2)})
