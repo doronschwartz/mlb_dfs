@@ -5,6 +5,7 @@ Also serves the static SPA from `mlb_dfs/static/`.
 
 from __future__ import annotations
 
+import json
 import logging
 
 import os
@@ -3629,26 +3630,44 @@ def postseason_undo(payload: dict):
 
 @app.post("/api/postseason/odds")
 def postseason_odds(payload: dict):
-    """{odds: {LAD: 220, ...}, season?} to set manually, or {fetch: true} to
-    pull World Series futures from The Odds API (1 credit)."""
+    """{odds: {LAD: 220, ...}} to set market odds manually, {fetch: true} to
+    pull WS futures from The Odds API (1 credit), or {fangraphs: <pasted JSON>}
+    to import FanGraphs playoff-odds model probabilities (Cloudflare blocks
+    server-side fetch, so the user pastes their browser's copy)."""
+    from datetime import date as _D
     from . import postseason as ps
     lg = ps.load_league(_ps_season(payload.get("season")))
     if not lg:
         raise HTTPException(400, "no postseason league")
-    if payload.get("fetch"):
+    if payload.get("fangraphs") is not None:
+        raw = payload["fangraphs"]
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except ValueError:
+                raise HTTPException(400, "fangraphs paste is not valid JSON")
+        try:
+            lg["ws_probs"] = ps.parse_fangraphs(raw)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        lg["ws_probs_source"] = f"fangraphs {_D.today().isoformat()}"
+    elif payload.get("fetch"):
         try:
             fetched = ps.fetch_ws_futures()
         except Exception as e:
             raise HTTPException(502, f"futures fetch failed: {e}")
         lg["odds"] = {**lg.get("odds", {}), **fetched}
+        lg.pop("ws_probs", None)  # market fetch replaces a FanGraphs import
     else:
         odds = payload.get("odds") or {}
         try:
             lg["odds"] = {str(k).upper(): float(v) for k, v in odds.items()}
         except (TypeError, ValueError):
             raise HTTPException(400, "odds must be {TEAM_ABBREV: american_odds}")
+        lg.pop("ws_probs", None)
     ps.save_league(lg)
-    return {"ok": True, "odds": lg["odds"]}
+    return {"ok": True, "odds": lg["odds"], "ws_probs": lg.get("ws_probs"),
+            "source": lg.get("ws_probs_source")}
 
 
 @app.post("/api/postseason/mvp")
@@ -3673,7 +3692,7 @@ def postseason_model(season: int | None = None):
     from . import postseason as ps
     season = _ps_season(season)
     lg = ps.load_league(season) or {}
-    return ps.advancement_model(season, lg.get("odds") or {})
+    return ps.advancement_model(season, lg.get("odds") or {}, lg.get("ws_probs"))
 
 
 @app.get("/api/postseason/board")
@@ -3682,7 +3701,7 @@ def postseason_board(season: int | None = None):
     from . import postseason as ps
     season = _ps_season(season)
     lg = ps.load_league(season) or {}
-    rows = ps.player_board(season, lg.get("odds") or {})
+    rows = ps.player_board(season, lg.get("odds") or {}, lg.get("ws_probs"))
     drafted = {(p["player_id"], p["role"]): p["manager"] for p in lg.get("picks", [])}
     for r in rows:
         r["drafted_by"] = drafted.get((r["player_id"], r["role"]))

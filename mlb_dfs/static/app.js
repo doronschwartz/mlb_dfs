@@ -5239,7 +5239,12 @@ async function renderOctBoard(el) {
   const open = canPick ? (OCT.openSlots[OCT.onClock] || []) : [];
   const hdrProj = (r) => r.role === "hitter"
     ? `${r.proj.AVG.toFixed(3)} avg · ${r.proj.R} R · ${r.proj.HR} HR · ${r.proj.RBI} RBI · ${r.proj.SB} SB`
-    : `${r.proj.IP} IP · ${r.proj.ERA} ERA · ${r.proj.K} K · ${r.proj.QS} QS · ${r.proj.SVH} SV+H`;
+      + (r.ceil_pa ? ` <span class="muted">· win-it-all: ${r.ceil_pa} PA</span>` : "")
+    : `${r.proj.IP} IP · ${r.proj.ERA} ERA · ${r.proj.K} K · ${r.proj.QS} QS · ${r.proj.SVH} SV+H`
+      + (r.ceil_ip ? ` <span class="muted">· win-it-all: ${r.ceil_ip} IP</span>` : "");
+  const expCell = (r) => r.role === "hitter"
+    ? `<b>${r.exp_pa} PA</b>`
+    : `<b>${r.exp_ip} IP</b>${r.exp_starts ? ` <span class="muted">(~${r.exp_starts} GS)</span>` : ""}`;
   el.innerHTML = `
     <div class="setup-row">
       <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
@@ -5248,12 +5253,12 @@ async function renderOctBoard(el) {
       ${canPick ? `<span class="muted" style="font-size:12px;">Picking for <b>${escapeAttr(OCT.onClock)}</b> (open: ${open.join(", ")})</span>` : ""}
     </div>
     <table style="font-size:12px;">
-      <tr><th style="text-align:left;">Player</th><th>Team</th><th>Pos</th><th title="Team expected postseason games from the odds model">Exp G</th>
-      <th title="Expected plate appearances / innings — the core of the model">Exp PA/IP</th><th style="text-align:left;">Projected (whole postseason)</th><th>Value</th><th></th></tr>
+      <tr><th style="text-align:left;">Player</th><th>Team</th><th>Pos</th><th title="The TEAM's expected postseason games, averaged over all bracket outcomes (early exit … WS run) — not this player's appearances">Team G (exp)</th>
+      <th title="Expected PA/IP over the whole postseason: recent-role usage rate × team expected games. Starters show expected starts — a starter pitches every ~4th team game.">Exp PA/IP</th><th style="text-align:left;">Projected (whole postseason)</th><th>Value</th><th></th></tr>
       ${rows.slice(0, 250).map((r) => `<tr style="${r.drafted_by ? "opacity:.45;" : ""}">
         <td style="text-align:left;">${escapeAttr(r.name)}${r.role === "pitcher" ? " <span class='muted'>(P)</span>" : ""}</td>
         <td>${r.team}</td><td>${r.position}</td><td>${r.exp_games}</td>
-        <td><b>${r.role === "hitter" ? r.exp_pa + " PA" : r.exp_ip + " IP"}</b></td>
+        <td>${expCell(r)}</td>
         <td style="text-align:left;">${hdrProj(r)}</td><td>${r.value.toFixed(1)}</td>
         <td>${r.drafted_by ? escapeAttr(r.drafted_by) : (canPick ? octPickCell(r, open) : "")}</td>
       </tr>`).join("")}
@@ -5367,7 +5372,23 @@ async function renderOctModel(el) {
       <span class="muted" style="font-size:12px;">or edit American odds below and</span>
       <button id="oct-save-odds">Save odds</button>
       <span id="oct-odds-status" class="muted" style="font-size:12px;"></span>
+      <span class="muted" style="font-size:12px;">${
+        m.mode === "pythag" ? "· no odds saved — using Pythagorean run-differential ratings"
+        : m.mode === "fangraphs" ? "· strengths calibrated to imported FanGraphs model odds"
+        : "· strengths calibrated to saved market odds"}</span>
     </div>
+    <details style="margin:6px 0;">
+      <summary class="muted" style="font-size:12px;cursor:pointer;">📈 Import FanGraphs playoff odds (best model numbers — paste required, Cloudflare blocks our server)</summary>
+      <div class="setup-row" style="margin-top:6px;">
+        <span class="muted" style="font-size:12px;">Open
+          <a href="https://www.fangraphs.com/api/playoff-odds/odds?dateDelta=&projectionMode=2&standingsType=div" target="_blank">this FanGraphs JSON</a>
+          in a new tab, select-all, copy, paste here:</span>
+      </div>
+      <div class="setup-row">
+        <textarea id="oct-fg-paste" placeholder='[{"abbrev":"LAD", ... }]' style="width:520px;height:60px;font-size:11px;"></textarea>
+        <button id="oct-fg-import" class="btn-pick">Import</button>
+      </div>
+    </details>
     <table style="font-size:12px;max-width:860px;">
       <tr><th style="text-align:left;">Team</th><th>Seed</th><th>Record</th><th>WS odds</th><th>Market WS%</th><th>Model WS%</th>
       <th>Pennant%</th><th>Reach LCS%</th><th title="Expected postseason games — multiplies every player's per-game rates">Exp games</th></tr>
@@ -5396,4 +5417,14 @@ async function renderOctModel(el) {
   };
   $("#oct-save-odds").addEventListener("click", () => saveOdds(false));
   $("#oct-fetch-odds").addEventListener("click", () => saveOdds(true));
+  $("#oct-fg-import").addEventListener("click", async () => {
+    const raw = $("#oct-fg-paste").value.trim();
+    if (!raw) return alert("Paste the FanGraphs JSON first");
+    try {
+      await api("/api/postseason/odds", { method: "POST", body: JSON.stringify({ fangraphs: raw }) });
+      $("#oct-odds-status").textContent = "FanGraphs odds imported ✓ — recalibrating";
+    } catch (e) { return alert(e.message); }
+    OCT.board = null;
+    renderOctModel(el);
+  });
 }

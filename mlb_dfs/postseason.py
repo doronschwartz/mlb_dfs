@@ -217,6 +217,8 @@ def playoff_field(season: int) -> dict:
                     "pct": float(tr.get("winningPercentage") or 0),
                     "games": tr.get("wins", 0) + tr.get("losses", 0),
                     "div_rank": int(tr.get("divisionRank") or 99),
+                    "runs_scored": tr.get("runsScored", 0),
+                    "runs_allowed": tr.get("runsAllowed", 0),
                 })
         abbrevs = {t["id"]: t.get("abbreviation") for t in mlb_api.teams()}
         field = {}
@@ -369,15 +371,100 @@ def calibrate_strengths(field: dict, target_ws: dict[str, float]) -> dict:
     return r
 
 
-def advancement_model(season: int, odds: dict) -> dict:
-    """Field + calibrated per-team advancement probs + expected games."""
-    key = ("model", season, tuple(sorted(odds.items())))
+def pythag_strengths(field: dict) -> dict:
+    """Default team strengths when no market odds are saved: Pythagorean
+    expectation from run differential, compressed toward the mean (raw season
+    records overstate true-talent gaps in a short series)."""
+    r = {}
+    for lg in ("AL", "NL"):
+        for t in field[lg]:
+            rs, ra = max(t.get("runs_scored") or 1, 1), max(t.get("runs_allowed") or 1, 1)
+            pyth = rs ** 1.83 / (rs ** 1.83 + ra ** 1.83)
+            pyth = min(max(pyth, 0.35), 0.72)
+            r[t["abbrev"]] = 0.7 * math.log(pyth / (1 - pyth))
+    mean = sum(r.values()) / len(r)
+    return {t: v - mean for t, v in r.items()}
+
+
+# FanGraphs team abbreviations that differ from MLB statsapi's.
+_FG_ABBREV = {"TBR": "TB", "SDP": "SD", "SFG": "SF", "KCR": "KC",
+              "WSN": "WSH", "CHW": "CWS", "ARI": "AZ", "ANA": "LAA"}
+
+
+def parse_fangraphs(data) -> dict[str, float]:
+    """Parse a pasted FanGraphs playoff-odds JSON payload into {abbrev: P(win WS)}.
+
+    FanGraphs sits behind Cloudflare so the server can't fetch it — the user
+    opens fangraphs.com/api/playoff-odds/odds?... in their own browser and
+    pastes the JSON. Key names drift, so detect them: the team key is whichever
+    field holds a known abbreviation, the prob key is whichever numeric field
+    mentions ws/worldseries+win. Values may be 0-1 or percentages."""
+    if isinstance(data, dict):
+        data = data.get("data") or data.get("odds") or list(data.values())
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+        raise ValueError("expected the FanGraphs JSON array of team rows")
+    known = {t.get("abbreviation") for t in mlb_api.teams()} | set(_FG_ABBREV)
+
+    def find_team(row: dict) -> str | None:
+        for v in row.values():
+            if isinstance(v, str) and v.upper() in known:
+                return _FG_ABBREV.get(v.upper(), v.upper())
+            if isinstance(v, dict):  # nested team object
+                t = find_team(v)
+                if t:
+                    return t
+        return None
+
+    def find_ws(row: dict) -> float | None:
+        best = None
+        for k, v in row.items():
+            if isinstance(v, dict):
+                got = find_ws(v)
+                if got is not None:
+                    best = got
+            if not isinstance(v, (int, float)):
+                continue
+            lk = k.lower().replace("_", "")
+            if ("ws" in lk or "worldseries" in lk) and "win" in lk:
+                best = float(v)
+        return best
+
+    out = {}
+    for row in data:
+        team, ws = find_team(row), find_ws(row)
+        if team and ws is not None:
+            out[team] = ws / 100.0 if ws > 1.0 else ws
+    if len(out) < 8:
+        raise ValueError(f"could only parse {len(out)} teams — paste the raw JSON from the playoff-odds API")
+    return out
+
+
+def advancement_model(season: int, odds: dict, ws_probs: dict | None = None) -> dict:
+    """Field + calibrated per-team advancement probs + expected games.
+    Calibration target priority: explicit model probs (FanGraphs import) >
+    devigged market odds > Pythagorean defaults."""
+    key = ("model", season, tuple(sorted(odds.items())),
+           tuple(sorted((ws_probs or {}).items())))
 
     def build():
         field = playoff_field(season)
         abbrevs = [t["abbrev"] for lg in ("AL", "NL") for t in field[lg]]
-        target = implied_ws_probs(odds, abbrevs)
-        strengths = calibrate_strengths(field, target)
+        if ws_probs:
+            in_field = {ab: ws_probs[ab] for ab in abbrevs if ab in ws_probs}
+            med = sorted(in_field.values())[len(in_field) // 2] if in_field else 1.0
+            full = {ab: ws_probs.get(ab, med) for ab in abbrevs}
+            z = sum(full.values()) or 1.0
+            target = {ab: p / z for ab, p in full.items()}
+            strengths = calibrate_strengths(field, target)
+            mode = "fangraphs"
+        elif odds:
+            target = implied_ws_probs(odds, abbrevs)
+            strengths = calibrate_strengths(field, target)
+            mode = "market"
+        else:
+            target = {}
+            strengths = pythag_strengths(field)
+            mode = "pythag"
         teams = solve_bracket(field, strengths)
         for lg in ("AL", "NL"):
             for t in field[lg]:
@@ -386,8 +473,11 @@ def advancement_model(season: int, odds: dict) -> dict:
                     "record": f"{t['wins']}-{t['losses']}", "reg_games": t["games"],
                     "market_ws": round(target.get(t["abbrev"], 0.0), 4),
                     "odds": odds.get(t["abbrev"]),
+                    # expected games CONDITIONAL on winning it all — the ceiling
+                    # a drafter should also see (bye skips the WC round)
+                    "ws_run_games": 15.8 if teams[t["abbrev"]]["seed"] <= 2 else 18.4,
                 })
-        return {"season": season, "teams": teams}
+        return {"season": season, "teams": teams, "mode": mode}
     return _cached(key, 600, build)
 
 
@@ -424,19 +514,31 @@ def fetch_ws_futures() -> dict[str, float]:
 
 
 def _team_pool(team_id: int, season: int) -> list[dict]:
-    """Team roster hydrated with season hitting+pitching stats (one call)."""
+    """Team roster hydrated with season + last-30-days hitting/pitching stats
+    (one call). The recent window prices CURRENT role — September rotations
+    and call-ups, not April's."""
     def build():
+        from datetime import timedelta
+        end = Date.today()
+        start = end - timedelta(days=30)
         data = mlb_api._get(
             f"/teams/{team_id}/roster",
             params={"rosterType": "active", "season": season,
-                    "hydrate": f"person(stats(group=[hitting,pitching],type=[season],season={season}))"})
+                    "hydrate": (f"person(stats(group=[hitting,pitching],type=[season,byDateRange],"
+                                f"season={season},startDate={start.isoformat()},endDate={end.isoformat()}))")})
         return data.get("roster", [])
     return _cached(("pool", team_id, season), 21600, build)
 
 
-def _season_split(person: dict, group: str) -> dict:
+_RECENT_TEAM_G = 27.0   # ~team games in a 30-day window
+_RECENT_W = 0.65        # weight on last-30-days usage vs full season
+
+
+def _split(person: dict, group: str, stat_type: str = "season") -> dict:
     for s in person.get("stats", []):
-        if (s.get("group") or {}).get("displayName") == group and s.get("splits"):
+        if ((s.get("group") or {}).get("displayName") == group
+                and (s.get("type") or {}).get("displayName") == stat_type
+                and s.get("splits")):
             return s["splits"][0].get("stat", {})
     return {}
 
@@ -449,62 +551,98 @@ def _ip_to_outs(ip) -> int:
     return int(whole or 0) * 3 + int(frac or 0)
 
 
-def player_board(season: int, odds: dict) -> list[dict]:
+def player_board(season: int, odds: dict, ws_probs: dict | None = None) -> list[dict]:
     """The draft board: every player on a playoff-field team, priced by his
     team's expected postseason games. exp_pa / exp_ip are the headline numbers."""
-    model = advancement_model(season, odds)
+    model = advancement_model(season, odds, ws_probs)
     rows = []
     for ab, tm in model["teams"].items():
         reg_g = max(tm["reg_games"], 1)
         eg = tm["exp_games"]
+        ceil_g = tm.get("ws_run_games", 18.0)
         for entry in _team_pool(tm["team_id"], season):
             person = entry.get("person", {})
             pos = (entry.get("position") or {}).get("abbreviation", "")
-            hit = _season_split(person, "hitting")
-            pit = _season_split(person, "pitching")
+            hit, hit30 = _split(person, "hitting"), _split(person, "hitting", "byDateRange")
+            pit, pit30 = _split(person, "pitching"), _split(person, "pitching", "byDateRange")
             base = {
                 "player_id": person.get("id"), "name": person.get("fullName"),
                 "team": ab, "team_id": tm["team_id"], "position": pos,
                 "exp_games": eg, "p_ws": tm["p_ws"],
             }
+
+            def blend_pg(season_total, recent_total, has_recent):
+                s = (season_total or 0) / reg_g
+                if not has_recent:
+                    return s
+                r = (recent_total or 0) / _RECENT_TEAM_G
+                return _RECENT_W * r + (1 - _RECENT_W) * s
+
             if pos != "P" and hit.get("plateAppearances"):
-                pa_pg = hit["plateAppearances"] / reg_g
-                ab_pg = (hit.get("atBats") or 0) / reg_g
-                proj_ab = ab_pg * eg
+                pa = hit["plateAppearances"]
+                # usage from recent role, production rates from full season
+                pa_pg = blend_pg(pa, hit30.get("plateAppearances"), bool(hit30.get("gamesPlayed")))
+                exp_pa = pa_pg * eg
                 avg = float(hit.get("avg") or 0)
+                ab_share = (hit.get("atBats") or 0) / pa
+                per_pa = {k: (hit.get(s_) or 0) / pa for k, s_ in
+                          (("R", "runs"), ("HR", "homeRuns"), ("RBI", "rbi"), ("SB", "stolenBases"))}
+                proj_ab = exp_pa * ab_share
                 rows.append({**base, "role": "hitter",
-                    "exp_pa": round(pa_pg * eg, 1),
+                    "exp_pa": round(exp_pa, 1),
+                    "ceil_pa": round(pa_pg * ceil_g, 0),
                     "proj": {
                         "AVG": round(avg, 3), "AB": round(proj_ab, 1),
                         "H": round(proj_ab * avg, 1),
-                        "R": round((hit.get("runs") or 0) / reg_g * eg, 1),
-                        "HR": round((hit.get("homeRuns") or 0) / reg_g * eg, 1),
-                        "RBI": round((hit.get("rbi") or 0) / reg_g * eg, 1),
-                        "SB": round((hit.get("stolenBases") or 0) / reg_g * eg, 1),
+                        "R": round(per_pa["R"] * exp_pa, 1),
+                        "HR": round(per_pa["HR"] * exp_pa, 1),
+                        "RBI": round(per_pa["RBI"] * exp_pa, 1),
+                        "SB": round(per_pa["SB"] * exp_pa, 1),
                     },
-                    "season": {"PA": hit.get("plateAppearances"), "AVG": hit.get("avg"),
+                    "season": {"PA": pa, "AVG": hit.get("avg"),
                                "HR": hit.get("homeRuns"), "OPS": hit.get("ops")}})
             if pit.get("inningsPitched"):
                 outs = _ip_to_outs(pit["inningsPitched"])
-                ip_pg = outs / 3.0 / reg_g
+                ip = outs / 3.0
                 gs = pit.get("gamesStarted") or 0
                 gp = pit.get("gamesPlayed") or 1
-                proj_ip = ip_pg * eg
+                gs30 = pit30.get("gamesStarted") or 0
+                is_starter = (gs / gp >= 0.5 and gs >= 3) or gs30 >= 3
                 era = float(pit.get("era") or 0)
                 whip = float(pit.get("whip") or 0)
-                k9 = (pit.get("strikeOuts") or 0) / max(outs / 27.0, 0.1)
-                # QS chance per start: length x run-prevention heuristic
-                ip_ps = (outs / 3.0 / gs) if gs else 0.0
-                p_qs = max(0.0, min(0.85, (ip_ps - 4.4) / 2.4)) * max(0.3, min(1.1, 1.55 - era / 4.0)) if gs else 0.0
-                starts = gs / reg_g * eg
-                svh_pg = ((pit.get("saves") or 0) + (pit.get("holds") or 0)) / reg_g
+                k_per_ip = (pit.get("strikeOuts") or 0) / max(ip, 1.0)
+                if is_starter:
+                    # Playoff rotations contract to ~4 arms: a healthy starter's
+                    # share of team games RISES vs a 5-man regular season.
+                    starts_pg = blend_pg(gs, gs30, bool(pit30.get("gamesPlayed")))
+                    starts_pg = min(1 / 4.0, starts_pg * 1.25)
+                    exp_starts = starts_pg * eg
+                    ip_ps = ip / gs if gs else 5.0
+                    exp_ip = exp_starts * ip_ps
+                    ceil_ip = starts_pg * ceil_g * ip_ps
+                    p_qs = max(0.0, min(0.85, (ip_ps - 4.4) / 2.4)) * max(0.3, min(1.1, 1.55 - era / 4.0))
+                    qs = p_qs * exp_starts
+                    svh = 0.0
+                else:
+                    ip_pg = blend_pg(ip, _ip_to_outs(pit30.get("inningsPitched")) / 3.0,
+                                     bool(pit30.get("gamesPlayed")))
+                    exp_starts = 0.0
+                    exp_ip = ip_pg * eg
+                    ceil_ip = ip_pg * ceil_g
+                    qs = 0.0
+                    svh_pg = blend_pg((pit.get("saves") or 0) + (pit.get("holds") or 0),
+                                      (pit30.get("saves") or 0) + (pit30.get("holds") or 0),
+                                      bool(pit30.get("gamesPlayed")))
+                    svh = svh_pg * eg
                 rows.append({**base, "role": "pitcher",
-                    "exp_ip": round(proj_ip, 1),
+                    "exp_ip": round(exp_ip, 1),
+                    "exp_starts": round(exp_starts, 1) if is_starter else None,
+                    "ceil_ip": round(ceil_ip, 0),
                     "proj": {
-                        "IP": round(proj_ip, 1), "ERA": round(era, 2), "WHIP": round(whip, 2),
-                        "K": round(k9 / 9.0 * proj_ip, 1),
-                        "QS": round(p_qs * starts, 2),
-                        "SVH": round(svh_pg * eg, 2),
+                        "IP": round(exp_ip, 1), "ERA": round(era, 2), "WHIP": round(whip, 2),
+                        "K": round(k_per_ip * exp_ip, 1),
+                        "QS": round(qs, 2),
+                        "SVH": round(svh, 2),
                     },
                     "season": {"IP": pit.get("inningsPitched"), "ERA": pit.get("era"),
                                "WHIP": pit.get("whip"), "K": pit.get("strikeOuts"),
@@ -688,7 +826,7 @@ def projected_standings(lg: dict) -> dict | None:
     if not lg["picks"]:
         return None
     by_role: dict[tuple, dict] = {}  # (player_id, role) — TWP appears as both roles
-    for r in player_board(int(lg["season"]), lg.get("odds") or {}):
+    for r in player_board(int(lg["season"]), lg.get("odds") or {}, lg.get("ws_probs")):
         by_role[(r["player_id"], r["role"])] = r
     lines = []
     for p in lg["picks"]:
