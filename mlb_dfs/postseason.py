@@ -93,6 +93,21 @@ def save_league(lg: dict) -> None:
     os.replace(tmp, path)
 
 
+def ensure_league(season: int) -> dict:
+    """Load the season's league, or create a managerless stub so odds/model
+    config can be saved before anyone commits to a draft."""
+    lg = load_league(season)
+    if lg:
+        return lg
+    lg = {
+        "season": int(season), "created": Date.today().isoformat(),
+        "managers": [], "slots": DEFAULT_SLOTS, "picks": [],
+        "odds": {}, "mvp_awards": {},
+    }
+    save_league(lg)
+    return lg
+
+
 def new_league(season: int, managers: list[str]) -> dict:
     managers = [m.strip() for m in managers if m.strip()]
     if len(managers) < 2:
@@ -101,15 +116,19 @@ def new_league(season: int, managers: list[str]) -> dict:
         raise ValueError("duplicate manager names")
     order = managers[:]
     random.shuffle(order)  # random initial snake order, per league rules
+    prior = load_league(int(season)) or {}  # keep odds saved before creation
     lg = {
         "season": int(season),
         "created": Date.today().isoformat(),
         "managers": order,
         "slots": DEFAULT_SLOTS,
         "picks": [],
-        "odds": {},           # {team_abbrev: american WS odds}
-        "mvp_awards": {},     # {"NLCS"|"ALCS"|"WS": player name}
+        "odds": prior.get("odds") or {},   # {team_abbrev: american WS odds}
+        "mvp_awards": prior.get("mvp_awards") or {},
     }
+    for k in ("ws_probs", "fg_ladder", "ws_probs_source"):
+        if prior.get(k):
+            lg[k] = prior[k]
     save_league(lg)
     return lg
 
@@ -391,14 +410,16 @@ _FG_ABBREV = {"TBR": "TB", "SDP": "SD", "SFG": "SF", "KCR": "KC",
               "WSN": "WSH", "CHW": "CWS", "ARI": "AZ", "ANA": "LAA"}
 
 
-def parse_fangraphs(data) -> dict[str, float]:
-    """Parse a pasted FanGraphs playoff-odds JSON payload into {abbrev: P(win WS)}.
+def parse_fangraphs(data) -> dict[str, dict]:
+    """Parse a pasted FanGraphs playoff-odds JSON payload into a per-team
+    advancement ladder: {abbrev: {playoffs, reach_lds, reach_lcs, pennant,
+    ws_win}} (whatever subset their schema exposes; ws_win is required).
 
     FanGraphs sits behind Cloudflare so the server can't fetch it — the user
     opens fangraphs.com/api/playoff-odds/odds?... in their own browser and
-    pastes the JSON. Key names drift, so detect them: the team key is whichever
-    field holds a known abbreviation, the prob key is whichever numeric field
-    mentions ws/worldseries+win. Values may be 0-1 or percentages."""
+    pastes the JSON. Key names drift, so detect them by fragment: the team key
+    is whichever field holds a known abbreviation; probability keys are
+    numeric fields whose names mention the round. Values may be 0-1 or pct."""
     if isinstance(data, dict):
         data = data.get("data") or data.get("odds") or list(data.values())
     if not isinstance(data, list) or not data or not isinstance(data[0], dict):
@@ -415,36 +436,95 @@ def parse_fangraphs(data) -> dict[str, float]:
                     return t
         return None
 
-    def find_ws(row: dict) -> float | None:
-        best = None
+    def classify(key: str) -> str | None:
+        lk = key.lower().replace("_", "").replace(" ", "")
+        wins = "win" in lk or "won" in lk
+        if "ws" in lk or "worldseries" in lk:
+            return "ws_win" if wins else "pennant"      # make/appear in WS = pennant
+        if "lcs" in lk:
+            return "pennant" if wins else "reach_lcs"   # win LCS = pennant
+        if "lds" in lk or "divseries" in lk or "ds" == lk:
+            return "reach_lcs" if wins else "reach_lds"
+        if "poff" in lk or "playoff" in lk:
+            return "playoffs"
+        return None
+
+    def walk(row: dict, out: dict) -> None:
         for k, v in row.items():
             if isinstance(v, dict):
-                got = find_ws(v)
-                if got is not None:
-                    best = got
-            if not isinstance(v, (int, float)):
-                continue
-            lk = k.lower().replace("_", "")
-            if ("ws" in lk or "worldseries" in lk) and "win" in lk:
-                best = float(v)
-        return best
+                walk(v, out)
+            elif isinstance(v, (int, float)):
+                cat = classify(k)
+                if cat:
+                    p = float(v) / 100.0 if float(v) > 1.0 else float(v)
+                    out[cat] = max(out.get(cat, 0.0), p) if cat != "ws_win" else p
 
-    out = {}
+    ladder: dict[str, dict] = {}
     for row in data:
-        team, ws = find_team(row), find_ws(row)
-        if team and ws is not None:
-            out[team] = ws / 100.0 if ws > 1.0 else ws
-    if len(out) < 8:
-        raise ValueError(f"could only parse {len(out)} teams — paste the raw JSON from the playoff-odds API")
-    return out
+        team = find_team(row)
+        if not team:
+            continue
+        entry: dict = {}
+        walk(row, entry)
+        if "ws_win" not in entry and "pennant" in entry:
+            # a lone "worldSeries" field is almost always P(win it), not P(appear)
+            entry["ws_win"] = entry.pop("pennant")
+        if "ws_win" in entry and entry.get("pennant", 1.0) < entry["ws_win"]:
+            entry["pennant"], entry["ws_win"] = entry["ws_win"], entry["pennant"]
+        # enforce the monotone ladder: each round's reach prob caps the next
+        hi = entry.get("playoffs", 1.0)
+        for k in ("reach_lds", "reach_lcs", "pennant", "ws_win"):
+            if k in entry:
+                entry[k] = min(entry[k], hi)
+                hi = entry[k]
+        if "ws_win" in entry:
+            ladder[team] = entry
+    if len(ladder) < 8:
+        raise ValueError(f"could only parse {len(ladder)} teams — paste the raw JSON from the playoff-odds API")
+    return ladder
 
 
-def advancement_model(season: int, odds: dict, ws_probs: dict | None = None) -> dict:
+# Expected series lengths — near-flat across realistic per-game edges
+_E_LEN = {"wc": 2.55, "lds": 4.15, "lcs": 5.8, "ws": 5.8}
+
+
+def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
+    """Refine per-team reach probs + expected games with FanGraphs' full
+    advancement ladder (make LDS / make LCS / make WS / win WS), conditioned
+    on making the playoffs so August qualification odds don't dilute the
+    bracket. Returns how many teams were refined."""
+    n = 0
+    for lg_ in ("AL", "NL"):
+        for t in field[lg_]:
+            ab = t["abbrev"]
+            L = ladder.get(ab)
+            if not L or len({"reach_lds", "reach_lcs", "pennant"} & set(L)) < 2:
+                continue
+            pp = L.get("playoffs", 0.0)
+            cond = (lambda v: min(1.0, v / pp)) if pp > 0.02 else (lambda v: v)
+            tm = teams[ab]
+            bye = tm["seed"] <= 2
+            rl = cond(L["reach_lds"]) if "reach_lds" in L else (1.0 if bye else tm["p_reach_lds"])
+            rc = cond(L["reach_lcs"]) if "reach_lcs" in L else tm["p_reach_lcs"]
+            pn = cond(L["pennant"]) if "pennant" in L else tm["p_pennant"]
+            ww = cond(L["ws_win"])
+            exp = (0.0 if bye else _E_LEN["wc"]) + rl * _E_LEN["lds"] + rc * _E_LEN["lcs"] + pn * _E_LEN["ws"]
+            tm.update({"p_reach_lds": round(rl, 4), "p_reach_lcs": round(rc, 4),
+                       "p_pennant": round(pn, 4), "p_ws": round(ww, 4),
+                       "exp_games": round(exp, 2)})
+            n += 1
+    return n
+
+
+def advancement_model(season: int, odds: dict, ws_probs: dict | None = None,
+                      fg_ladder: dict | None = None) -> dict:
     """Field + calibrated per-team advancement probs + expected games.
     Calibration target priority: explicit model probs (FanGraphs import) >
-    devigged market odds > Pythagorean defaults."""
+    devigged market odds > Pythagorean defaults. A full FanGraphs ladder
+    additionally refines round-reach probs and expected games directly."""
     key = ("model", season, tuple(sorted(odds.items())),
-           tuple(sorted((ws_probs or {}).items())))
+           tuple(sorted((ws_probs or {}).items())),
+           tuple(sorted((k, tuple(sorted(v.items()))) for k, v in (fg_ladder or {}).items())))
 
     def build():
         field = playoff_field(season)
@@ -466,6 +546,10 @@ def advancement_model(season: int, odds: dict, ws_probs: dict | None = None) -> 
             strengths = pythag_strengths(field)
             mode = "pythag"
         teams = solve_bracket(field, strengths)
+        if fg_ladder:
+            refined = _apply_fg_ladder(teams, field, fg_ladder)
+            if refined >= 8:
+                mode = "fangraphs-ladder"
         for lg in ("AL", "NL"):
             for t in field[lg]:
                 teams[t["abbrev"]].update({
@@ -551,10 +635,11 @@ def _ip_to_outs(ip) -> int:
     return int(whole or 0) * 3 + int(frac or 0)
 
 
-def player_board(season: int, odds: dict, ws_probs: dict | None = None) -> list[dict]:
+def player_board(season: int, odds: dict, ws_probs: dict | None = None,
+                 fg_ladder: dict | None = None) -> list[dict]:
     """The draft board: every player on a playoff-field team, priced by his
     team's expected postseason games. exp_pa / exp_ip are the headline numbers."""
-    model = advancement_model(season, odds, ws_probs)
+    model = advancement_model(season, odds, ws_probs, fg_ladder)
     rows = []
     for ab, tm in model["teams"].items():
         reg_g = max(tm["reg_games"], 1)
@@ -826,7 +911,8 @@ def projected_standings(lg: dict) -> dict | None:
     if not lg["picks"]:
         return None
     by_role: dict[tuple, dict] = {}  # (player_id, role) — TWP appears as both roles
-    for r in player_board(int(lg["season"]), lg.get("odds") or {}, lg.get("ws_probs")):
+    for r in player_board(int(lg["season"]), lg.get("odds") or {}, lg.get("ws_probs"),
+                          lg.get("fg_ladder")):
         by_role[(r["player_id"], r["role"])] = r
     lines = []
     for p in lg["picks"]:

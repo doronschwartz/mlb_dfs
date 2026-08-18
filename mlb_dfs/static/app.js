@@ -5185,10 +5185,11 @@ function octEligibleSlots(position, open) {
 
 async function loadOctober() {
   const r = await api("/api/postseason/league");
-  if (!r.exists) {
+  if (!r.exists || !r.league.managers.length) {
     OCT.league = null;
     $("#oct-setup").style.display = "";
-    $("#oct-status").textContent = `No ${r.season} league yet.`;
+    $("#oct-status").textContent = `No ${r.season} league yet` +
+      (r.exists ? " (odds saved — they carry over when you create it)." : ".");
   } else {
     OCT.league = r.league;
     OCT.onClock = r.on_the_clock;
@@ -5374,6 +5375,7 @@ async function renderOctModel(el) {
       <span id="oct-odds-status" class="muted" style="font-size:12px;"></span>
       <span class="muted" style="font-size:12px;">${
         m.mode === "pythag" ? "· no odds saved — using Pythagorean run-differential ratings"
+        : m.mode === "fangraphs-ladder" ? "· using FanGraphs full advancement ladder (make LDS/LCS/WS per round) — finest mode"
         : m.mode === "fangraphs" ? "· strengths calibrated to imported FanGraphs model odds"
         : "· strengths calibrated to saved market odds"}</span>
     </div>
