@@ -3696,8 +3696,10 @@ def postseason_model(season: int | None = None):
     from . import postseason as ps
     season = _ps_season(season)
     lg = ps.load_league(season) or {}
-    return ps.advancement_model(season, lg.get("odds") or {}, lg.get("ws_probs"),
-                                lg.get("fg_ladder"))
+    out = ps.advancement_model(season, lg.get("odds") or {}, lg.get("ws_probs"),
+                               lg.get("fg_ladder"))
+    out = {**out, "_fg_ladder": lg.get("fg_ladder"), "_ws_probs": lg.get("ws_probs")}
+    return out
 
 
 @app.get("/api/postseason/board")
