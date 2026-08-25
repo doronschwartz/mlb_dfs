@@ -477,7 +477,13 @@ def parse_fangraphs(data) -> dict[str, dict]:
             elif isinstance(v, (int, float)):
                 cat = classify(k)
                 if cat:
-                    p = float(v) / 100.0 if float(v) > 1.0 else float(v)
+                    # Percentage detection: only divide when clearly >1 (a real
+                    # 0-100 pct). A fraction of ~1.0 (a lock, e.g. the best
+                    # team's make-playoffs) arrives as 1.0000004 with float
+                    # noise — the old `>1.0` test divided that lock into 0.01,
+                    # nuking the top seed's odds (MIL bug, 2026-08). Clamp to 1.
+                    fv = float(v)
+                    p = min(fv / 100.0 if fv > 1.5 else fv, 1.0)
                     out[cat] = max(out.get(cat, 0.0), p) if cat != "ws_win" else p
 
     ladder: dict[str, dict] = {}
@@ -544,7 +550,13 @@ def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
                 "rl": _geo_blend(cond(L["reach_lds"]), tm["p_reach_lds"]) if "reach_lds" in L else (1.0 if bye else tm["p_reach_lds"]),
                 "rc": _geo_blend(cond(L["reach_lcs"]), tm["p_reach_lcs"]) if "reach_lcs" in L else tm["p_reach_lcs"],
                 "pn": _geo_blend(cond(L["pennant"]), tm["p_pennant"]) if "pennant" in L else tm["p_pennant"],
-                "ww": _geo_blend(cond(L["ws_win"]), tm["p_ws"]) if "ws_win" in L else tm["p_ws"],
+                # WS-win is NOT re-blended from raw FG ws_win — that double-
+                # counts FanGraphs (already in the calibrated p_ws) and a single
+                # garbage value (MIL's 1% parse) nuked the headline. Instead
+                # keep the calibrated P(win WS | reach pennant) conditional and
+                # apply it to the conserved pennant in phase 3 — always internally
+                # consistent (ws ≤ pennant, sane conversion rate).
+                "cw": min(0.72, max(0.28, tm["p_ws"] / max(tm["p_pennant"], 1e-6))),
             }
             n += refined
     # phase 2: enforce the zero-sum totals per league, then WS globally
@@ -555,10 +567,15 @@ def _apply_fg_ladder(teams: dict, field: dict, ladder: dict) -> int:
             if s > 1e-6:
                 for ab in abs_:
                     chain[ab][key] = min(1.0, chain[ab][key] * total / s)
+    # WS-win = conserved pennant × calibrated conditional, then normalized so
+    # exactly one champion (global sum = 1). Consistent by construction.
+    for ab, c in chain.items():
+        pn = min(c["pn"], min(c["rc"], c["rl"]))
+        c["ww"] = pn * c["cw"]
     s = sum(c["ww"] for c in chain.values())
     if s > 1e-6:
         for c in chain.values():
-            c["ww"] = min(1.0, c["ww"] / s)
+            c["ww"] = c["ww"] / s
     # phase 3: expected games from the conserved chain; series LENGTH per
     # round stays matchup-conditional from the strength solve
     for ab, c in chain.items():
