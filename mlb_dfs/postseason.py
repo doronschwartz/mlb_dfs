@@ -609,9 +609,10 @@ def advancement_model(season: int, odds: dict, ws_probs: dict | None = None,
            tuple(sorted((ws_probs or {}).items())),
            tuple(sorted((k, tuple(sorted(v.items()))) for k, v in (fg_ladder or {}).items())))
 
-    # Ensemble weights when a source is available — market futures and the
-    # FanGraphs model split the signal, Pythagorean anchors against odd lines.
-    _W = {"fangraphs": 0.4, "market": 0.4, "pythag": 0.2}
+    # Ensemble weights when a source is available — the betting MARKET (WS
+    # futures) leads, with FanGraphs + Pythagorean as lighter anchors. Doron
+    # 2026-08: "do what the odds say the most." Market-dominant blend.
+    _W = {"market": 0.60, "fangraphs": 0.25, "pythag": 0.15}
 
     def build():
         field = playoff_field(season)
