@@ -3294,6 +3294,15 @@ if STATIC_DIR.exists():
             raise _H(404, "not available")
         return (STATIC_DIR / "index.html").read_text().replace("__BUILD__", BUILD_VERSION)
 
+    # Deep link straight to the Playoffs (postseason draft) tab — the SPA reads
+    # the /playoffs path on load and opens that tab.
+    @app.get("/playoffs", response_class=HTMLResponse)
+    def playoffs_page():
+        if PUBLIC_MODE:
+            from fastapi import HTTPException as _H
+            raise _H(404, "not available")
+        return (STATIC_DIR / "index.html").read_text().replace("__BUILD__", BUILD_VERSION)
+
 
 # Affiliate / referral links — fill in real codes via env so they're not
 # hardcoded in the repo. Surfaced as CTAs on the public pages; empty links are

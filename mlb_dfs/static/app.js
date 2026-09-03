@@ -194,8 +194,11 @@ $$("nav button").forEach((b) => {
     if (b.dataset.tab === "deadline") {
       loadDeadline();
     }
-    if (b.dataset.tab === "october") {
+    if (b.dataset.tab === "playoffs") {
       loadOctober().catch(() => {});
+      if (location.pathname !== "/playoffs") history.replaceState(null, "", "/playoffs");
+    } else if (location.pathname === "/playoffs") {
+      history.replaceState(null, "", "/");
     }
     if (b.dataset.tab === "farm" && !window._farmLoaded) {
       loadFarm();
@@ -209,6 +212,12 @@ $$("nav button").forEach((b) => {
     refresh();
   });
 });
+
+// Deep link: opening /playoffs (or /playoffs#...) lands directly on the
+// Playoffs tab instead of the default Slate tab.
+if (location.pathname.replace(/\/$/, "") === "/playoffs") {
+  document.querySelector('nav button[data-tab="playoffs"]')?.click();
+}
 
 $("#refresh").addEventListener("click", async () => {
   // Bust the server-side projections cache so updated probable SPs / lineups show up.
