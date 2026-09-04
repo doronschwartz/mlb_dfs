@@ -5216,6 +5216,7 @@ function renderOctober() {
   $$(".oct-sub").forEach((b) => b.classList.toggle("btn-pick", b.dataset.view === OCT.view));
   const el = $("#oct-main");
   if (OCT.view === "board") return renderOctBoard(el);
+  if (OCT.view === "cards") return renderOctCards(el);
   if (OCT.view === "standings") return renderOctStandings(el);
   if (OCT.view === "rosters") return renderOctRosters(el);
   if (OCT.view === "model") return renderOctModel(el);
@@ -5334,6 +5335,73 @@ async function renderOctStandings(el) {
     tbl(r.live, "Live standings", "real playoff stats, whole-postseason totals; cells = roto points (hover for category value)") +
     chips +
     tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""));
+}
+
+// Card view: every roster slot as a card (filled or open), drag a player
+// onto another eligible slot to move them (swaps if that slot type is full).
+async function renderOctCards(el) {
+  if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
+  const status = {};
+  try {
+    const r = await api("/api/postseason/standings");
+    Object.assign(status, r.team_status || {});
+  } catch (e) { /* lines optional — cards still render from picks */ }
+  const slots = OCT.league.slots;
+  const eligForPos = (pos) => octEligibleSlots(pos, [...new Set(slots)]);
+  const cardHTML = (m, slotName, pick) => {
+    if (!pick) return `<div class="oct-card empty" data-slot="${slotName}" data-mgr="${escapeAttr(m)}">
+      <div class="oct-card-slot">${slotName}</div><div class="oct-card-open">— open —</div></div>`;
+    const arm = pick.role === "pitcher";
+    const elim = status[pick.team] === "eliminated";
+    return `<div class="oct-card filled ${arm ? "arm" : "bat"}" draggable="true"
+       data-slot="${slotName}" data-mgr="${escapeAttr(m)}" data-pid="${pick.player_id}"
+       data-elig="${escapeAttr(JSON.stringify(eligForPos(pick.position)))}" title="Drag to another eligible slot">
+       <div class="oct-card-slot">${slotName}</div>
+       <div class="oct-card-name">${escapeAttr(pick.name)}${elim ? " ✖" : ""}</div>
+       <div class="oct-card-meta">${escapeAttr(pick.position || "")} · ${escapeAttr(pick.team || "")}</div></div>`;
+  };
+  el.innerHTML = `<p class="muted" style="font-size:12px;margin:2px 0 8px;">Drag a player card onto another eligible slot to move them — a full slot swaps. Scroll for all managers.</p>
+    <div class="oct-cards-wrap">` + OCT.league.managers.map((m) => {
+    const mine = OCT.league.picks.filter((p) => p.manager === m);
+    const bySlot = {}; mine.forEach((p) => { (bySlot[p.slot] = bySlot[p.slot] || []).push(p); });
+    const used = {};
+    const cards = slots.map((s) => {
+      used[s] = used[s] || 0;
+      const pick = (bySlot[s] || [])[used[s]];
+      if (pick) used[s]++;
+      return cardHTML(m, s, pick);
+    }).join("");
+    return `<div class="oct-mgr-col"><h3>${escapeAttr(m)}${OCT.onClock === m ? ' <span class="muted" style="font-weight:400;">⏰ on the clock</span>' : ""}</h3>
+      <div class="oct-card-grid">${cards}</div></div>`;
+  }).join("") + `</div>`;
+
+  let dragPid = null, dragElig = [];
+  el.querySelectorAll(".oct-card").forEach((c) => {
+    if (c.classList.contains("filled")) {
+      c.addEventListener("dragstart", (e) => {
+        dragPid = c.dataset.pid; try { dragElig = JSON.parse(c.dataset.elig); } catch { dragElig = []; }
+        e.dataTransfer.setData("text/plain", c.dataset.pid); c.classList.add("dragging");
+      });
+      c.addEventListener("dragend", () => { c.classList.remove("dragging"); dragPid = null; });
+    }
+    c.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      c.classList.add(dragElig.includes(c.dataset.slot) ? "dragover" : "badslot");
+    });
+    c.addEventListener("dragleave", () => c.classList.remove("dragover", "badslot"));
+    c.addEventListener("drop", async (e) => {
+      e.preventDefault(); c.classList.remove("dragover", "badslot");
+      if (!dragPid) return;
+      const mgr = c.dataset.mgr;
+      const srcCard = el.querySelector(`.oct-card.filled[data-pid="${dragPid}"]`);
+      if (srcCard && srcCard.dataset.mgr !== mgr) { alert("Move a player only within their own roster."); return; }
+      if (!dragElig.includes(c.dataset.slot)) { alert(`Not eligible at ${c.dataset.slot}.`); return; }
+      try {
+        await api("/api/postseason/move", { method: "POST", body: JSON.stringify({ manager: mgr, player_id: Number(dragPid), to_slot: c.dataset.slot }) });
+        await loadOctober();
+      } catch (err) { alert(err.message); }
+    });
+  });
 }
 
 async function renderOctRosters(el) {

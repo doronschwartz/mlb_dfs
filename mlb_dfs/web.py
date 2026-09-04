@@ -3628,6 +3628,23 @@ def postseason_pick(payload: dict):
     return {"ok": True, "pick": pick, "on_the_clock": ps.on_the_clock(lg)}
 
 
+@app.post("/api/postseason/move")
+def postseason_move(payload: dict):
+    """{manager, player_id, to_slot, season?, force?} — drag a drafted player
+    into a different roster slot (swaps if the target slot type is full)."""
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season(payload.get("season")))
+    if not lg:
+        raise HTTPException(400, "no postseason league")
+    try:
+        ps.move_pick(lg, payload["manager"], int(payload["player_id"]),
+                     payload["to_slot"], force=bool(payload.get("force")))
+    except (ValueError, KeyError) as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "picks": lg["picks"],
+            "open_slots": {m: ps.open_slots(lg, m) for m in lg["managers"]}}
+
+
 @app.post("/api/postseason/undo")
 def postseason_undo(payload: dict):
     from . import postseason as ps

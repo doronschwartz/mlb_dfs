@@ -1,0 +1,39 @@
+{
+ "season": 2026,
+ "managers": [
+  "A",
+  "B"
+ ],
+ "slots": [
+  "C",
+  "1B",
+  "2B",
+  "3B",
+  "SS",
+  "C+IF",
+  "OF",
+  "OF",
+  "OF",
+  "OF",
+  "UT",
+  "UT",
+  "SP",
+  "SP",
+  "SP",
+  "P",
+  "RP",
+  "RP"
+ ],
+ "picks": [
+  {
+   "manager": "A",
+   "slot": "C+IF",
+   "player_id": 1,
+   "name": "JRam",
+   "team": "CLE",
+   "position": "3B",
+   "role": "hitter",
+   "pick_number": 1
+  }
+ ]
+}

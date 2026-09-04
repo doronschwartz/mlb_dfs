@@ -199,6 +199,40 @@ def undo_pick(lg: dict) -> dict | None:
     return p
 
 
+def move_pick(lg: dict, manager: str, player_id: int, to_slot: str,
+              force: bool = False) -> dict:
+    """Move one of a manager's already-drafted players into a different roster
+    slot (drag-and-drop on the card view). If the target slot type is full, we
+    SWAP with an occupant that can legally take the mover's old slot. Slot
+    eligibility is enforced (a SS can't sit in an OF card) unless force."""
+    picks = lg["picks"]
+    src = next((p for p in picks
+                if p["manager"] == manager and p["player_id"] == int(player_id)), None)
+    if not src:
+        raise ValueError("that player isn't on your roster")
+    if to_slot not in lg["slots"]:
+        raise ValueError(f"no {to_slot} slot in this league")
+    if src["slot"] == to_slot:
+        return src  # no-op (dropped back on same slot type)
+    slot_types = list(dict.fromkeys(lg["slots"]))
+    if not force and to_slot not in eligible_slots(src["position"], slot_types):
+        raise ValueError(f"{src['name']} ({src['position']}) can't play {to_slot}")
+    cap = lg["slots"].count(to_slot)
+    occ = [p for p in picks if p["manager"] == manager and p["slot"] == to_slot]
+    from_slot = src["slot"]
+    if len(occ) < cap:
+        src["slot"], src["role"] = to_slot, _slot_role(to_slot)
+    else:
+        swap = next((o for o in occ if force
+                     or from_slot in eligible_slots(o["position"], slot_types)), None)
+        if not swap:
+            raise ValueError(f"{to_slot} is full and nobody there can move to {from_slot}")
+        swap["slot"], swap["role"] = from_slot, _slot_role(from_slot)
+        src["slot"], src["role"] = to_slot, _slot_role(to_slot)
+    save_league(lg)
+    return src
+
+
 def _slot_role(slot: str) -> str:
     return "pitcher" if slot in PIT_SLOTS else "hitter"
 
