@@ -5256,6 +5256,11 @@ async function renderOctBoard(el) {
   const expCell = (r) => r.role === "hitter"
     ? `<b>${r.exp_pa} PA</b>`
     : `<b>${r.exp_ip} IP</b>${r.exp_starts ? ` <span class="muted">(~${r.exp_starts} GS)</span>` : ""}`;
+  const clockPanel = canPick ? `
+    <details class="oct-clock-panel" open>
+      <summary>🎴 <b>${escapeAttr(OCT.onClock)}</b>'s roster — on the clock (${open.length} slot${open.length === 1 ? "" : "s"} open)</summary>
+      <div class="oct-card-grid oct-clock-grid" id="oct-clock-cards">${octMgrCardsHTML(OCT.onClock, OCT._teamStatus || {}, true)}</div>
+    </details>` : "";
   el.innerHTML = `
     <div class="setup-row">
       <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
@@ -5263,6 +5268,7 @@ async function renderOctBoard(el) {
       <select id="oct-team"><option value="all">All teams</option>${teams.map((t) => `<option ${t === team ? "selected" : ""}>${t}</option>`).join("")}</select>
       ${canPick ? `<span class="muted" style="font-size:12px;">Picking for <b>${escapeAttr(OCT.onClock)}</b> (open: ${open.join(", ")})</span>` : ""}
     </div>
+    ${clockPanel}
     <table style="font-size:12px;">
       <tr><th style="text-align:left;">Player</th><th>Team</th><th>Pos</th><th title="The TEAM's expected postseason games, averaged over all bracket outcomes (early exit … WS run) — not this player's appearances">Team G (exp)</th>
       <th title="Expected PA/IP over the whole postseason: recent-role usage rate × team expected games. Starters show expected starts — a starter pitches every ~4th team game.">Exp PA/IP</th><th style="text-align:left;">Projected (whole postseason)</th><th>Value</th><th></th></tr>
@@ -5280,6 +5286,8 @@ async function renderOctBoard(el) {
   $("#oct-role").addEventListener("change", (e) => { OCT._role = e.target.value; renderOctBoard(el); });
   $("#oct-team").addEventListener("change", (e) => { OCT._team = e.target.value; renderOctBoard(el); });
   $$(".oct-pick-btn").forEach((b) => b.addEventListener("click", () => octDoPick(b)));
+  const clockCards = $("#oct-clock-cards");
+  if (clockCards) octWireCardDnd(clockCards);
 }
 
 function octPickCell(r, open) {
@@ -5337,46 +5345,35 @@ async function renderOctStandings(el) {
     tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""));
 }
 
-// Card view: every roster slot as a card (filled or open), drag a player
-// onto another eligible slot to move them (swaps if that slot type is full).
-async function renderOctCards(el) {
-  if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
-  const status = {};
-  try {
-    const r = await api("/api/postseason/standings");
-    Object.assign(status, r.team_status || {});
-  } catch (e) { /* lines optional — cards still render from picks */ }
+// Render one manager's 18 slot cards (filled player or open spot). Shared by
+// the full Roster-cards view and the on-the-clock panel on the draft board.
+function octMgrCardsHTML(m, status, draggable) {
   const slots = OCT.league.slots;
   const eligForPos = (pos) => octEligibleSlots(pos, [...new Set(slots)]);
-  const cardHTML = (m, slotName, pick) => {
+  const mine = OCT.league.picks.filter((p) => p.manager === m);
+  const bySlot = {}; mine.forEach((p) => { (bySlot[p.slot] = bySlot[p.slot] || []).push(p); });
+  const used = {};
+  return slots.map((slotName) => {
+    used[slotName] = used[slotName] || 0;
+    const pick = (bySlot[slotName] || [])[used[slotName]];
+    if (pick) used[slotName]++;
     if (!pick) return `<div class="oct-card empty" data-slot="${slotName}" data-mgr="${escapeAttr(m)}">
       <div class="oct-card-slot">${slotName}</div><div class="oct-card-open">— open —</div></div>`;
     const arm = pick.role === "pitcher";
-    const elim = status[pick.team] === "eliminated";
-    return `<div class="oct-card filled ${arm ? "arm" : "bat"}" draggable="true"
+    const elim = (status || {})[pick.team] === "eliminated";
+    return `<div class="oct-card filled ${arm ? "arm" : "bat"}" ${draggable ? 'draggable="true"' : ""}
        data-slot="${slotName}" data-mgr="${escapeAttr(m)}" data-pid="${pick.player_id}"
-       data-elig="${escapeAttr(JSON.stringify(eligForPos(pick.position)))}" title="Drag to another eligible slot">
+       data-elig="${escapeAttr(JSON.stringify(eligForPos(pick.position)))}"${draggable ? ' title="Drag to another eligible slot"' : ""}>
        <div class="oct-card-slot">${slotName}</div>
        <div class="oct-card-name">${escapeAttr(pick.name)}${elim ? " ✖" : ""}</div>
        <div class="oct-card-meta">${escapeAttr(pick.position || "")} · ${escapeAttr(pick.team || "")}</div></div>`;
-  };
-  el.innerHTML = `<p class="muted" style="font-size:12px;margin:2px 0 8px;">Drag a player card onto another eligible slot to move them — a full slot swaps. Scroll for all managers.</p>
-    <div class="oct-cards-wrap">` + OCT.league.managers.map((m) => {
-    const mine = OCT.league.picks.filter((p) => p.manager === m);
-    const bySlot = {}; mine.forEach((p) => { (bySlot[p.slot] = bySlot[p.slot] || []).push(p); });
-    const used = {};
-    const cards = slots.map((s) => {
-      used[s] = used[s] || 0;
-      const pick = (bySlot[s] || [])[used[s]];
-      if (pick) used[s]++;
-      return cardHTML(m, s, pick);
-    }).join("");
-    return `<div class="oct-mgr-col"><h3>${escapeAttr(m)}${OCT.onClock === m ? ' <span class="muted" style="font-weight:400;">⏰ on the clock</span>' : ""}</h3>
-      <div class="oct-card-grid">${cards}</div></div>`;
-  }).join("") + `</div>`;
+  }).join("");
+}
 
+// Wire drag-to-move on the .oct-card elements inside a container.
+function octWireCardDnd(container) {
   let dragPid = null, dragElig = [];
-  el.querySelectorAll(".oct-card").forEach((c) => {
+  container.querySelectorAll(".oct-card").forEach((c) => {
     if (c.classList.contains("filled")) {
       c.addEventListener("dragstart", (e) => {
         dragPid = c.dataset.pid; try { dragElig = JSON.parse(c.dataset.elig); } catch { dragElig = []; }
@@ -5393,7 +5390,7 @@ async function renderOctCards(el) {
       e.preventDefault(); c.classList.remove("dragover", "badslot");
       if (!dragPid) return;
       const mgr = c.dataset.mgr;
-      const srcCard = el.querySelector(`.oct-card.filled[data-pid="${dragPid}"]`);
+      const srcCard = container.querySelector(`.oct-card.filled[data-pid="${dragPid}"]`);
       if (srcCard && srcCard.dataset.mgr !== mgr) { alert("Move a player only within their own roster."); return; }
       if (!dragElig.includes(c.dataset.slot)) { alert(`Not eligible at ${c.dataset.slot}.`); return; }
       try {
@@ -5402,6 +5399,20 @@ async function renderOctCards(el) {
       } catch (err) { alert(err.message); }
     });
   });
+}
+
+// Full card view: every manager's roster as draggable cards, scrollable.
+async function renderOctCards(el) {
+  if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
+  const status = {};
+  try { const r = await api("/api/postseason/standings"); Object.assign(status, r.team_status || {}); OCT._teamStatus = status; }
+  catch (e) { /* lines optional */ }
+  el.innerHTML = `<p class="muted" style="font-size:12px;margin:2px 0 8px;">Drag a player card onto another eligible slot to move them — a full slot swaps. Scroll for all managers.</p>
+    <div class="oct-cards-wrap">` + OCT.league.managers.map((m) =>
+    `<div class="oct-mgr-col"><h3>${escapeAttr(m)}${OCT.onClock === m ? ' <span class="muted" style="font-weight:400;">⏰ on the clock</span>' : ""}</h3>
+      <div class="oct-card-grid">${octMgrCardsHTML(m, status, true)}</div></div>`
+  ).join("") + `</div>`;
+  octWireCardDnd(el);
 }
 
 async function renderOctRosters(el) {

@@ -974,3 +974,11 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .oct-card-name { font-size: 13px; font-weight: 600; line-height: 1.15; }
 .oct-card-meta { font-size: 11px; color: var(--muted); }
 .oct-card-open { font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* on-the-clock roster panel on the draft board */
+.oct-clock-panel { background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; margin: 8px 0 12px; }
+.oct-clock-panel summary { cursor: pointer; font-size: 13px; user-select: none; }
+.oct-clock-grid { grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-height: none; margin-top: 8px; }
+@media (max-width: 900px) { .oct-clock-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
