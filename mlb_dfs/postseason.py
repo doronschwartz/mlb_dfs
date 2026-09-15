@@ -840,6 +840,7 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                     # start — quick hooks mean even aces rarely clear ~6.5 —
                     # and floor so a real starter isn't undercounted.
                     ip_ps = min(6.5, max(4.0, ip / gs)) if gs else 5.0
+                    exp_ip = exp_starts * ip_ps
                     ceil_ip = starts_pg * ceil_g * ip_ps
                     p_qs = max(0.0, min(0.85, (ip_ps - 4.4) / 2.4)) * max(0.3, min(1.1, 1.55 - era / 4.0))
                     qs = p_qs * exp_starts
