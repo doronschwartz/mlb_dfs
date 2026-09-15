@@ -743,6 +743,11 @@ def _team_pool(team_id: int, season: int) -> list[dict]:
 
 _RECENT_TEAM_G = 27.0   # ~team games in a 30-day window
 _RECENT_W = 0.65        # weight on last-30-days usage vs full season
+# Postseason bullpen compression bounds (see the reliever branch below): a
+# low-leverage long man keeps ~45% of his regular-season innings rate, an
+# elite high-leverage arm keeps ~110%.
+_PEN_COMPRESS_LO = 0.45
+_PEN_COMPRESS_HI = 1.10
 
 
 def _split(person: dict, group: str, stat_type: str = "season") -> dict:
@@ -838,14 +843,29 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                 else:
                     ip_pg = blend_pg(ip, _ip_to_outs(pit30.get("inningsPitched")) / 3.0,
                                      bool(pit30.get("gamesPlayed")))
-                    exp_starts = 0.0
-                    exp_ip = ip_pg * eg
-                    ceil_ip = ip_pg * ceil_g
-                    qs = 0.0
                     svh_pg = blend_pg((pit.get("saves") or 0) + (pit.get("holds") or 0),
                                       (pit30.get("saves") or 0) + (pit30.get("holds") or 0),
                                       bool(pit30.get("gamesPlayed")))
+                    # BULLPEN COMPRESSION: October pens shorten to ~3-4 arms, so
+                    # a reliever's regular-season innings rate does NOT carry —
+                    # low-leverage long men / swingmen LOSE innings while the
+                    # high-leverage back-end (closer/setup) keeps or gains them.
+                    # Leverage proxy = SV+H rate (who a manager trusts late),
+                    # with a smaller run-prevention nudge. A mop-up/long man
+                    # keeps ~45% of his rate innings; an elite closer ~110%.
+                    lev_svh = min(1.0, (svh_pg / max(ip_pg, 0.01)) * 2.5)
+                    lev_qual = max(0.0, min(1.0, (4.50 - era) / 2.5))
+                    lev = 0.70 * lev_svh + 0.30 * lev_qual
+                    compress = _PEN_COMPRESS_LO + (_PEN_COMPRESS_HI - _PEN_COMPRESS_LO) * lev
+                    if gs >= 3:  # swingman: the spot-start + long innings vanish
+                        compress *= 0.72
+                    compress = max(0.30, min(_PEN_COMPRESS_HI, compress))
+                    exp_starts = 0.0
+                    exp_ip = ip_pg * eg * compress
+                    ceil_ip = ip_pg * ceil_g * compress
+                    qs = 0.0
                     svh = svh_pg * eg
+                    base["pen_compress"] = round(compress, 2)
                 rows.append({**base, "role": "pitcher",
                     "exp_ip": round(exp_ip, 1),
                     "exp_starts": round(exp_starts, 1) if is_starter else None,
