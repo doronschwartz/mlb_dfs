@@ -834,8 +834,12 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                     starts_pg = blend_pg(gs, gs30, bool(pit30.get("gamesPlayed")))
                     starts_pg = min(1 / 4.0, starts_pg * 1.25)
                     exp_starts = starts_pg * eg
-                    ip_ps = ip / gs if gs else 5.0
-                    exp_ip = exp_starts * ip_ps
+                    # Innings per start. `ip / gs` uses TOTAL innings over
+                    # starts, so a swingman's relief innings inflate it (Sean
+                    # Newcomb: 13.7 "IP per start"). Cap to a realistic October
+                    # start — quick hooks mean even aces rarely clear ~6.5 —
+                    # and floor so a real starter isn't undercounted.
+                    ip_ps = min(6.5, max(4.0, ip / gs)) if gs else 5.0
                     ceil_ip = starts_pg * ceil_g * ip_ps
                     p_qs = max(0.0, min(0.85, (ip_ps - 4.4) / 2.4)) * max(0.3, min(1.1, 1.55 - era / 4.0))
                     qs = p_qs * exp_starts
