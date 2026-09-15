@@ -871,7 +871,12 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                     qs = 0.0
                     svh = svh_pg * eg
                     base["pen_compress"] = round(compress, 2)
-                rows.append({**base, "role": "pitcher",
+                # MLB tags most pitchers generic "P", which is eligible for ANY
+                # pitcher slot — so a starter could be drafted at RP and vice
+                # versa. Stamp the real role (SP vs RP from usage) so slot
+                # eligibility aligns; keep TWP (two-way) as-is.
+                role_pos = pos if pos == "TWP" else ("SP" if is_starter else "RP")
+                rows.append({**base, "role": "pitcher", "position": role_pos,
                     "exp_ip": round(exp_ip, 1),
                     "exp_starts": round(exp_starts, 1) if is_starter else None,
                     "ceil_ip": round(ceil_ip, 0),
