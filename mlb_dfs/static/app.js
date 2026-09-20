@@ -5176,7 +5176,8 @@ $("#farm-league")?.addEventListener("change", farmPopulateTeams);
 
 // -------------------- Postseason Fantasy (🎃 October) --------------------
 
-const OCT = { view: "board", league: null, onClock: null, openSlots: {}, board: null, standings: null, model: null };
+const OCT = { view: "board", league: null, onClock: null, openSlots: {}, board: null, standings: null, model: null,
+  identity: localStorage.getItem("mlb_dfs_oct_identity") || "" };
 
 // Mirror of backend slot eligibility, for the pick dropdown.
 function octEligibleSlots(position, open) {
@@ -5209,9 +5210,53 @@ async function loadOctober() {
       ? `Draft live — pick ${r.league.picks.length + 1}/${total}, ${OCT.onClock} on the clock`
       : `${r.league.season} league · ${r.league.managers.length} managers · draft complete`;
   }
+  renderOctIdentity();
   renderOctOrder();
   renderOctober();
+  octMaybePoll();
 }
+
+// Remote draft: while it's NOT your turn, poll the (cheap) league endpoint so
+// your board flips to "your pick" automatically when others draft — no manual
+// refresh. Stops once it's your turn or you leave the board.
+let _octPoll = null;
+function octMaybePoll() {
+  clearInterval(_octPoll); _octPoll = null;
+  const waiting = OCT.league && OCT.onClock && OCT.identity && OCT.identity !== OCT.onClock;
+  if (!waiting) return;
+  _octPoll = setInterval(async () => {
+    if (state.tab !== "playoffs" || OCT.view !== "board") { clearInterval(_octPoll); _octPoll = null; return; }
+    const before = OCT.league ? OCT.league.picks.length : -1;
+    const r = await api("/api/postseason/league").catch(() => null);
+    if (r && r.league && r.league.picks.length !== before) {
+      OCT.board = null;          // someone picked — refresh pool + turn state
+      await loadOctober();
+    }
+  }, 12000);
+}
+
+// Identity gate: on a remote draft each person picks their name once, then Pick
+// buttons only appear on their own turn.
+function renderOctIdentity() {
+  const row = document.getElementById("oct-identity-row");
+  const sel = document.getElementById("oct-identity");
+  if (!row || !sel) return;
+  if (!OCT.league || !OCT.league.managers.length) { row.style.display = "none"; return; }
+  row.style.display = "";
+  const mgrs = OCT.league.managers;
+  if (OCT.identity && !mgrs.includes(OCT.identity)) { OCT.identity = ""; localStorage.removeItem("mlb_dfs_oct_identity"); }
+  sel.innerHTML = `<option value="">— select —</option>` +
+    mgrs.map((m) => `<option value="${escapeAttr(m)}" ${m === OCT.identity ? "selected" : ""}>${escapeAttr(m)}</option>`).join("");
+  const note = document.getElementById("oct-identity-note");
+  if (note) note.textContent = !OCT.identity ? "← pick your name to draft on your turn"
+    : (OCT.onClock === OCT.identity ? "✅ your turn — pick below" : (OCT.onClock ? `⏳ waiting for ${OCT.onClock}…` : ""));
+}
+$("#oct-identity")?.addEventListener("change", (e) => {
+  OCT.identity = e.target.value;
+  if (OCT.identity) localStorage.setItem("mlb_dfs_oct_identity", OCT.identity);
+  else localStorage.removeItem("mlb_dfs_oct_identity");
+  renderOctIdentity(); renderOctOrder(); renderOctober();
+});
 
 // Persistent snake draft-order strip: shows the pick order, whose turn it is,
 // and the current round + snake direction.
@@ -5276,7 +5321,8 @@ async function renderOctBoard(el) {
     (role === "all" || r.role === role) &&
     (team === "all" || r.team === team) &&
     (!q || r.name.toLowerCase().includes(q)));
-  const canPick = OCT.league && OCT.onClock;
+  // Identity-gated: you can only pick when it's YOUR turn (remote draft).
+  const canPick = OCT.league && OCT.onClock && OCT.identity && OCT.identity === OCT.onClock;
   const open = canPick ? (OCT.openSlots[OCT.onClock] || []) : [];
   const hdrProj = (r) => r.role === "hitter"
     ? `${r.proj.AVG.toFixed(3)} avg · ${r.proj.R} R · ${r.proj.HR} HR · ${r.proj.RBI} RBI · ${r.proj.SB} SB`
@@ -5296,7 +5342,9 @@ async function renderOctBoard(el) {
       <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
       <select id="oct-role"><option value="all">Hitters + pitchers</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
       <select id="oct-team"><option value="all">All teams</option>${teams.map((t) => `<option ${t === team ? "selected" : ""}>${t}</option>`).join("")}</select>
-      ${canPick ? `<span class="muted" style="font-size:12px;">Picking for <b>${escapeAttr(OCT.onClock)}</b> (open: ${open.join(", ")})</span>` : ""}
+      ${OCT.onClock ? (canPick
+        ? `<span style="font-size:12px;color:var(--accent-2);">✅ Your pick, <b>${escapeAttr(OCT.identity)}</b> — open: ${open.join(", ")}</span>`
+        : `<span class="muted" style="font-size:12px;">${OCT.identity ? `⏳ Waiting for <b>${escapeAttr(OCT.onClock)}</b> to pick` : "🙋 Select who you are (top of tab) to draft"}</span>`) : ""}
     </div>
     ${clockPanel}
     <table style="font-size:12px;">
@@ -5329,6 +5377,7 @@ function octPickCell(r, open) {
 }
 
 async function octDoPick(b) {
+  if (OCT.identity !== OCT.onClock) { alert(`It's ${OCT.onClock}'s pick, not yours.`); return; }
   const slot = document.querySelector(`.oct-slot[data-pid="${b.dataset.pid}"]`)?.value;
   if (!slot) return;
   if (!confirm(`${OCT.onClock} drafts ${b.dataset.name} at ${slot}?`)) return;
