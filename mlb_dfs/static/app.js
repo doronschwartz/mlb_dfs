@@ -5222,7 +5222,16 @@ function renderOctober() {
   if (OCT.view === "model") return renderOctModel(el);
 }
 
-$$(".oct-sub").forEach((b) => b.addEventListener("click", () => { OCT.view = b.dataset.view; renderOctober(); }));
+$$(".oct-sub").forEach((b) => b.dataset.view && b.addEventListener("click", () => { OCT.view = b.dataset.view; renderOctober(); }));
+
+$("#oct-reset")?.addEventListener("click", async () => {
+  if (!confirm("Wipe ALL managers and picks and start a fresh draft? (Saved odds are kept.)")) return;
+  try {
+    await api("/api/postseason/reset", { method: "POST", body: "{}" });
+    OCT.board = null; OCT.league = null;
+    await loadOctober();
+  } catch (e) { alert(e.message); }
+});
 
 $("#oct-create")?.addEventListener("click", async () => {
   const names = $("#oct-managers").value.split(",").map((s) => s.trim()).filter(Boolean);

@@ -3654,6 +3654,20 @@ def postseason_undo(payload: dict):
     return {"ok": True, "undone": ps.undo_pick(lg), "on_the_clock": ps.on_the_clock(lg)}
 
 
+@app.post("/api/postseason/reset")
+def postseason_reset(payload: dict | None = None):
+    """Wipe all managers + picks so a fresh draft can be created. Keeps the
+    saved odds / FanGraphs ladder / MVP awards (they carry over)."""
+    from . import postseason as ps
+    lg = ps.load_league(_ps_season((payload or {}).get("season")))
+    if not lg:
+        return {"ok": True, "note": "no league to reset"}
+    lg["managers"] = []
+    lg["picks"] = []
+    ps.save_league(lg)
+    return {"ok": True, "reset": True}
+
+
 @app.post("/api/postseason/odds")
 def postseason_odds(payload: dict):
     """{odds: {LAD: 220, ...}} to set market odds manually, {fetch: true} to
