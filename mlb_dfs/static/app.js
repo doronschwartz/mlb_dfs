@@ -5209,7 +5209,28 @@ async function loadOctober() {
       ? `Draft live — pick ${r.league.picks.length + 1}/${total}, ${OCT.onClock} on the clock`
       : `${r.league.season} league · ${r.league.managers.length} managers · draft complete`;
   }
+  renderOctOrder();
   renderOctober();
+}
+
+// Persistent snake draft-order strip: shows the pick order, whose turn it is,
+// and the current round + snake direction.
+function renderOctOrder() {
+  const el = document.getElementById("oct-order");
+  if (!el) return;
+  if (!OCT.league || !OCT.league.managers.length) { el.innerHTML = ""; return; }
+  const mgrs = OCT.league.managers;
+  const n = mgrs.length;
+  const total = n * OCT.league.slots.length;
+  const picks = OCT.league.picks.length;
+  const round = Math.min(OCT.league.slots.length, Math.floor(picks / n) + 1);
+  const reverse = (round - 1) % 2 === 1;
+  const chips = mgrs.map((m, i) =>
+    `<span class="oct-order-chip${m === OCT.onClock ? " on" : ""}">${i + 1}. ${escapeAttr(m)}</span>`).join("");
+  const note = OCT.onClock
+    ? `Round ${round}/${OCT.league.slots.length} ${reverse ? "◀ reverse" : "▶ forward"} — <b>${escapeAttr(OCT.onClock)}</b> on the clock (pick ${picks + 1}/${total})`
+    : "draft complete";
+  el.innerHTML = `<span class="oct-order-label">🐍 Draft order</span>${chips}<span class="oct-order-note">${note}</span>`;
 }
 
 function renderOctober() {
