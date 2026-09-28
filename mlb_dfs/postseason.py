@@ -806,6 +806,7 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                           (("R", "runs"), ("HR", "homeRuns"), ("RBI", "rbi"), ("SB", "stolenBases"))}
                 proj_ab = exp_pa * ab_share
                 rows.append({**base, "role": "hitter",
+                    "position": "DH" if pos == "TWP" else pos,
                     "exp_pa": round(exp_pa, 1),
                     "ceil_pa": round(pa_pg * ceil_g, 0),
                     "proj": {
@@ -871,11 +872,9 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                     qs = 0.0
                     svh = svh_pg * eg
                     base["pen_compress"] = round(compress, 2)
-                # MLB tags most pitchers generic "P", which is eligible for ANY
-                # pitcher slot — so a starter could be drafted at RP and vice
-                # versa. Stamp the real role (SP vs RP from usage) so slot
-                # eligibility aligns; keep TWP (two-way) as-is.
-                role_pos = pos if pos == "TWP" else ("SP" if is_starter else "RP")
+                # Stamp the real role (SP vs RP from usage) so slot eligibility
+                # aligns; two-way players split into a DH row and an SP/RP row.
+                role_pos = "SP" if is_starter else "RP"
                 rows.append({**base, "role": "pitcher", "position": role_pos,
                     "exp_ip": round(exp_ip, 1),
                     "exp_starts": round(exp_starts, 1) if is_starter else None,

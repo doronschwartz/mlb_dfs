@@ -5316,10 +5316,15 @@ async function renderOctBoard(el) {
   const q = (OCT._q || "").toLowerCase();
   const role = OCT._role || "all";
   const team = OCT._team || "all";
+  const posF = OCT._pos || "all";
+  const hideDrafted = OCT._hideDrafted !== false;
   const teams = [...new Set(OCT.board.map((r) => r.team))].sort();
+  const posMatch = (p) => posF === "all" || p === posF || (posF === "OF" && ["LF", "CF", "RF"].includes(p));
   let rows = OCT.board.filter((r) =>
     (role === "all" || r.role === role) &&
     (team === "all" || r.team === team) &&
+    posMatch(r.position) &&
+    (!hideDrafted || !r.drafted_by) &&
     (!q || r.name.toLowerCase().includes(q)));
   // Identity-gated: you can only pick when it's YOUR turn (remote draft).
   const canPick = OCT.league && OCT.onClock && OCT.identity && OCT.identity === OCT.onClock;
@@ -5342,6 +5347,8 @@ async function renderOctBoard(el) {
       <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
       <select id="oct-role"><option value="all">Hitters + pitchers</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
       <select id="oct-team"><option value="all">All teams</option>${teams.map((t) => `<option ${t === team ? "selected" : ""}>${t}</option>`).join("")}</select>
+      <select id="oct-pos"><option value="all">All positions</option>${["C", "1B", "2B", "3B", "SS", "OF", "DH", "SP", "RP"].map((p) => `<option ${p === posF ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <label style="font-size:12px;"><input type="checkbox" id="oct-hide-drafted" ${hideDrafted ? "checked" : ""}/> Hide drafted</label>
       ${OCT.onClock ? (canPick
         ? `<span style="font-size:12px;color:var(--accent-2);">✅ Your pick, <b>${escapeAttr(OCT.identity)}</b> — open: ${open.join(", ")}</span>`
         : `<span class="muted" style="font-size:12px;">${OCT.identity ? `⏳ Waiting for <b>${escapeAttr(OCT.onClock)}</b> to pick` : "🙋 Select who you are (top of tab) to draft"}</span>`) : ""}
@@ -5363,6 +5370,8 @@ async function renderOctBoard(el) {
   $("#oct-role").value = role;
   $("#oct-role").addEventListener("change", (e) => { OCT._role = e.target.value; renderOctBoard(el); });
   $("#oct-team").addEventListener("change", (e) => { OCT._team = e.target.value; renderOctBoard(el); });
+  $("#oct-pos").addEventListener("change", (e) => { OCT._pos = e.target.value; renderOctBoard(el); });
+  $("#oct-hide-drafted").addEventListener("change", (e) => { OCT._hideDrafted = e.target.checked; renderOctBoard(el); });
   $$(".oct-pick-btn").forEach((b) => b.addEventListener("click", () => octDoPick(b)));
   const clockCards = $("#oct-clock-cards");
   if (clockCards) octWireCardDnd(clockCards);
