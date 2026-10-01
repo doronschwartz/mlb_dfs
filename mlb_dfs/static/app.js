@@ -5446,7 +5446,7 @@ async function renderOctStandings(el) {
         ${CATS.map((c) => {
           const v = row.cat_values[c];
           const isLead = v !== null && v !== undefined && v === lead[c];
-          return `<td class="${isLead ? "oct-lead" : ""}"><div class="oct-val">${fmt(c, v)}</div><div class="oct-pts">${row.cat_points[c]} pt</div></td>`;
+          return `<td class="${isLead ? "oct-lead" : ""}"><b class="oct-pts-main">${row.cat_points[c]}</b> <span class="oct-val-side">(${fmt(c, v)})</span></td>`;
         }).join("")}
         <td>${Object.values(row.mvp_points).reduce((a, x) => a + x, 0) || ""}</td>
       </tr>`).join("")}
@@ -5460,7 +5460,7 @@ async function renderOctStandings(el) {
          ${t} ${s === "eliminated" ? "✖" : s === "champion" ? "🏆" : "✔"}</span>`).join("")}</div>`
     : `<div class="muted" style="font-size:12px;margin-top:8px;">Postseason hasn't started — live table fills in once games are played.</div>`;
   el.innerHTML =
-    tbl(r.live, "Live standings", "real playoff stats (WC → WS) · each cell = stat, roto points below · ★ green = category leader · click a column to sort", "oct-live") +
+    tbl(r.live, "Live standings", "real playoff stats (WC → WS) · each cell = roto points (stat) · green = category leader · click a column to sort", "oct-live") +
     chips +
     tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""), "oct-proj");
   el.querySelectorAll(".oct-sort").forEach((h) => h.addEventListener("click", () => {
