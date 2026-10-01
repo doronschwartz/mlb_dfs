@@ -1016,3 +1016,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
   align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
 .oct-modal-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   padding: 14px 16px; max-width: 760px; width: 100%; max-height: 80vh; overflow: auto; }
+
+/* Playoffs standings: values + points, leader highlight, sortable headers */
+.oct-stand-table { font-size: 12px; border-collapse: collapse; }
+.oct-stand-table th, .oct-stand-table td { padding: 4px 8px; text-align: center; white-space: nowrap; }
+.oct-stand-table .oct-val { font-weight: 600; font-size: 12.5px; }
+.oct-stand-table .oct-pts { font-size: 10px; color: var(--muted); }
+.oct-stand-table td.oct-lead { background: rgba(52,211,153,0.14); }
+.oct-stand-table td.oct-lead .oct-val { color: var(--accent-2); }
+.oct-stand-table td.oct-lead .oct-val::before { content: "★ "; font-size: 10px; }
+.oct-sort { cursor: pointer; user-select: none; }
+.oct-sort.on { color: var(--accent-2); }

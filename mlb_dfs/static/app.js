@@ -5417,19 +5417,41 @@ async function renderOctStandings(el) {
   if (!r.exists) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
   OCT.standings = r;
   const CATS = ["AVG", "R", "HR", "RBI", "SB", "ERA", "WHIP", "K", "QS", "SVH"];
-  const tbl = (data, title, sub) => !data ? "" : `
+  const LOW = new Set(["ERA", "WHIP"]);
+  const fmt = (c, v) => v === null || v === undefined ? "—"
+    : c === "AVG" ? v.toFixed(3).replace(/^0/, "")
+    : (c === "ERA" || c === "WHIP") ? v.toFixed(2) : v;
+  const sortKey = OCT._standSort || "total";
+  const tbl = (data, title, sub, id) => {
+    if (!data) return "";
+    // per-category leader (best value; ties all highlighted)
+    const lead = {};
+    CATS.forEach((c) => {
+      const vals = data.standings.map((r) => r.cat_values[c]).filter((v) => v !== null && v !== undefined);
+      if (vals.length) lead[c] = LOW.has(c) ? Math.min(...vals) : Math.max(...vals);
+    });
+    const rows = [...data.standings].sort((a, b) => {
+      if (sortKey === "total") return b.total - a.total;
+      const va = a.cat_values[sortKey], vb = b.cat_values[sortKey];
+      if (va == null) return 1; if (vb == null) return -1;
+      return LOW.has(sortKey) ? va - vb : vb - va;
+    });
+    const th = (k, label) => `<th class="oct-sort${sortKey === k ? " on" : ""}" data-sort="${k}" title="Sort by ${label}">${label}${sortKey === k ? " ▾" : ""}</th>`;
+    return `
     <h3 style="margin-top:16px;">${title} <span class="muted" style="font-weight:400;font-size:12px;">${sub}</span></h3>
-    <table style="font-size:12px;">
-      <tr><th></th><th style="text-align:left;">Manager</th><th>Total</th>${CATS.map((c) => `<th>${c === "SVH" ? "SV+H" : c}</th>`).join("")}<th>MVP</th></tr>
-      ${data.standings.map((row) => `<tr>
-        <td>${row.place}</td><td style="text-align:left;"><b>${escapeAttr(row.manager)}</b></td><td><b>${row.total}</b></td>
+    <div style="overflow-x:auto;"><table class="oct-stand-table" id="${id}">
+      <tr><th></th><th style="text-align:left;">Manager</th>${th("total", "Pts")}${CATS.map((c) => th(c, c === "SVH" ? "SV+H" : c)).join("")}<th>MVP</th></tr>
+      ${rows.map((row, i) => `<tr>
+        <td>${i + 1}</td><td style="text-align:left;"><b>${escapeAttr(row.manager)}</b></td><td><b>${row.total}</b></td>
         ${CATS.map((c) => {
           const v = row.cat_values[c];
-          return `<td title="${v === null || v === undefined ? "—" : v}">${row.cat_points[c]}</td>`;
+          const isLead = v !== null && v !== undefined && v === lead[c];
+          return `<td class="${isLead ? "oct-lead" : ""}"><div class="oct-val">${fmt(c, v)}</div><div class="oct-pts">${row.cat_points[c]} pt</div></td>`;
         }).join("")}
         <td>${Object.values(row.mvp_points).reduce((a, x) => a + x, 0) || ""}</td>
       </tr>`).join("")}
-    </table>`;
+    </table></div>`;
+  };
   const status = r.team_status || {};
   const chips = Object.keys(status).length
     ? `<div style="margin-top:10px;">${Object.entries(status).map(([t, s]) =>
@@ -5438,9 +5460,12 @@ async function renderOctStandings(el) {
          ${t} ${s === "eliminated" ? "✖" : s === "champion" ? "🏆" : "✔"}</span>`).join("")}</div>`
     : `<div class="muted" style="font-size:12px;margin-top:8px;">Postseason hasn't started — live table fills in once games are played.</div>`;
   el.innerHTML =
-    tbl(r.live, "Live standings", "real playoff stats, whole-postseason totals; cells = roto points (hover for category value)") +
+    tbl(r.live, "Live standings", "real playoff stats (WC → WS) · each cell = stat, roto points below · ★ green = category leader · click a column to sort", "oct-live") +
     chips +
-    tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""));
+    tbl(r.projected, "Projected standings", "odds model: per-player rates × expected team games" + (r.projected_error ? " — " + escapeAttr(r.projected_error) : ""), "oct-proj");
+  el.querySelectorAll(".oct-sort").forEach((h) => h.addEventListener("click", () => {
+    OCT._standSort = h.dataset.sort; renderOctStandings(el);
+  }));
 }
 
 // Render one manager's 18 slot cards (filled player or open spot). Shared by
