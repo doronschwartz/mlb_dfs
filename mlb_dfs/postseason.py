@@ -152,13 +152,26 @@ def open_slots(lg: dict, manager: str) -> list[str]:
     return left
 
 
-def eligible_slots(position: str, open_: list[str]) -> list[str]:
-    pos = (position or "").upper()
+def _pos_allowed(pos: str) -> set:
+    pos = (pos or "").upper()
     allowed = _POS_SLOTS.get(pos, set())
     if pos in _POS_SLOTS and pos not in ("P", "SP", "RP", "TWP"):
         allowed = allowed | {"UT"}
     elif pos not in _POS_SLOTS:  # unknown position: let it slide as a hitter
         allowed = HIT_SLOTS
+    return allowed
+
+
+def eligible_slots(position, open_: list[str]) -> list[str]:
+    """`position` may be one position, a list, or "2B/SS" — multi-position
+    eligibility is the union of each position's slots."""
+    if isinstance(position, (list, tuple)):
+        parts = list(position)
+    else:
+        parts = [x for x in str(position or "").split("/") if x] or [""]
+    allowed = set()
+    for part in parts:
+        allowed |= _pos_allowed(part)
     seen, out = set(), []
     for s in open_:
         if s in allowed and s not in seen:
@@ -168,7 +181,8 @@ def eligible_slots(position: str, open_: list[str]) -> list[str]:
 
 
 def make_pick(lg: dict, manager: str, slot: str, player_id: int, name: str,
-              team_id: int, team: str, position: str, force: bool = False) -> dict:
+              team_id: int, team: str, position: str, force: bool = False,
+              positions: list | None = None) -> dict:
     clock = on_the_clock(lg)
     if clock is None:
         raise ValueError("draft is complete")
@@ -177,7 +191,8 @@ def make_pick(lg: dict, manager: str, slot: str, player_id: int, name: str,
     open_ = open_slots(lg, manager)
     if slot not in open_:
         raise ValueError(f"{manager} has no open {slot} slot (open: {open_})")
-    if not force and slot not in eligible_slots(position, open_):
+    elig_pos = positions or position
+    if not force and slot not in eligible_slots(elig_pos, open_):
         raise ValueError(f"{position} is not eligible at {slot}")
     if any(p["player_id"] == player_id and p["role"] == _slot_role(slot) for p in lg["picks"]):
         raise ValueError(f"{name} already drafted in a {_slot_role(slot)} slot")
@@ -186,6 +201,8 @@ def make_pick(lg: dict, manager: str, slot: str, player_id: int, name: str,
         "team_id": int(team_id), "team": team, "position": position,
         "role": _slot_role(slot), "pick_number": len(lg["picks"]) + 1,
     }
+    if positions:
+        pick["positions"] = list(positions)
     lg["picks"].append(pick)
     save_league(lg)
     return pick
@@ -215,7 +232,7 @@ def move_pick(lg: dict, manager: str, player_id: int, to_slot: str,
     if src["slot"] == to_slot:
         return src  # no-op (dropped back on same slot type)
     slot_types = list(dict.fromkeys(lg["slots"]))
-    if not force and to_slot not in eligible_slots(src["position"], slot_types):
+    if not force and to_slot not in eligible_slots(src.get("positions") or src["position"], slot_types):
         raise ValueError(f"{src['name']} ({src['position']}) can't play {to_slot}")
     cap = lg["slots"].count(to_slot)
     occ = [p for p in picks if p["manager"] == manager and p["slot"] == to_slot]
@@ -224,7 +241,7 @@ def move_pick(lg: dict, manager: str, player_id: int, to_slot: str,
         src["slot"], src["role"] = to_slot, _slot_role(to_slot)
     else:
         swap = next((o for o in occ if force
-                     or from_slot in eligible_slots(o["position"], slot_types)), None)
+                     or from_slot in eligible_slots(o.get("positions") or o["position"], slot_types)), None)
         if not swap:
             raise ValueError(f"{to_slot} is full and nobody there can move to {from_slot}")
         swap["slot"], swap["role"] = from_slot, _slot_role(from_slot)
@@ -735,7 +752,7 @@ def _team_pool(team_id: int, season: int) -> list[dict]:
         data = mlb_api._get(
             f"/teams/{team_id}/roster",
             params={"rosterType": "active", "season": season,
-                    "hydrate": (f"person(stats(group=[hitting,pitching],type=[season,byDateRange],"
+                    "hydrate": (f"person(stats(group=[hitting,pitching,fielding],type=[season,byDateRange],"
                                 f"season={season},startDate={start.isoformat()},endDate={end.isoformat()}))")})
         return data.get("roster", [])
     return _cached(("pool", team_id, season), 21600, build)
@@ -757,6 +774,33 @@ def _split(person: dict, group: str, stat_type: str = "season") -> dict:
                 and s.get("splits")):
             return s["splits"][0].get("stat", {})
     return {}
+
+
+_MULTIPOS_MIN_G = 10  # games at a position this season to gain eligibility there
+_OF_POS = {"LF", "CF", "RF"}
+
+
+def _eligible_positions(person: dict, primary: str) -> list[str]:
+    """Primary position + every fielding position with >= _MULTIPOS_MIN_G games
+    this season (versatility by games played; DH/P excluded — DH maps to UT,
+    pitchers are handled by role). Outfield spots collapse to OF."""
+    out = []
+    def add(p):
+        p = "OF" if p in _OF_POS else p
+        if p and p not in out:
+            out.append(p)
+    add(primary)
+    for s in person.get("stats", []):
+        if ((s.get("group") or {}).get("displayName") != "fielding"
+                or (s.get("type") or {}).get("displayName") != "season"):
+            continue
+        for sp in s.get("splits", []):
+            pos = ((sp.get("position") or {}).get("abbreviation") or "").upper()
+            if pos in ("DH", "P", "") or pos == primary:
+                continue
+            if int((sp.get("stat") or {}).get("gamesPlayed") or 0) >= _MULTIPOS_MIN_G:
+                add(pos)
+    return out
 
 
 def _ip_to_outs(ip) -> int:
@@ -807,6 +851,7 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                 proj_ab = exp_pa * ab_share
                 rows.append({**base, "role": "hitter",
                     "position": "DH" if pos == "TWP" else pos,
+                    "positions": ["DH"] if pos == "TWP" else _eligible_positions(person, pos),
                     "exp_pa": round(exp_pa, 1),
                     "ceil_pa": round(pa_pg * ceil_g, 0),
                     "proj": {
@@ -874,8 +919,8 @@ def player_board(season: int, odds: dict, ws_probs: dict | None = None,
                     base["pen_compress"] = round(compress, 2)
                 # Stamp the real role (SP vs RP from usage) so slot eligibility
                 # aligns; two-way players split into a DH row and an SP/RP row.
-                role_pos = "SP" if is_starter else "RP"
-                rows.append({**base, "role": "pitcher", "position": role_pos,
+                role_pos = "SP" if (is_starter or pos == "TWP") else "RP"
+                rows.append({**base, "role": "pitcher", "position": role_pos, "positions": [role_pos],
                     "exp_ip": round(exp_ip, 1),
                     "exp_starts": round(exp_starts, 1) if is_starter else None,
                     "ceil_ip": round(ceil_ip, 0),
@@ -964,6 +1009,64 @@ def _post_qs(pid: int, season: int) -> int:
                     n += 1
         return n
     return _cached(("qs", pid, season), 300, build)
+
+
+_ROUND = {"F": "WC", "D": "DS", "L": "LCS", "W": "WS"}
+
+
+def _round_by_pk(season: int) -> dict:
+    """{gamePk: 'WC'|'DS'|'LCS'|'WS'} — pitching game logs only say gameType
+    'P', so rounds come from the postseason schedule."""
+    def build():
+        out = {}
+        for gt, label in _ROUND.items():
+            try:
+                data = mlb_api._get("/schedule", params={"sportId": 1, "season": season, "gameType": gt})
+            except mlb_api.MlbApiError:
+                continue
+            for d in data.get("dates", []):
+                for g in d.get("games", []):
+                    out[g.get("gamePk")] = label
+        return out
+    return _cached(("rounds", season), 600, build)
+
+
+def post_gamelog(pid: int, season: int, role: str) -> list[dict]:
+    """Game-by-game postseason line (gameType=P = WC+DS+LCS+WS), newest first."""
+    group = "pitching" if role == "pitcher" else "hitting"
+    def build():
+        try:
+            data = mlb_api._get(f"/people/{pid}/stats", params={
+                "stats": "gameLog", "group": group, "season": season, "gameType": "P"})
+        except mlb_api.MlbApiError:
+            return []
+        rounds = _round_by_pk(season)
+        out = []
+        for s in data.get("stats", []):
+            for sp in s.get("splits", []):
+                st = sp.get("stat", {})
+                pk = (sp.get("game") or {}).get("gamePk")
+                row = {"date": sp.get("date"),
+                       "opp": (sp.get("opponent") or {}).get("name", ""),
+                       "home": bool(sp.get("isHome")),
+                       "round": rounds.get(pk) or _ROUND.get(sp.get("gameType") or "", ""),
+                       "win": sp.get("isWin")}
+                if group == "hitting":
+                    row.update({k: st.get(src, 0) or 0 for k, src in (
+                        ("AB", "atBats"), ("H", "hits"), ("R", "runs"), ("HR", "homeRuns"),
+                        ("RBI", "rbi"), ("BB", "baseOnBalls"), ("K", "strikeOuts"),
+                        ("SB", "stolenBases"))})
+                else:
+                    outs = _ip_to_outs(st.get("inningsPitched"))
+                    row.update({"IP": round(outs / 3.0, 1), "OUTS": outs,
+                                "H": st.get("hits", 0) or 0, "ER": st.get("earnedRuns", 0) or 0,
+                                "BB": st.get("baseOnBalls", 0) or 0, "K": st.get("strikeOuts", 0) or 0,
+                                "QS": int(outs >= 18 and (st.get("earnedRuns") or 0) <= 3),
+                                "SVH": (st.get("saves", 0) or 0) + (st.get("holds", 0) or 0)})
+                out.append(row)
+        out.sort(key=lambda r: r.get("date") or "", reverse=True)
+        return out
+    return _cached(("glog", pid, season, group), 300, build)
 
 
 def live_lines(lg: dict) -> list[dict]:

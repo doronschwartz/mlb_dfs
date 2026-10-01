@@ -3622,7 +3622,8 @@ def postseason_pick(payload: dict):
         pick = ps.make_pick(lg, payload["manager"], payload["slot"],
                             payload["player_id"], payload["name"],
                             payload.get("team_id") or 0, payload.get("team") or "",
-                            payload.get("position") or "", force=bool(payload.get("force")))
+                            payload.get("position") or "", force=bool(payload.get("force")),
+                            positions=payload.get("positions") or None)
     except (ValueError, KeyError) as e:
         raise HTTPException(400, str(e))
     return {"ok": True, "pick": pick, "on_the_clock": ps.on_the_clock(lg)}
@@ -3652,6 +3653,14 @@ def postseason_undo(payload: dict):
     if not lg:
         raise HTTPException(400, "no postseason league")
     return {"ok": True, "undone": ps.undo_pick(lg), "on_the_clock": ps.on_the_clock(lg)}
+
+
+@app.get("/api/postseason/gamelog")
+def postseason_gamelog(player_id: int, role: str = "hitter", season: int | None = None):
+    """Per-game postseason log (gameType=P: WC through WS) for one player."""
+    from . import postseason as ps
+    return {"player_id": player_id, "role": role,
+            "games": ps.post_gamelog(int(player_id), _ps_season(season), role)}
 
 
 @app.post("/api/postseason/reset")

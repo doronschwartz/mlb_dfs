@@ -993,3 +993,26 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .oct-order-chip.on { background: rgba(52,211,153,0.18); border-color: var(--accent-2);
   color: var(--accent-2); font-weight: 700; }
 .oct-order-note { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+/* Playoffs rosters: sheet-style table + team totals */
+.oct-roster-block { margin-bottom: 18px; }
+.oct-roster-block h3 { margin: 6px 0; }
+.oct-roster-table { font-size: 11.5px; border-collapse: collapse; }
+.oct-roster-table th, .oct-roster-table td { padding: 3px 7px; text-align: right; white-space: nowrap; }
+.oct-roster-table td:nth-child(-n+3), .oct-roster-table th:nth-child(-n+3) { text-align: left; }
+.oct-log-row:hover { background: rgba(255,255,255,0.04); }
+.oct-total-row td { font-weight: 700; border-top: 2px solid var(--border); background: var(--panel); }
+
+/* roster-card postseason line + pace bar */
+.oct-card-line { font-size: 11px; margin-top: 2px; }
+.oct-pace { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; margin-top: 3px; }
+.oct-pace span { display: block; height: 100%; background: var(--muted); }
+.oct-pace span.ahead { background: var(--accent-2); }
+.oct-pace span.behind { background: var(--bad); }
+.oct-card.filled { cursor: pointer; }
+
+/* game-log modal */
+.oct-modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex;
+  align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.oct-modal-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; max-width: 760px; width: 100%; max-height: 80vh; overflow: auto; }

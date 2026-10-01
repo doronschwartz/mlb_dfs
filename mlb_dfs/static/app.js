@@ -5181,7 +5181,12 @@ const OCT = { view: "board", league: null, onClock: null, openSlots: {}, board: 
 
 // Mirror of backend slot eligibility, for the pick dropdown.
 function octEligibleSlots(position, open) {
-  const pos = (position || "").toUpperCase();
+  const parts = Array.isArray(position) ? position : String(position || "").split("/").filter(Boolean);
+  if (parts.length > 1) {
+    const u = new Set(parts.flatMap((p) => octEligibleSlots(p, open)));
+    return open.filter((s, i) => u.has(s) && open.indexOf(s) === i);
+  }
+  const pos = (parts[0] || "").toUpperCase();
   const M = {
     C: ["C", "C+IF"], "1B": ["1B", "C+IF"], "2B": ["2B", "C+IF"], "3B": ["3B", "C+IF"], SS: ["SS", "C+IF"],
     LF: ["OF"], CF: ["OF"], RF: ["OF"], OF: ["OF"], DH: [],
@@ -5316,14 +5321,18 @@ async function renderOctBoard(el) {
   const q = (OCT._q || "").toLowerCase();
   const role = OCT._role || "all";
   const team = OCT._team || "all";
+  if (OCT._pos === undefined) OCT._pos = localStorage.getItem("oct_pos_filter") || "all";
+  if (OCT._hideDrafted === undefined) OCT._hideDrafted = localStorage.getItem("oct_hide_drafted") !== "0";
   const posF = OCT._pos || "all";
   const hideDrafted = OCT._hideDrafted !== false;
   const teams = [...new Set(OCT.board.map((r) => r.team))].sort();
-  const posMatch = (p) => posF === "all" || p === posF || (posF === "OF" && ["LF", "CF", "RF"].includes(p));
+  const rowPos = (r) => (r.positions && r.positions.length ? r.positions : [r.position])
+    .map((p) => (["LF", "CF", "RF"].includes(p) ? "OF" : p));
+  const posMatch = (r) => posF === "all" || (posF === "UT" ? r.role === "hitter" : rowPos(r).includes(posF));
   let rows = OCT.board.filter((r) =>
     (role === "all" || r.role === role) &&
     (team === "all" || r.team === team) &&
-    posMatch(r.position) &&
+    posMatch(r) &&
     (!hideDrafted || !r.drafted_by) &&
     (!q || r.name.toLowerCase().includes(q)));
   // Identity-gated: you can only pick when it's YOUR turn (remote draft).
@@ -5347,7 +5356,7 @@ async function renderOctBoard(el) {
       <input id="oct-q" placeholder="Search players…" value="${escapeAttr(OCT._q || "")}" style="width:200px;" />
       <select id="oct-role"><option value="all">Hitters + pitchers</option><option value="hitter">Hitters</option><option value="pitcher">Pitchers</option></select>
       <select id="oct-team"><option value="all">All teams</option>${teams.map((t) => `<option ${t === team ? "selected" : ""}>${t}</option>`).join("")}</select>
-      <select id="oct-pos"><option value="all">All positions</option>${["C", "1B", "2B", "3B", "SS", "OF", "DH", "SP", "RP"].map((p) => `<option ${p === posF ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <select id="oct-pos"><option value="all">All positions</option>${["C", "1B", "2B", "3B", "SS", "OF", "UT", "SP", "RP"].map((p) => `<option ${p === posF ? "selected" : ""}>${p}</option>`).join("")}</select>
       <label style="font-size:12px;"><input type="checkbox" id="oct-hide-drafted" ${hideDrafted ? "checked" : ""}/> Hide drafted</label>
       ${OCT.onClock ? (canPick
         ? `<span style="font-size:12px;color:var(--accent-2);">✅ Your pick, <b>${escapeAttr(OCT.identity)}</b> — open: ${open.join(", ")}</span>`
@@ -5359,7 +5368,7 @@ async function renderOctBoard(el) {
       <th title="Expected PA/IP over the whole postseason: recent-role usage rate × team expected games. Starters show expected starts — a starter pitches every ~4th team game.">Exp PA/IP</th><th style="text-align:left;">Projected (whole postseason)</th><th>Value</th><th></th></tr>
       ${rows.slice(0, 250).map((r) => `<tr style="${r.drafted_by ? "opacity:.45;" : ""}">
         <td style="text-align:left;">${escapeAttr(r.name)}${r.role === "pitcher" ? " <span class='muted'>(P)</span>" : ""}</td>
-        <td>${r.team}</td><td>${r.position}</td><td>${r.exp_games}</td>
+        <td>${r.team}</td><td>${escapeAttr((r.positions && r.positions.length ? r.positions : [r.position]).join("/"))}</td><td>${r.exp_games}</td>
         <td>${expCell(r)}</td>
         <td style="text-align:left;">${hdrProj(r)}</td><td>${r.value.toFixed(1)}</td>
         <td>${r.drafted_by ? escapeAttr(r.drafted_by) : (canPick ? octPickCell(r, open) : "")}</td>
@@ -5370,19 +5379,19 @@ async function renderOctBoard(el) {
   $("#oct-role").value = role;
   $("#oct-role").addEventListener("change", (e) => { OCT._role = e.target.value; renderOctBoard(el); });
   $("#oct-team").addEventListener("change", (e) => { OCT._team = e.target.value; renderOctBoard(el); });
-  $("#oct-pos").addEventListener("change", (e) => { OCT._pos = e.target.value; renderOctBoard(el); });
-  $("#oct-hide-drafted").addEventListener("change", (e) => { OCT._hideDrafted = e.target.checked; renderOctBoard(el); });
+  $("#oct-pos").addEventListener("change", (e) => { OCT._pos = e.target.value; localStorage.setItem("oct_pos_filter", OCT._pos); renderOctBoard(el); });
+  $("#oct-hide-drafted").addEventListener("change", (e) => { OCT._hideDrafted = e.target.checked; localStorage.setItem("oct_hide_drafted", e.target.checked ? "1" : "0"); renderOctBoard(el); });
   $$(".oct-pick-btn").forEach((b) => b.addEventListener("click", () => octDoPick(b)));
   const clockCards = $("#oct-clock-cards");
   if (clockCards) octWireCardDnd(clockCards);
 }
 
 function octPickCell(r, open) {
-  const slots = octEligibleSlots(r.position, open);
+  const slots = octEligibleSlots(r.positions && r.positions.length ? r.positions : r.position, open);
   if (!slots.length) return `<span class="muted">no slot</span>`;
   return `<select class="oct-slot" data-pid="${r.player_id}">${slots.map((s) => `<option>${s}</option>`).join("")}</select>
     <button class="oct-pick-btn btn-pick" data-pid="${r.player_id}" data-name="${escapeAttr(r.name)}" data-team="${r.team}"
-      data-teamid="${r.team_id}" data-pos="${escapeAttr(r.position)}" data-role="${r.role}">Pick</button>`;
+      data-teamid="${r.team_id}" data-pos="${escapeAttr(r.position)}" data-positions="${escapeAttr((r.positions || []).join("/"))}" data-role="${r.role}">Pick</button>`;
 }
 
 async function octDoPick(b) {
@@ -5393,7 +5402,8 @@ async function octDoPick(b) {
   try {
     await api("/api/postseason/pick", { method: "POST", body: JSON.stringify({
       manager: OCT.onClock, slot, player_id: parseInt(b.dataset.pid, 10), name: b.dataset.name,
-      team_id: parseInt(b.dataset.teamid, 10), team: b.dataset.team, position: b.dataset.pos }) });
+      team_id: parseInt(b.dataset.teamid, 10), team: b.dataset.team, position: b.dataset.pos,
+      positions: (b.dataset.positions || "").split("/").filter(Boolean) }) });
   } catch (e) { return alert(e.message); }
   OCT.board = null;  // re-annotate drafted_by
   await loadOctober();
@@ -5451,11 +5461,41 @@ function octMgrCardsHTML(m, status, draggable) {
     const elim = (status || {})[pick.team] === "eliminated";
     return `<div class="oct-card filled ${arm ? "arm" : "bat"}" ${draggable ? 'draggable="true"' : ""}
        data-slot="${slotName}" data-mgr="${escapeAttr(m)}" data-pid="${pick.player_id}"
-       data-elig="${escapeAttr(JSON.stringify(eligForPos(pick.position)))}"${draggable ? ' title="Drag to another eligible slot"' : ""}>
+       data-elig="${escapeAttr(JSON.stringify(eligForPos(pick.positions && pick.positions.length ? pick.positions : pick.position)))}"${draggable ? ' title="Drag to another eligible slot"' : ""}>
        <div class="oct-card-slot">${slotName}</div>
        <div class="oct-card-name">${escapeAttr(pick.name)}${elim ? " ✖" : ""}</div>
-       <div class="oct-card-meta">${escapeAttr(pick.position || "")} · ${escapeAttr(pick.team || "")}</div></div>`;
+       <div class="oct-card-meta">${escapeAttr(pick.position || "")} · ${escapeAttr(pick.team || "")}</div>
+       ${octCardProgress(pick)}</div>`;
   }).join("");
+}
+
+// Postseason line + pace vs projection for one drafted player's card.
+// Bar width = share of his projected postseason volume (PA / IP) already used;
+// colour = performing better (green) or worse (red) than his projected rate.
+function octCardProgress(pick) {
+  const key = `${pick.player_id}|${pick.role}`;
+  const line = (OCT._lines || {})[key];
+  const proj = (OCT.board || []).find((r) => r.player_id === pick.player_id && r.role === pick.role);
+  const s = (line && line.stats) || null;
+  if (!s) return `<div class="oct-card-line muted">no games yet</div>`;
+  let txt, used = 0, good = null;
+  if (pick.role === "hitter") {
+    const avg = s.AB ? s.H / s.AB : null;
+    txt = `${s.H || 0}-${s.AB || 0}${s.HR ? ` · ${s.HR} HR` : ""}${s.RBI ? ` · ${s.RBI} RBI` : ""}${s.R ? ` · ${s.R} R` : ""}${s.SB ? ` · ${s.SB} SB` : ""}`;
+    if (!s.AB && !s.PA) txt = "no games yet";
+    if (proj && proj.exp_pa) used = (s.PA || s.AB || 0) / proj.exp_pa;
+    if (proj && avg != null && s.AB >= 4) good = avg >= (proj.proj.AVG || 0.25);
+  } else {
+    const ip = (s.OUTS || 0) / 3;
+    const era = ip ? (s.ER * 9) / ip : null;
+    txt = ip ? `${octIP(s.OUTS)} IP · ${s.ER || 0} ER · ${s.K || 0} K${s.QS ? ` · ${s.QS} QS` : ""}${s.SVH ? ` · ${s.SVH} SV+H` : ""}` : "no games yet";
+    if (proj && proj.exp_ip) used = ip / proj.exp_ip;
+    if (proj && era != null && ip >= 1) good = era <= (proj.proj.ERA || 4.0);
+  }
+  const w = Math.max(0, Math.min(100, Math.round(used * 100)));
+  const cls = good == null ? "" : good ? "ahead" : "behind";
+  return `<div class="oct-card-line">${txt}</div>
+    <div class="oct-pace" title="${w}% of projected postseason ${pick.role === "hitter" ? "PA" : "IP"} used · ${good == null ? "" : good ? "beating" : "behind"} projected rate"><span class="${cls}" style="width:${w}%"></span></div>`;
 }
 
 // Wire drag-to-move on the .oct-card elements inside a container.
@@ -5468,6 +5508,10 @@ function octWireCardDnd(container) {
         e.dataTransfer.setData("text/plain", c.dataset.pid); c.classList.add("dragging");
       });
       c.addEventListener("dragend", () => { c.classList.remove("dragging"); dragPid = null; });
+      c.addEventListener("click", () => {
+        const pick = OCT.league.picks.find((p) => String(p.player_id) === c.dataset.pid && p.slot === c.dataset.slot && p.manager === c.dataset.mgr);
+        if (pick) octShowGameLog(pick.player_id, pick.role, pick.name);
+      });
     }
     c.addEventListener("dragover", (e) => {
       e.preventDefault();
@@ -5493,8 +5537,12 @@ function octWireCardDnd(container) {
 async function renderOctCards(el) {
   if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
   const status = {};
-  try { const r = await api("/api/postseason/standings"); Object.assign(status, r.team_status || {}); OCT._teamStatus = status; }
-  catch (e) { /* lines optional */ }
+  try {
+    const r = await api("/api/postseason/standings");
+    Object.assign(status, r.team_status || {}); OCT._teamStatus = status;
+    OCT._lines = {}; (r.lines || []).forEach((l) => { OCT._lines[`${l.player_id}|${l.role}`] = l; });
+  } catch (e) { /* lines optional */ }
+  if (!OCT.board) { try { OCT.board = (await api("/api/postseason/board")).players; } catch (e) { /* pace optional */ } }
   el.innerHTML = `<p class="muted" style="font-size:12px;margin:2px 0 8px;">Drag a player card onto another eligible slot to move them — a full slot swaps. Scroll for all managers.</p>
     <div class="oct-cards-wrap">` + OCT.league.managers.map((m) =>
     `<div class="oct-mgr-col"><h3>${escapeAttr(m)}${OCT.onClock === m ? ' <span class="muted" style="font-weight:400;">⏰ on the clock</span>' : ""}</h3>
@@ -5503,37 +5551,106 @@ async function renderOctCards(el) {
   octWireCardDnd(el);
 }
 
+// Baseball IP notation from outs (7 outs -> "2.1").
+function octIP(outs) { outs = outs || 0; return `${Math.floor(outs / 3)}.${outs % 3}`; }
+
+// Team totals from a manager's lines — same math as roto_standings().
+function octTotals(lines) {
+  const t = { AB: 0, H: 0, R: 0, HR: 0, RBI: 0, SB: 0, OUTS: 0, ER: 0, BB: 0, HA: 0, K: 0, QS: 0, SVH: 0 };
+  lines.forEach((l) => Object.keys(t).forEach((k) => { t[k] += (l.stats && l.stats[k]) || 0; }));
+  const ip = t.OUTS / 3;
+  t.AVG = t.AB ? t.H / t.AB : null;
+  t.ERA = ip ? (t.ER * 9) / ip : null;
+  t.WHIP = ip ? (t.BB + t.HA) / ip : null;
+  return t;
+}
+
 async function renderOctRosters(el) {
   if (!OCT.league) { el.innerHTML = `<div class="muted" style="padding:12px;">No league yet.</div>`; return; }
   el.innerHTML = `<div class="muted" style="padding:12px;">Loading rosters…</div>`;
   let r;
   try { r = await api("/api/postseason/standings"); }
   catch (e) { el.innerHTML = `<div class="muted">${escapeAttr(e.message)}</div>`; return; }
+  OCT._teamStatus = r.team_status || {};
   const byMgr = {};
   (r.lines || []).forEach((l) => { (byMgr[l.manager] = byMgr[l.manager] || []).push(l); });
-  const status = r.team_status || {};
-  const line = (l) => l.role === "hitter"
-    ? `${l.stats.AB ? (l.stats.H / l.stats.AB).toFixed(3) : "—"} · ${l.stats.R} R · ${l.stats.HR} HR · ${l.stats.RBI} RBI · ${l.stats.SB} SB`
-    : `${l.stats.IP} IP · ${l.stats.ER} ER · ${l.stats.K} K · ${l.stats.QS} QS · ${l.stats.SVH} SV+H`;
-  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;">` + OCT.league.managers.map((m) => `
-    <div style="min-width:320px;flex:1;">
-      <h3>${escapeAttr(m)}</h3>
-      <table style="font-size:11px;">
-        <tr><th>Slot</th><th style="text-align:left;">Player</th><th>Team</th><th style="text-align:left;">Postseason line</th></tr>
-        ${(byMgr[m] || []).map((l) => `<tr style="${status[l.team] === "eliminated" ? "opacity:.5;" : ""}">
-          <td>${l.slot}</td><td style="text-align:left;">${escapeAttr(l.name)}</td>
-          <td>${l.team}${status[l.team] === "eliminated" ? " ✖" : ""}</td>
-          <td style="text-align:left;">${line(l)}</td></tr>`).join("")}
-      </table>
-      <div class="muted" style="font-size:11px;">${(OCT.openSlots[m] || []).length ? "open: " + (OCT.openSlots[m] || []).join(", ") : ""}</div>
-    </div>`).join("") + `</div>
-    ${OCT.league.picks.length ? `<div style="margin-top:10px;"><button id="oct-undo">Undo last pick (${escapeAttr(OCT.league.picks[OCT.league.picks.length - 1].name)})</button></div>` : ""}`;
+  const status = OCT._teamStatus;
+  const f3 = (v) => (v == null ? "—" : v.toFixed(3).replace(/^0/, ""));
+  const f2 = (v) => (v == null ? "—" : v.toFixed(2));
+  const blank = (n) => "<td></td>".repeat(n);
+  const head = `<tr><th>Slot</th><th style="text-align:left;">Player</th><th>Team</th>
+    <th>AB</th><th>H</th><th>AVG</th><th>R</th><th>HR</th><th>RBI</th><th>SB</th>
+    <th>IP</th><th>ER</th><th>ERA</th><th>BB</th><th>HA</th><th>WHIP</th><th>K</th><th>QS</th><th>SV+H</th></tr>`;
+  const row = (l) => {
+    const s = l.stats || {};
+    const out = status[l.team] === "eliminated";
+    const pre = `<tr class="oct-log-row" data-pid="${l.player_id}" data-role="${l.role}" data-name="${escapeAttr(l.name)}"
+      style="cursor:pointer;${out ? "opacity:.5;" : ""}" title="Click for game log">
+      <td>${l.slot}</td><td style="text-align:left;">${escapeAttr(l.name)}</td><td>${l.team}${out ? " ✖" : ""}</td>`;
+    if (l.role === "hitter") {
+      return pre + `<td>${s.AB || 0}</td><td>${s.H || 0}</td><td>${f3(s.AB ? s.H / s.AB : null)}</td><td>${s.R || 0}</td>
+        <td>${s.HR || 0}</td><td>${s.RBI || 0}</td><td>${s.SB || 0}</td>${blank(9)}</tr>`;
+    }
+    const ip = (s.OUTS || 0) / 3;
+    return pre + blank(7) + `<td>${octIP(s.OUTS)}</td><td>${s.ER || 0}</td><td>${f2(ip ? (s.ER * 9) / ip : null)}</td>
+      <td>${s.BB || 0}</td><td>${s.HA || 0}</td><td>${f2(ip ? (s.BB + s.HA) / ip : null)}</td><td>${s.K || 0}</td>
+      <td>${s.QS || 0}</td><td>${s.SVH || 0}</td></tr>`;
+  };
+  el.innerHTML = `<p class="muted" style="font-size:12px;margin:2px 0 8px;">Postseason stats (Wild Card → World Series). Click any player for his game log.</p>` +
+    OCT.league.managers.map((m) => {
+      const lines = byMgr[m] || [];
+      const order = (l) => OCT.league.slots.indexOf(l.slot);
+      const hit = lines.filter((l) => l.role === "hitter").sort((a, b) => order(a) - order(b));
+      const pit = lines.filter((l) => l.role !== "hitter").sort((a, b) => order(a) - order(b));
+      const t = octTotals(lines);
+      return `<div class="oct-roster-block"><h3>${escapeAttr(m)}</h3>
+        <div style="overflow-x:auto;"><table class="oct-roster-table">${head}
+          ${hit.map(row).join("")}${pit.map(row).join("")}
+          <tr class="oct-total-row"><td></td><td style="text-align:left;">TEAM TOTAL</td><td></td>
+            <td>${t.AB}</td><td>${t.H}</td><td>${f3(t.AVG)}</td><td>${t.R}</td><td>${t.HR}</td><td>${t.RBI}</td><td>${t.SB}</td>
+            <td>${octIP(t.OUTS)}</td><td>${t.ER}</td><td>${f2(t.ERA)}</td><td>${t.BB}</td><td>${t.HA}</td><td>${f2(t.WHIP)}</td>
+            <td>${t.K}</td><td>${t.QS}</td><td>${t.SVH}</td></tr>
+        </table></div></div>`;
+    }).join("") +
+    `${OCT.league.picks.length ? `<div style="margin-top:10px;"><button id="oct-undo">Undo last pick (${escapeAttr(OCT.league.picks[OCT.league.picks.length - 1].name)})</button></div>` : ""}`;
+  el.querySelectorAll(".oct-log-row").forEach((tr) => tr.addEventListener("click", () =>
+    octShowGameLog(Number(tr.dataset.pid), tr.dataset.role, tr.dataset.name)));
   $("#oct-undo")?.addEventListener("click", async () => {
     if (!confirm("Undo the last pick?")) return;
     await api("/api/postseason/undo", { method: "POST", body: "{}" });
     OCT.board = null;
     await loadOctober();
   });
+}
+
+// Game-log modal (WC → WS), newest first.
+async function octShowGameLog(pid, role, name) {
+  let ov = document.getElementById("oct-log-modal");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "oct-log-modal"; ov.className = "oct-modal";
+    ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div class="oct-modal-box"><div class="muted">Loading ${escapeAttr(name)}'s game log…</div></div>`;
+  let d;
+  try { d = await api(`/api/postseason/gamelog?player_id=${pid}&role=${role}`); }
+  catch (e) { ov.querySelector(".oct-modal-box").innerHTML = escapeAttr(e.message); return; }
+  const g = d.games || [];
+  const hit = role === "hitter";
+  const hd = hit ? "<th>AB</th><th>H</th><th>R</th><th>HR</th><th>RBI</th><th>BB</th><th>K</th><th>SB</th>"
+                 : "<th>IP</th><th>H</th><th>ER</th><th>BB</th><th>K</th><th>QS</th><th>SV+H</th>";
+  const cells = (x) => hit
+    ? `<td>${x.AB}</td><td>${x.H}</td><td>${x.R}</td><td>${x.HR}</td><td>${x.RBI}</td><td>${x.BB}</td><td>${x.K}</td><td>${x.SB}</td>`
+    : `<td>${octIP(x.OUTS)}</td><td>${x.H}</td><td>${x.ER}</td><td>${x.BB}</td><td>${x.K}</td><td>${x.QS}</td><td>${x.SVH}</td>`;
+  ov.querySelector(".oct-modal-box").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h3 style="margin:0;">${escapeAttr(name)} — postseason game log</h3>
+      <button onclick="document.getElementById('oct-log-modal').remove()">✕</button></div>
+    ${g.length ? `<div style="overflow-x:auto;"><table class="oct-roster-table"><tr><th>Date</th><th>Rd</th><th style="text-align:left;">Opp</th><th>W/L</th>${hd}</tr>
+      ${g.map((x) => `<tr><td>${x.date}</td><td>${x.round}</td><td style="text-align:left;">${x.home ? "vs" : "@"} ${escapeAttr(x.opp)}</td>
+        <td>${x.win == null ? "" : x.win ? "W" : "L"}</td>${cells(x)}</tr>`).join("")}</table></div>`
+      : `<div class="muted">No postseason games yet (his team may have a bye or hasn't played).</div>`}`;
 }
 
 async function renderOctModel(el) {
