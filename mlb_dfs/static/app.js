@@ -5313,7 +5313,7 @@ $("#oct-create")?.addEventListener("click", async () => {
 });
 
 async function renderOctBoard(el) {
-  el.innerHTML = `<div class="muted" style="padding:12px;">Loading draft board (first load computes the odds model + 12 team pools, ~20s)…</div>`;
+  if (!OCT.board) el.innerHTML = `<div class="muted" style="padding:12px;">Loading draft board (first load computes the odds model + 12 team pools, ~20s)…</div>`;
   if (!OCT.board) {
     try { OCT.board = (await api("/api/postseason/board")).players; }
     catch (e) { el.innerHTML = `<div class="muted">Board failed: ${escapeAttr(e.message)}</div>`; return; }
@@ -5375,7 +5375,24 @@ async function renderOctBoard(el) {
       </tr>`).join("")}
     </table>
     <div class="muted" style="font-size:11px;margin-top:4px;">${rows.length} players (showing ≤250). Value = pool z-score sum, AVG/ERA/WHIP playing-time-weighted.</div>`;
-  $("#oct-q").addEventListener("input", (e) => { OCT._q = e.target.value; renderOctBoard(el); });
+  // Search: debounce, and keep focus + caret after the redraw (the whole board
+  // re-renders, which used to drop focus after every single keystroke).
+  const qEl = $("#oct-q");
+  if (OCT._qFocus) {
+    qEl.focus();
+    const pos = Math.min(OCT._qCaret ?? qEl.value.length, qEl.value.length);
+    qEl.setSelectionRange(pos, pos);
+    OCT._qFocus = false;
+  }
+  qEl.addEventListener("input", (e) => {
+    OCT._q = e.target.value;
+    clearTimeout(OCT._qTimer);
+    OCT._qTimer = setTimeout(() => {
+      OCT._qFocus = document.activeElement === qEl;
+      OCT._qCaret = qEl.selectionStart;
+      renderOctBoard(el);
+    }, 180);
+  });
   $("#oct-role").value = role;
   $("#oct-role").addEventListener("change", (e) => { OCT._role = e.target.value; renderOctBoard(el); });
   $("#oct-team").addEventListener("change", (e) => { OCT._team = e.target.value; renderOctBoard(el); });
