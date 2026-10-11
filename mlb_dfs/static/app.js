@@ -5645,7 +5645,13 @@ async function renderOctRosters(el) {
       const hit = lines.filter((l) => l.role === "hitter").sort((a, b) => order(a) - order(b));
       const pit = lines.filter((l) => l.role !== "hitter").sort((a, b) => order(a) - order(b));
       const t = octTotals(lines);
-      return `<div class="oct-roster-block"><h3>${escapeAttr(m)}</h3>
+      // Players still alive (team not eliminated): total, offense, pitching.
+      const alive = (arr) => arr.filter((l) => status[l.team] !== "eliminated").length;
+      const left = `<span class="oct-left">
+        <b>${alive(lines)}/${lines.length}</b> left ·
+        offense <b>${alive(hit)}/${hit.length}</b> ·
+        pitching <b>${alive(pit)}/${pit.length}</b></span>`;
+      return `<div class="oct-roster-block"><h3>${escapeAttr(m)} ${left}</h3>
         <div style="overflow-x:auto;"><table class="oct-roster-table">${head}
           ${hit.map(row).join("")}${pit.map(row).join("")}
           <tr class="oct-total-row"><td></td><td style="text-align:left;">TEAM TOTAL</td><td></td>

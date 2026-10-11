@@ -1026,3 +1026,7 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 .oct-stand-table td.oct-lead .oct-pts-main, .oct-stand-table td.oct-lead .oct-val-side { color: var(--accent-2); }
 .oct-sort { cursor: pointer; user-select: none; }
 .oct-sort.on { color: var(--accent-2); }
+
+/* Rosters: players-left counter in each manager header */
+.oct-left { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 8px; }
+.oct-left b { color: var(--accent-2); }
