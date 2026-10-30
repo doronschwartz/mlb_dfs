@@ -5797,6 +5797,20 @@ async function loadFA() {
   const teamSel = $("#fa-sg-team");
   if (teamSel && !teamSel.options.length) teamSel.innerHTML = `<option value="">team…</option>` + MLB_TEAMS.map((t) => `<option>${t}</option>`).join("");
   renderFATop(); renderFAPool(); renderFASignings();
+  faMaybePoll();
+}
+
+// While someone else is on the clock, poll so this screen flips to the pick
+// form automatically when it's your turn.
+function faMaybePoll() {
+  clearInterval(FA._poll); FA._poll = null;
+  if (!(FA.draft && FA.draft.on_the_clock && !faMyTurn())) return;
+  FA._poll = setInterval(async () => {
+    if (state.tab !== "fa") { clearInterval(FA._poll); FA._poll = null; return; }
+    const before = FA.draft ? FA.draft.picks.length : -1;
+    const d = await api("/api/fa/draft").catch(() => null);
+    if (d && d.exists && d.picks.length !== before) await loadFA();
+  }, 10000);
 }
 
 function faMyTurn() { return FA.draft && FA.draft.on_the_clock && state.identity === FA.draft.on_the_clock; }
@@ -5824,7 +5838,19 @@ function renderFATop() {
       <td>${p.pred_team} · ${p.pred_years}y · ${faMoney(p.pred_aav_m)}</td><td>${act}</td>
       <td>${pt(p.team_pt)}</td><td>${pt(p.years_pt)}</td><td>${pt(p.aav_pt)}</td><td>${p.allstar_2026 ? pt(p.allstar_pt) : ""}</td><td>${p.finalist ? pt(p.finalist_pt) : ""}</td><td><b>${p.points}</b></td></tr>`;
   }).join("");
-  el.innerHTML = `
+  const avail = FA.pool.filter((c) => !c.drafted_by && !c.signed);
+  const pickForm = faMyTurn() ? `
+    <div class="fa-pickform">
+      <div class="fa-pickform-title">✍️ Your pick, ${escapeAttr(state.identity)}</div>
+      <input id="fa-p-name" list="fa-p-list" placeholder="Type a player…" autocomplete="off" />
+      <datalist id="fa-p-list">${avail.map((c) => `<option value="${escapeAttr(c.name)}">`).join("")}</datalist>
+      <label>Team <select id="fa-p-team">${MLB_TEAMS.map((t) => `<option>${t}</option>`).join("")}</select></label>
+      <label>Years <input id="fa-p-years" type="number" min="1" max="15" value="1" inputmode="numeric" /></label>
+      <label>AAV $M <input id="fa-p-aav" type="number" step="0.5" min="0.5" inputmode="decimal" /></label>
+      <button id="fa-p-go" class="btn-pick">Submit pick</button>
+      <div id="fa-p-hint" class="muted" style="font-size:12px;width:100%;">Pick from the list or type any MLB player. Team / years / AAV pre-fill from the article consensus — change them to your call.</div>
+    </div>` : "";
+  el.innerHTML = pickForm + `
     <div class="setup-row"><label style="font-size:13px;">🙋 You are: <select id="fa-identity">${idOpts}</select></label>
       <span style="font-size:13px;">${turn}</span>
       ${picks ? `<button id="fa-undo" style="margin-left:auto;">Undo my last pick</button>` : ""}
@@ -5837,6 +5863,29 @@ function renderFATop() {
                 : `<div class="muted">No picks yet.</div>`}</div>
     </div>`;
   $("#fa-identity").addEventListener("change", (e) => { setIdentity(e.target.value); renderFATop(); renderFAPool(); });
+  const nameEl = $("#fa-p-name");
+  if (nameEl) {
+    nameEl.addEventListener("change", () => {
+      const c = FA.pool.find((x) => x.name.toLowerCase() === nameEl.value.trim().toLowerCase());
+      const k = (c && c.consensus) || {};
+      if (k.team) $("#fa-p-team").value = k.team;
+      if (k.years) $("#fa-p-years").value = k.years;
+      if (k.aav_m) $("#fa-p-aav").value = k.aav_m;
+      $("#fa-p-hint").textContent = c
+        ? `${c.name} · ${c.position || ""} · ${c.team || ""}${c.allstar_2026 ? " · ⭐ 2026 All-Star" : ""}${c.finalist ? " · 🏅 award finalist" : ""}` +
+          (k.team ? ` · consensus ${k.team} ${k.years}y ${faMoney(k.aav_m)}` : " · no consensus team yet")
+        : "Not in the pool — any MLB player works; set team / years / AAV yourself.";
+    });
+    $("#fa-p-go").addEventListener("click", async () => {
+      const body = { drafter: state.identity, player_name: nameEl.value.trim(), team: $("#fa-p-team").value,
+        years: +$("#fa-p-years").value, aav_m: +$("#fa-p-aav").value };
+      if (!body.player_name) return alert("Type a player");
+      if (!body.aav_m) return alert("Enter an AAV ($M per year)");
+      if (!confirm(`${body.player_name} → ${body.team}, ${body.years} yrs, $${body.aav_m}M per year?`)) return;
+      try { await api("/api/fa/pick", { method: "POST", body: JSON.stringify(body) }); await loadFA(); }
+      catch (e) { alert(e.message); }
+    });
+  }
   $("#fa-undo")?.addEventListener("click", async () => {
     try { await api("/api/fa/undo", { method: "POST", body: JSON.stringify({ drafter: state.identity }) }); await loadFA(); }
     catch (e) { alert(e.message); }

@@ -1030,3 +1030,14 @@ footer { padding: 16px 24px; border-top: 1px solid var(--border); }
 /* Rosters: players-left counter in each manager header */
 .oct-left { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 8px; }
 .oct-left b { color: var(--accent-2); }
+
+/* Free-agency: on-the-clock pick form (mobile-friendly) */
+.fa-pickform { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
+  background: rgba(52,211,153,0.10); border: 1px solid var(--accent-2); border-radius: 10px;
+  padding: 12px 14px; margin: 6px 0 12px; }
+.fa-pickform-title { width: 100%; font-weight: 700; color: var(--accent-2); }
+.fa-pickform input#fa-p-name { flex: 1 1 220px; min-width: 200px; font-size: 15px; padding: 7px 9px; }
+.fa-pickform label { font-size: 13px; display: flex; align-items: center; gap: 5px; }
+.fa-pickform input[type=number] { width: 72px; font-size: 15px; padding: 6px; }
+.fa-pickform select { font-size: 15px; padding: 5px; }
+.fa-pickform button { font-size: 15px; padding: 7px 16px; }
