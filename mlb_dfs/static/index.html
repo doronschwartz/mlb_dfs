@@ -21,6 +21,7 @@
       <button data-tab="insights">Insights</button>
       <button data-tab="lineup">Lineup</button>
       <button data-tab="deadline">🔁 Deadline</button>
+      <button data-tab="fa">✍️ Free Agency</button>
       <button data-tab="playoffs">🏆 Playoffs</button>
       <button data-tab="farm">🌱 Farm</button>
       <button data-tab="ask">🎯 Ask Algo</button>
@@ -273,6 +274,38 @@
       <div id="lineup-out"></div>
     </section>
 
+
+    <section id="tab-fa" class="tab">
+      <h2>Free-Agency Draft</h2>
+      <p class="muted" style="font-size:13px;max-width:780px;">
+        Snake-draft this offseason's free agents and call each deal: <b>+1</b> right team · <b>+1</b> exact years ·
+        <b>+1</b> AAV within 10%. The team is detected live from MLB's transactions feed; years and AAV are recorded
+        when each deal is announced. Predictions in the pool are the article consensus (MLBTR, FanGraphs, ESPN, The Athletic).
+      </p>
+      <div id="fa-setup" class="setup-row" style="display:none;">
+        <input id="fa-drafters" value="Meech,JL,Stock" style="width:220px;" />
+        <select id="fa-rounds"><option>6</option><option>8</option><option selected>10</option><option>12</option><option>15</option></select>
+        <button id="fa-create" class="btn-pick">Start free-agency draft (random order)</button>
+      </div>
+      <div id="fa-top"></div>
+      <h3 style="margin-top:18px;">Free agent pool <span class="muted" id="fa-pool-meta" style="font-weight:400;font-size:12px;"></span></h3>
+      <div class="setup-row">
+        <input id="fa-search" placeholder="Search free agents…" style="width:220px;" />
+        <select id="fa-pos"><option value="all">All positions</option><option>SP</option><option>RP</option><option>C</option><option>1B</option><option>2B</option><option>3B</option><option>SS</option><option>OF</option><option>DH</option></select>
+        <label style="font-size:12px;"><input type="checkbox" id="fa-hide" checked /> Hide drafted</label>
+      </div>
+      <div id="fa-pool"></div>
+      <h3 style="margin-top:18px;">Signings <span class="muted" style="font-weight:400;font-size:12px;">— team auto-detected; record years + AAV when announced</span></h3>
+      <div class="setup-row">
+        <input id="fa-sg-player" placeholder="Player" style="width:170px;" />
+        <select id="fa-sg-team"></select>
+        <input id="fa-sg-years" type="number" min="1" max="15" placeholder="Yrs" style="width:60px;" />
+        <input id="fa-sg-aav" type="number" step="0.1" placeholder="AAV $M" style="width:80px;" />
+        <button id="fa-sg-save" class="btn-pick">Record signing</button>
+        <span id="fa-sg-status" class="muted" style="font-size:12px;"></span>
+      </div>
+      <div id="fa-signings"></div>
+    </section>
 
     <section id="tab-deadline" class="tab">
       <h2>Trade-Deadline Draft</h2>

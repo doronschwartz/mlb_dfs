@@ -194,6 +194,12 @@ $$("nav button").forEach((b) => {
     if (b.dataset.tab === "deadline") {
       loadDeadline();
     }
+    if (b.dataset.tab === "fa") {
+      loadFA();
+      if (location.pathname !== "/freeagency") history.replaceState(null, "", "/freeagency");
+    } else if (location.pathname === "/freeagency") {
+      history.replaceState(null, "", "/");
+    }
     if (b.dataset.tab === "playoffs") {
       loadOctober().catch(() => {});
       if (location.pathname !== "/playoffs") history.replaceState(null, "", "/playoffs");
@@ -5772,4 +5778,150 @@ async function renderOctModel(el) {
     OCT.board = null;
     renderOctModel(el);
   });
+}
+
+// -------------------- Free-Agency Draft --------------------
+const FA = { draft: null, pool: [], extra: [], extraQ: "", signings: [] };
+const faMoney = (m) => (m == null ? "—" : `$${(+m).toFixed(m >= 10 ? 1 : 2).replace(/\.0$/, "")}M`);
+
+async function loadFA() {
+  try {
+    const [d, c, s] = await Promise.all([api("/api/fa/draft"), api("/api/fa/candidates"), api("/api/fa/signings")]);
+    FA.draft = d.exists ? d : null;
+    FA.pool = c.candidates || [];
+    FA.signings = s.signings || [];
+    $("#fa-pool-meta").textContent = `${FA.pool.length} players · as of ${c.as_of || "?"}` +
+      ((c.sources || []).length ? ` · sources: ${(c.sources || []).map((x) => x.name).join(", ")}` : "");
+  } catch (e) { $("#fa-top").innerHTML = `<div class="muted">${escapeAttr(e.message)}</div>`; return; }
+  $("#fa-setup").style.display = FA.draft ? "none" : "";
+  const teamSel = $("#fa-sg-team");
+  if (teamSel && !teamSel.options.length) teamSel.innerHTML = `<option value="">team…</option>` + MLB_TEAMS.map((t) => `<option>${t}</option>`).join("");
+  renderFATop(); renderFAPool(); renderFASignings();
+}
+
+function faMyTurn() { return FA.draft && FA.draft.on_the_clock && state.identity === FA.draft.on_the_clock; }
+
+function renderFATop() {
+  const el = $("#fa-top");
+  const d = FA.draft;
+  if (!d) { el.innerHTML = `<div class="muted" style="padding:6px 0;">No free-agency draft yet — enter drafters and start one.</div>`; return; }
+  const idOpts = `<option value="">— select —</option>` + d.drafters.map((m) => `<option ${m === state.identity ? "selected" : ""}>${escapeAttr(m)}</option>`).join("");
+  const n = d.drafters.length, picks = d.picks.length, total = n * d.rounds;
+  const round = Math.min(d.rounds, Math.floor(picks / n) + 1);
+  const chips = d.drafters.map((m, i) => `<span class="oct-order-chip${m === d.on_the_clock ? " on" : ""}">${i + 1}. ${escapeAttr(m)}</span>`).join("");
+  const turn = d.on_the_clock
+    ? (faMyTurn() ? `<b style="color:var(--accent-2);">✅ Your pick, ${escapeAttr(state.identity)}</b> — use the pool below`
+                  : `⏳ <b>${escapeAttr(d.on_the_clock)}</b> on the clock (pick ${picks + 1}/${total}, round ${round})`)
+    : "<b>Draft complete</b> — points land as deals are signed";
+  const std = d.standings.map((r, i) => `<tr><td>${i + 1}</td><td style="text-align:left;"><b>${escapeAttr(r.drafter)}</b></td>
+    <td><b>${r.points}</b></td><td>${r.signed}/${r.picks}</td><td>${r.picks * 3}</td></tr>`).join("");
+  const pt = (v) => v == null ? `<span class="muted">·</span>` : v ? `<b style="color:var(--accent-2);">✓</b>` : `<span style="color:var(--bad);">✗</span>`;
+  const board = d.picks.map((p) => {
+    const a = p.actual;
+    const act = a ? `${a.team || "?"} · ${a.years ? a.years + "y" : "?y"} · ${faMoney(a.aav_m)}` : `<span class="muted">unsigned</span>`;
+    return `<tr><td>${p.pick_number}</td><td>${escapeAttr(p.drafter)}</td><td style="text-align:left;"><b>${escapeAttr(p.player_name)}</b> <span class="muted">${escapeAttr(p.position || "")} · ${escapeAttr(p.team_2026 || "")}</span></td>
+      <td>${p.pred_team} · ${p.pred_years}y · ${faMoney(p.pred_aav_m)}</td><td>${act}</td>
+      <td>${pt(p.team_pt)}</td><td>${pt(p.years_pt)}</td><td>${pt(p.aav_pt)}</td><td><b>${p.points}</b></td></tr>`;
+  }).join("");
+  el.innerHTML = `
+    <div class="setup-row"><label style="font-size:13px;">🙋 You are: <select id="fa-identity">${idOpts}</select></label>
+      <span style="font-size:13px;">${turn}</span>
+      ${picks ? `<button id="fa-undo" style="margin-left:auto;">Undo my last pick</button>` : ""}
+      <button id="fa-reset" style="color:var(--bad);border-color:var(--bad);">🗑 Reset draft</button></div>
+    <div class="oct-order"><span class="oct-order-label">🐍 Draft order</span>${chips}</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+      <div><h3 style="margin:6px 0;">Standings</h3><table class="oct-stand-table"><tr><th></th><th style="text-align:left;">Drafter</th><th>Pts</th><th>Signed</th><th>Max</th></tr>${std}</table></div>
+      <div style="flex:1;min-width:520px;"><h3 style="margin:6px 0;">Board</h3>
+        ${picks ? `<div style="overflow-x:auto;"><table class="oct-roster-table"><tr><th>#</th><th>Drafter</th><th>Player</th><th>Prediction</th><th>Actual</th><th>Team</th><th>Yrs</th><th>AAV</th><th>Pts</th></tr>${board}</table></div>`
+                : `<div class="muted">No picks yet.</div>`}</div>
+    </div>`;
+  $("#fa-identity").addEventListener("change", (e) => { setIdentity(e.target.value); renderFATop(); renderFAPool(); });
+  $("#fa-undo")?.addEventListener("click", async () => {
+    try { await api("/api/fa/undo", { method: "POST", body: JSON.stringify({ drafter: state.identity }) }); await loadFA(); }
+    catch (e) { alert(e.message); }
+  });
+  $("#fa-reset").addEventListener("click", async () => {
+    if (!confirm("Delete the whole free-agency draft (all picks)? Signings are kept.")) return;
+    await api("/api/fa/reset", { method: "POST", body: "{}" }); await loadFA();
+  });
+}
+
+function renderFAPool() {
+  const el = $("#fa-pool");
+  const q = ($("#fa-search").value || "").toLowerCase();
+  const pos = $("#fa-pos").value, hide = $("#fa-hide").checked;
+  const posOk = (p) => pos === "all" || (pos === "OF" ? ["OF", "LF", "CF", "RF"].includes(p) : p === pos);
+  let rows = FA.pool.filter((c) => (!q || c.name.toLowerCase().includes(q)) && posOk(c.position) && !(hide && c.drafted_by));
+  const extras = q && q === FA.extraQ ? FA.extra : [];
+  rows = rows.concat(extras.map((x) => ({ ...x, writein: true })));
+  const mine = faMyTurn();
+  const teamOpts = (sel) => MLB_TEAMS.map((t) => `<option ${t === sel ? "selected" : ""}>${t}</option>`).join("");
+  el.innerHTML = `<div style="overflow-x:auto;"><table class="oct-roster-table">
+    <tr><th>#</th><th>Player</th><th>Pos</th><th>2026</th><th>Age</th><th>Consensus</th><th style="text-align:left;">Notes</th><th>${mine ? "Your prediction" : ""}</th></tr>
+    ${rows.slice(0, 200).map((c) => {
+      const k = c.consensus || {};
+      const srcs = (c.predictions || []).map((p) => `${p.source}: ${p.team} ${p.years}y ${faMoney(p.aav_m)}`).join("\n");
+      const cons = k.team ? `<span title="${escapeAttr(srcs)}">${k.team} · ${k.years}y · ${faMoney(k.aav_m)}</span>` : `<span class="muted">—</span>`;
+      const status = c.signed ? `<span class="muted">signed ${c.signed.team || ""}</span>` : c.drafted_by ? `<span class="muted">${escapeAttr(c.drafted_by)}</span>` : "";
+      const ctl = mine && !c.drafted_by && !c.signed
+        ? `<select class="fa-t">${teamOpts(k.team)}</select><input class="fa-y" type="number" min="1" max="15" value="${k.years || 1}" style="width:48px;">
+           <input class="fa-a" type="number" step="0.5" value="${k.aav_m || ""}" placeholder="$M" style="width:64px;">
+           <button class="btn-pick fa-pick" data-name="${escapeAttr(c.name)}">Pick</button>` : status;
+      return `<tr style="${c.drafted_by || c.signed ? "opacity:.5;" : ""}"><td>${c.rank ?? (c.writein ? "+" : "")}</td>
+        <td style="text-align:left;"><b>${escapeAttr(c.name)}</b>${c.writein ? ' <span class="muted">(write-in)</span>' : ""}</td>
+        <td>${escapeAttr(c.position || "")}</td><td>${escapeAttr(c.team || "")}</td><td>${c.age || ""}</td><td>${cons}</td>
+        <td style="text-align:left;font-size:11px;" class="muted">${escapeAttr(c.notes || "")}</td><td>${ctl}</td></tr>`;
+    }).join("")}</table></div>
+    ${rows.length ? "" : `<div class="muted">No match — type 3+ letters to search all MLB players.</div>`}`;
+  el.querySelectorAll(".fa-pick").forEach((b) => b.addEventListener("click", async () => {
+    const tr = b.closest("tr");
+    const body = { drafter: state.identity, player_name: b.dataset.name, team: tr.querySelector(".fa-t").value,
+      years: +tr.querySelector(".fa-y").value, aav_m: +tr.querySelector(".fa-a").value };
+    if (!body.aav_m) return alert("Enter an AAV ($M)");
+    if (!confirm(`${body.drafter}: ${body.player_name} → ${body.team}, ${body.years} yrs, $${body.aav_m}M AAV?`)) return;
+    try { await api("/api/fa/pick", { method: "POST", body: JSON.stringify(body) }); FA.extra = []; await loadFA(); }
+    catch (e) { alert(e.message); }
+  }));
+}
+
+function renderFASignings() {
+  const el = $("#fa-signings");
+  const draftedNames = new Set(((FA.draft && FA.draft.picks) || []).map((p) => p.player_name.toLowerCase()));
+  const rows = FA.signings.filter((s) => draftedNames.has((s.player || "").toLowerCase()) || s.source === "manual");
+  const rest = FA.signings.length - rows.length;
+  el.innerHTML = rows.length
+    ? `<table class="oct-roster-table"><tr><th>Date</th><th>Player</th><th>Team</th><th>Yrs</th><th>AAV</th><th>Source</th></tr>
+       ${rows.map((s) => `<tr><td>${s.date || ""}</td><td style="text-align:left;">${escapeAttr(s.player)}</td><td>${s.team || "?"}</td>
+         <td>${s.years || `<span class="muted">?</span>`}</td><td>${s.aav_m ? faMoney(s.aav_m) : `<span class="muted">?</span>`}</td><td class="muted">${s.source}</td></tr>`).join("")}</table>
+       <div class="muted" style="font-size:11px;">${rest} other MLB signings detected (not drafted).</div>`
+    : `<div class="muted">No drafted player has signed yet.</div>`;
+}
+
+$("#fa-create")?.addEventListener("click", async () => {
+  const drafters = $("#fa-drafters").value.split(",").map((s) => s.trim()).filter(Boolean);
+  try {
+    const r = await api("/api/fa/draft", { method: "POST", body: JSON.stringify({ drafters, rounds: +$("#fa-rounds").value }) });
+    alert("Draft order: " + r.drafters.join(" → ")); await loadFA();
+  } catch (e) { alert(e.message); }
+});
+$("#fa-pos")?.addEventListener("change", renderFAPool);
+$("#fa-hide")?.addEventListener("change", renderFAPool);
+$("#fa-search")?.addEventListener("input", () => {
+  renderFAPool();
+  clearTimeout(FA._t);
+  const q = ($("#fa-search").value || "").toLowerCase();
+  if (q.length < 3) return;
+  FA._t = setTimeout(async () => {
+    try { FA.extra = (await api(`/api/fa/player_search?q=${encodeURIComponent(q)}`)).players || []; FA.extraQ = q; renderFAPool(); } catch (e) {}
+  }, 300);
+});
+$("#fa-sg-save")?.addEventListener("click", async () => {
+  const body = { player: $("#fa-sg-player").value.trim(), team: $("#fa-sg-team").value || null,
+    years: $("#fa-sg-years").value ? +$("#fa-sg-years").value : null, aav_m: $("#fa-sg-aav").value ? +$("#fa-sg-aav").value : null };
+  if (!body.player) return;
+  try { await api("/api/fa/signing", { method: "POST", body: JSON.stringify(body) }); $("#fa-sg-status").textContent = `saved ${body.player}`; await loadFA(); }
+  catch (e) { $("#fa-sg-status").textContent = e.message; }
+});
+if (location.pathname.replace(/\/$/, "") === "/freeagency") {
+  document.querySelector('nav button[data-tab="fa"]')?.click();
 }

@@ -40,7 +40,7 @@ PUBLIC_MODE = os.environ.get("PUBLIC_MODE", "").lower() in ("1", "true", "yes")
 # Path prefixes that are private (league tool) — 404'd in PUBLIC_MODE.
 _PRIVATE_PREFIXES = ("/api/drafts", "/api/fantrax", "/api/trivia", "/api/lineup",
                      "/api/dynasty/pickups", "/api/records", "/api/lineups",
-                     "/api/schedule", "/api/diag", "/api/postseason")
+                     "/api/schedule", "/api/diag", "/api/postseason", "/api/fa")
 
 
 @app.middleware("http")
@@ -3296,6 +3296,13 @@ if STATIC_DIR.exists():
 
     # Deep link straight to the Playoffs (postseason draft) tab — the SPA reads
     # the /playoffs path on load and opens that tab.
+    @app.get("/freeagency", response_class=HTMLResponse)
+    def freeagency_page():
+        if PUBLIC_MODE:
+            from fastapi import HTTPException as _H
+            raise _H(404, "not available")
+        return (STATIC_DIR / "index.html").read_text().replace("__BUILD__", BUILD_VERSION)
+
     @app.get("/playoffs", response_class=HTMLResponse)
     def playoffs_page():
         if PUBLIC_MODE:
@@ -3575,6 +3582,126 @@ def deadline_undo(req: DeadlinePickRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {"ok": True, "undone": last}
+
+
+# -------------------- Free-Agency Draft --------------------
+
+
+@app.get("/api/fa/draft")
+def fa_get():
+    from . import freeagency as fa
+    dr = fa.load_draft()
+    if not dr:
+        return {"exists": False}
+    return {"exists": True, "created": dr["created"], "drafters": dr["drafters"],
+            "rounds": dr["rounds"], "on_the_clock": fa.on_the_clock(dr), **fa.score(dr)}
+
+
+@app.post("/api/fa/draft")
+def fa_create(payload: dict):
+    from . import freeagency as fa
+    existing = fa.load_draft()
+    if existing and existing.get("picks"):
+        raise HTTPException(400, f"a free-agency draft with {len(existing['picks'])} picks exists — reset it first")
+    try:
+        dr = fa.new_draft(payload.get("drafters") or [], rounds=int(payload.get("rounds") or 10))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "drafters": dr["drafters"], "rounds": dr["rounds"]}
+
+
+@app.post("/api/fa/pick")
+def fa_pick(payload: dict):
+    from . import freeagency as fa
+    dr = fa.load_draft()
+    if not dr:
+        raise HTTPException(400, "no free-agency draft — create one first")
+    try:
+        pick = fa.make_pick(dr, payload.get("drafter", ""), payload.get("player_name", ""),
+                            payload.get("team", ""), payload.get("years"), payload.get("aav_m"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "pick": pick, "on_the_clock": fa.on_the_clock(dr)}
+
+
+@app.post("/api/fa/undo")
+def fa_undo(payload: dict):
+    from . import freeagency as fa
+    dr = fa.load_draft()
+    if not dr:
+        raise HTTPException(400, "no free-agency draft")
+    try:
+        return {"ok": True, "undone": fa.undo_pick(dr, payload.get("drafter", ""))}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/fa/reset")
+def fa_reset():
+    from . import freeagency as fa
+    import os as _os
+    if _os.path.exists(fa.FA_DRAFT_PATH):
+        _os.remove(fa.FA_DRAFT_PATH)
+    return {"ok": True}
+
+
+@app.get("/api/fa/candidates")
+def fa_candidates():
+    from . import freeagency as fa
+    data = fa.load_candidates()
+    dr = fa.load_draft() or {"picks": []}
+    picked = {fa.norm(p["player_name"]): p["drafter"] for p in dr["picks"]}
+    signed = fa.signings_by_name()
+    out = []
+    for c in data.get("candidates", []):
+        k = fa.norm(c["name"])
+        out.append({**c, "drafted_by": picked.get(k), "signed": signed.get(k)})
+    return {"as_of": data.get("as_of"), "sources": data.get("sources", []), "candidates": out}
+
+
+@app.post("/api/fa/candidates")
+def fa_candidates_upload(payload: dict):
+    from . import freeagency as fa
+    try:
+        return {"ok": True, "count": fa.save_candidates(payload)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/fa/player_search")
+def fa_player_search(q: str):
+    """Write-in search over all active MLB players not already in the FA pool."""
+    from . import deadline, freeagency as fa
+    nq = fa.norm(q)
+    if len(nq) < 3:
+        return {"players": []}
+    pool = {fa.norm(c["name"]) for c in fa.load_candidates().get("candidates", [])}
+    hits = [p for p in deadline.active_players() if nq in p["norm"] and p["norm"] not in pool][:8]
+    return {"players": [{"name": p["name"], "position": p["position"], "team": p["team"]} for p in hits]}
+
+
+@app.get("/api/fa/signings")
+def fa_signings():
+    from . import freeagency as fa
+    rows = sorted(fa.signings_by_name().values(), key=lambda r: r.get("date") or "", reverse=True)
+    return {"signings": rows}
+
+
+@app.post("/api/fa/signing")
+def fa_signing(payload: dict):
+    """{player, team?, years?, aav_m?, date?, delete?} — record/override a
+    signing's terms (MLB's feed gives the team but never years/AAV)."""
+    from . import freeagency as fa
+    if not payload.get("player"):
+        raise HTTPException(400, "player required")
+    if payload.get("delete"):
+        return {"ok": fa.delete_signing(payload["player"])}
+    try:
+        return {"ok": True, "signing": fa.record_signing(
+            payload["player"], payload.get("team"), payload.get("years"),
+            payload.get("aav_m"), payload.get("date"))}
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
 
 
 # -------------------- Postseason Fantasy --------------------
