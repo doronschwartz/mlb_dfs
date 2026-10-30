@@ -3668,6 +3668,20 @@ def fa_candidates_upload(payload: dict):
         raise HTTPException(400, str(e))
 
 
+@app.post("/api/fa/refresh_flags")
+def fa_refresh_flags():
+    """Re-check 2026 All-Star + award-winner flags from MLB's awards API."""
+    from . import freeagency as fa
+    return {"ok": True, **fa.refresh_flags()}
+
+
+@app.post("/api/fa/finalists")
+def fa_finalists(payload: dict):
+    """{players: {name: {finalist, finishes}}} — researched top-3 MVP/CY/ROY finishes."""
+    from . import freeagency as fa
+    return {"ok": True, "updated": fa.apply_finalists(payload.get("players") or {})}
+
+
 @app.get("/api/fa/player_search")
 def fa_player_search(q: str):
     """Write-in search over all active MLB players not already in the FA pool."""

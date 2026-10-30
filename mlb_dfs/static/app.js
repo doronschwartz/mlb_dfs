@@ -5814,14 +5814,15 @@ function renderFATop() {
                   : `⏳ <b>${escapeAttr(d.on_the_clock)}</b> on the clock (pick ${picks + 1}/${total}, round ${round})`)
     : "<b>Draft complete</b> — points land as deals are signed";
   const std = d.standings.map((r, i) => `<tr><td>${i + 1}</td><td style="text-align:left;"><b>${escapeAttr(r.drafter)}</b></td>
-    <td><b>${r.points}</b></td><td>${r.signed}/${r.picks}</td><td>${r.picks * 3}</td></tr>`).join("");
+    <td><b>${r.points}</b></td><td>${r.signed}/${r.picks}</td><td>${r.max}</td></tr>`).join("");
   const pt = (v) => v == null ? `<span class="muted">·</span>` : v ? `<b style="color:var(--accent-2);">✓</b>` : `<span style="color:var(--bad);">✗</span>`;
   const board = d.picks.map((p) => {
     const a = p.actual;
     const act = a ? `${a.team || "?"} · ${a.years ? a.years + "y" : "?y"} · ${faMoney(a.aav_m)}` : `<span class="muted">unsigned</span>`;
-    return `<tr><td>${p.pick_number}</td><td>${escapeAttr(p.drafter)}</td><td style="text-align:left;"><b>${escapeAttr(p.player_name)}</b> <span class="muted">${escapeAttr(p.position || "")} · ${escapeAttr(p.team_2026 || "")}</span></td>
+    const bad = `${p.allstar_2026 ? "⭐" : ""}${p.finalist ? "🏅" : ""}`;
+    return `<tr><td>${p.pick_number}</td><td>${escapeAttr(p.drafter)}</td><td style="text-align:left;"><b>${escapeAttr(p.player_name)}</b> ${bad} <span class="muted">${escapeAttr(p.position || "")} · ${escapeAttr(p.team_2026 || "")}</span></td>
       <td>${p.pred_team} · ${p.pred_years}y · ${faMoney(p.pred_aav_m)}</td><td>${act}</td>
-      <td>${pt(p.team_pt)}</td><td>${pt(p.years_pt)}</td><td>${pt(p.aav_pt)}</td><td><b>${p.points}</b></td></tr>`;
+      <td>${pt(p.team_pt)}</td><td>${pt(p.years_pt)}</td><td>${pt(p.aav_pt)}</td><td>${p.allstar_2026 ? pt(p.allstar_pt) : ""}</td><td>${p.finalist ? pt(p.finalist_pt) : ""}</td><td><b>${p.points}</b></td></tr>`;
   }).join("");
   el.innerHTML = `
     <div class="setup-row"><label style="font-size:13px;">🙋 You are: <select id="fa-identity">${idOpts}</select></label>
@@ -5832,7 +5833,7 @@ function renderFATop() {
     <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
       <div><h3 style="margin:6px 0;">Standings</h3><table class="oct-stand-table"><tr><th></th><th style="text-align:left;">Drafter</th><th>Pts</th><th>Signed</th><th>Max</th></tr>${std}</table></div>
       <div style="flex:1;min-width:520px;"><h3 style="margin:6px 0;">Board</h3>
-        ${picks ? `<div style="overflow-x:auto;"><table class="oct-roster-table"><tr><th>#</th><th>Drafter</th><th>Player</th><th>Prediction</th><th>Actual</th><th>Team</th><th>Yrs</th><th>AAV</th><th>Pts</th></tr>${board}</table></div>`
+        ${picks ? `<div style="overflow-x:auto;"><table class="oct-roster-table"><tr><th>#</th><th>Drafter</th><th>Player</th><th>Prediction</th><th>Actual</th><th>Team</th><th>Yrs</th><th>AAV</th><th>⭐</th><th>🏅</th><th>Pts</th></tr>${board}</table></div>`
                 : `<div class="muted">No picks yet.</div>`}</div>
     </div>`;
   $("#fa-identity").addEventListener("change", (e) => { setIdentity(e.target.value); renderFATop(); renderFAPool(); });
@@ -5868,7 +5869,7 @@ function renderFAPool() {
            <input class="fa-a" type="number" step="0.5" value="${k.aav_m || ""}" placeholder="$M" style="width:64px;">
            <button class="btn-pick fa-pick" data-name="${escapeAttr(c.name)}">Pick</button>` : status;
       return `<tr style="${c.drafted_by || c.signed ? "opacity:.5;" : ""}"><td>${c.rank ?? (c.writein ? "+" : "")}</td>
-        <td style="text-align:left;"><b>${escapeAttr(c.name)}</b>${c.writein ? ' <span class="muted">(write-in)</span>' : ""}</td>
+        <td style="text-align:left;"><b>${escapeAttr(c.name)}</b> ${c.allstar_2026 ? '<span title="2026 All-Star">⭐</span>' : ""}${c.finalist ? `<span title="${escapeAttr((c.finishes || []).join("\n") || "award finalist")}">🏅</span>` : ""}${c.writein ? ' <span class="muted">(write-in)</span>' : ""}</td>
         <td>${escapeAttr(c.position || "")}</td><td>${escapeAttr(c.team || "")}</td><td>${c.age || ""}</td><td>${cons}</td>
         <td style="text-align:left;font-size:11px;" class="muted">${escapeAttr(c.notes || "")}</td><td>${ctl}</td></tr>`;
     }).join("")}</table></div>
